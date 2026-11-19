@@ -32,7 +32,8 @@ export class TrainerData extends CreatureData {
 }
 export class PokemonData extends CreatureData {
   static defineSchema() {
-    return {...super.defineSchema(),species:text(),type1:text(),type2:text(),role:text(),trainerId:text(),dexPage:count(),xp:count()};
+    return {...super.defineSchema(),species:text(),type1:text(),type2:text(),role:text(),trainerId:text(),dexPage:count(),xp:count(),levelPoints:count(),battleMoveLimit:count(6),
+      levelAllocation:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count()))};
   }
 }
 class ItemData extends foundry.abstract.TypeDataModel {
@@ -41,6 +42,7 @@ class ItemData extends foundry.abstract.TypeDataModel {
 export class MoveData extends ItemData {
   static defineSchema() {
     return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),
+      knownOnly:new BooleanField({initial:false}),slotExempt:new BooleanField({initial:false}),
       useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count(),
       crit:count(20,1,20),damage:count(0,-100),range:text("Melee"),frequency:text("At-Will"),action:text("Standard")};
   }

@@ -189,3 +189,38 @@ export function basicAttackData(category, element, profile, actorTypes) {
 export function opposedResult(left, right) {
   return Math.sign(left.successes - right.successes || left.total - right.total);
 }
+
+export function pokemonLevelCap(trainerLevel) {
+  return Math.min(100,trainerLevel * 5);
+}
+
+export function pokemonLevelPlan(level, trainerLevel, method, gain) {
+  const allowance = {milestone:5,training:20}[method];
+  if (!Number.isInteger(trainerLevel) || trainerLevel < 1) return {error:"Assign a Trainer before using guided progression."};
+  if (!allowance || !Number.isInteger(gain) || gain < 1 || gain > allowance) {
+    return {error:"Enter a valid level gain for the selected progression method."};
+  }
+  const next = level + gain;
+  if (next > pokemonLevelCap(trainerLevel)) return {error:"That level exceeds the Trainer’s Pokémon cap."};
+  return {level:next,points:gain};
+}
+
+export function allocateLevelPoints(system, allocation, override = false) {
+  const values = Object.keys(stats).map(key=>allocation[key]);
+  if (values.some(value=>!Number.isInteger(value) || value < 0)) return {error:"Enter whole, nonnegative point amounts."};
+  const spent = values.reduce((sum,value)=>sum+value,0);
+  if (spent < 1 || spent > system.levelPoints) return {error:"Choose an allocation within your available points."};
+  const assigned = Object.keys(stats).map((key,index)=>system.levelAllocation[key] + values[index]);
+  const totalBudget = system.levelPoints + Object.values(system.levelAllocation).reduce((sum,value)=>sum+value,0);
+  if (!override && assigned.some(value=>value > Math.ceil(totalBudget / 2))) {
+    return {error:"The Glass Cannon limit is half the tracked point budget, rounded up. A GM can approve an exception."};
+  }
+  const updates = {"system.levelPoints":system.levelPoints-spent};
+  for (const [index,key] of Object.keys(stats).entries()) {
+    if (!values[index]) continue;
+    updates[`system.stats.${key}`] = system.stats[key] + values[index];
+    updates[`system.levelAllocation.${key}`] = assigned[index];
+  }
+  if (system.health.value > 0 && allocation.hp) updates["system.health.value"] = system.health.value + 3 * allocation.hp;
+  return {updates};
+}

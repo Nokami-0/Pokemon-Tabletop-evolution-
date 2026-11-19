@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -193,6 +193,9 @@ async function multiSkillCheck(actor, opposed) {
     content:`<p><strong>${opposed ? "Opposed Check" : "Group Check"} · ${outcome}</strong></p><ul>${details}</ul>`});
 }
 
+const battleSlotsUsed = actor => actor.items.filter(item=>
+  item.type === "move" && !item.system.knownOnly && !item.system.slotExempt).length;
+
 async function trackedMove(actor,item) {
   if (!actor.isOwner || item?.type !== "move") return;
   const pool = actionPool(actor);
@@ -226,6 +229,7 @@ async function spendMove(actor,item,pool) {
 
 async function useMove(actor, item, pool = null) {
   if (item?.type !== "move") return;
+  if (pokemon(actor) && item.system.knownOnly) return ui.notifications.warn("Move this attack to the Battle list first.");
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
   if (move.category === "Status" && afflicted(actor,"enraged")) return ui.notifications.warn("Enraged combatants cannot use status attacks.");
@@ -453,11 +457,48 @@ async function useGear(actor,id) {
   }
 }
 
+async function levelPokemon(actor) {
+  if (!actor.isOwner || !pokemon(actor)) return;
+  const trainer = linkedTrainer(actor);
+  if (!trainer) return ui.notifications.warn("Assign a Trainer before using guided progression.");
+  const form = await DialogV2.prompt({window:{title:"Pokémon Progression"},
+    content:`<p>Current level ${actor.system.level} · Trainer cap ${pokemonLevelCap(trainer.system.level)}</p>
+      <label>Method <select name="method"><option value="milestone">Trainer leveled up · up to 5</option>
+      <option value="training">Downtime Training · up to 20</option></select></label>
+      <label>Levels gained <input type="number" name="gain" min="1" max="20" value="1" required></label>
+      <p>Confirm eligibility with the GM. See Rule Book pp. 189–190 for move, role, and evolution milestones.</p>`,
+    ok:{label:"Apply Levels",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+  if (!form) return;
+  const currentTrainer = linkedTrainer(actor);
+  const plan = pokemonLevelPlan(actor.system.level,currentTrainer?.system.level,form.get("method"),Number(form.get("gain")));
+  if (plan.error) return ui.notifications.warn(plan.error);
+  const updates = {"system.level":plan.level,"system.levelPoints":actor.system.levelPoints+plan.points};
+  if (actor.system.health.value > 0) updates["system.health.value"] = actor.system.health.value + plan.points;
+  return actor.update(updates);
+}
+
+async function allocatePokemon(actor) {
+  if (!actor.isOwner || !pokemon(actor) || !actor.system.levelPoints) return;
+  const fields = Object.entries(stats).map(([key,label])=>
+    `<label>${label} <input name="${key}" type="number" min="0" value="0"></label>`).join("");
+  const form = await DialogV2.prompt({window:{title:"Allocate Level-Up Stat Points"},
+    content:`<p>${actor.system.levelPoints} unspent points. The limit uses allocations recorded by this tracker.</p>${fields}
+      ${game.user.isGM ? '<label><input type="checkbox" name="override"> Allow a Glass Cannon exception</label>' : ""}`,
+    ok:{label:"Allocate",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+  if (!form) return;
+  const allocation = Object.fromEntries(Object.keys(stats).map(key=>[key,Number(form.get(key))]));
+  const plan = allocateLevelPoints(actor.system,allocation,game.user.isGM && form.has("override"));
+  if (plan.error) return ui.notifications.warn(plan.error);
+  return actor.update(plan.updates);
+}
+
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
+      levelPokemon() { return levelPokemon(this.document); },
+      allocatePokemon() { return allocatePokemon(this.document); },
       opposedSkill() { return multiSkillCheck(this.document,true); },
       groupSkill() { return multiSkillCheck(this.document,false); },
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
@@ -511,8 +552,20 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (type === "class" && pokemon(this.document)) return;
         const data = await pickCatalogEntry(type);
         if (!data) return;
+        if (type === "move" && pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit) {
+          data.system = {...data.system,knownOnly:true};
+        }
         const [item] = await this.document.createEmbeddedDocuments("Item",[data]);
         item?.sheet.render({force:true});
+      },
+      toggleBattleMove(event,target) {
+        const actor = this.document;
+        const item = actor.items.get(target.dataset.id);
+        if (!this.isEditable || !pokemon(actor) || item?.type !== "move") return;
+        if (item.system.knownOnly && !item.system.slotExempt && battleSlotsUsed(actor) >= actor.system.battleMoveLimit) {
+          return ui.notifications.warn("The Battle Attack List is full.");
+        }
+        return item.update({"system.knownOnly":!item.system.knownOnly});
       },
       async remove(event,target) {
         const item = this.document.items.get(target.dataset.id);
@@ -589,9 +642,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
-      pools,
+      pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }
@@ -613,7 +666,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      sourceLink,description,variants,prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
+      sourceLink,description,variants,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status","WT"],item.system.category),

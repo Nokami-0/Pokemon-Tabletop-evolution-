@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.15 adds slot-free Basic Attacks and opposed and group skill checks.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.16 adds Trainer-linked Pokémon progression and Battle and Known attack tracking.
 
 ## Install from Foundry
 
@@ -48,6 +48,10 @@ Use **Roll & Track** to spend the configured attack action and track At-Will, EO
 
 For a multi-actor skill check, target the other participants and choose **Opposed Check** or **Group Check**. The dialog supports separate skills and Boon/Bane settings. Opposed results break success ties by the sum of the dice. Group checks add the participant count to base CR.
 
+**Pokémon Progression** uses the linked Trainer’s level cap and awards one unspent stat point per level gained. Apply up to five levels after a Trainer level-up or twenty from Downtime Training. The allocation tool enforces the Glass Cannon limit for tracked allocations and supports a GM exception. Existing stat edits and legacy XP do not count toward that tracker.
+
+The Battle list defaults to six slots. Once full, newly added Pokémon moves go to Known. Move attacks between lists when the rules permit it. Use the granted attack checkbox for an attack that does not occupy a slot. Existing moves remain in Battle until you change their assignment.
+
 ## Coverage
 
 The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
@@ -62,7 +66,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.15`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.16`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

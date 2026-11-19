@@ -31,6 +31,7 @@
     {{#if requirements}}<p><strong>Weapon requirements</strong> {{requirements}}</p>{{/if}}
     {{#if versatile}}<p>This attack has a Versatile effect. See the reference.</p>{{/if}}
     {{#if sourceLink}}<p><a href="{{sourceLink}}" target="_blank" rel="noopener noreferrer">Open source page</a></p>{{/if}}
+    {{#if pokemonMove}}<label class="pte-check"><input type="checkbox" name="system.slotExempt" {{#if system.slotExempt}}checked{{/if}}> Granted attack · no Battle slot</label>{{/if}}
     {{#if pricePage}}<p>Price reference · PTE Rule Book p. {{pricePage}}{{#if priceNote}} · {{priceNote}}{{/if}}</p>{{/if}}
     <label>Effects and rules <textarea name="system.description" rows="6">{{description}}</textarea></label>
   </fieldset>

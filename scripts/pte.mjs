@@ -1,4 +1,4 @@
-import {normalizeRequirement, requirementResult, speciesRequirement} from "./prerequisites.mjs";
+import {normalizeRequirement, requirementResult, speciesRequirement, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
@@ -88,6 +88,26 @@ function dexProfiles() {
     return new Map(entries.map(entry => [entry.page,entry]));
   })().catch(error => { profiles = undefined; throw error; });
   return profiles;
+}
+
+async function tokenArtwork(page) {
+  if (!Number.isInteger(page) || page < 1) return "";
+  const directory = game.settings.get(ID,"token-directory").trim().replace(/\/+$/,"");
+  if (!directory) return "";
+  const path = `${directory}/${page}.png`;
+  try {
+    const response = await fetch(foundry.utils.getRoute(path),{method:"HEAD"});
+    return response.ok && (response.headers.get("content-type") || "").includes("image/png") ? path : "";
+  } catch {
+    return "";
+  }
+}
+
+async function applySpeciesArtwork(actor) {
+  if (!actor.isOwner || actor.type !== "pokemon") return;
+  const art = await tokenArtwork(actor.system.dexPage);
+  if (!art) return ui.notifications.warn("Install the PNG pack in the configured Foundry Data folder.");
+  await actor.update({img:art,"prototypeToken.texture.src":art});
 }
 
 function describeProfile(entry) {
@@ -449,12 +469,54 @@ async function pickCatalogEntry(type, rolesOnly = false) {
   if (!rolesOnly && selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = catalog[Number(selection)];
   if (entry?.kind !== type || (entry.category === roleCategory) !== rolesOnly) return null;
-  return {name:entry.name,type,system:{source:entrySource(entry),
+  return catalogItemData(entry);
+}
+
+function catalogItemData(entry) {
+  return {name:entry.name,type:entry.kind,system:{source:entrySource(entry),
     ...entry.stats,
     ...(entry.price ? {price:entry.price} : {}),
     ...(entry.frequency ? {frequency:entry.frequency} : {}),
     ...(entry.action ? {action:entry.action} : {}),
     description:entry.rules || (entry.source ? "See the linked reference for this entry’s effects." : `${entry.category}. See the cited page for prerequisites and effects.`)}};
+}
+
+const speciesMoves = new Map(attackCatalog.filter(entry=>entry.kind === "move" && entry.category === "Moves")
+  .map(entry=>[normalizeRequirement(entry.name),entry]));
+
+function startingMoveData(entry) {
+  const available = [...new Set(entry.starting.map(normalizeMoveName))].map(name=>speciesMoves.get(name)).filter(Boolean);
+  return available.map((move,index)=>{
+    const data = catalogItemData(move);
+    data.system.knownOnly = index >= 6;
+    return data;
+  });
+}
+
+async function learnSpeciesMove(actor) {
+  if (!actor.isOwner || !pokemon(actor)) return;
+  const profile = (await dexProfiles()).get(actor.system.dexPage);
+  if (!profile || normalizeRequirement(profile.name) !== normalizeRequirement(actor.system.species || "")) {
+    return ui.notifications.warn("Set the Pokémon’s species using the Pokédex first.");
+  }
+  const owned = new Set(actor.items.filter(item=>item.type === "move").map(item=>normalizeRequirement(item.name)));
+  const eligible = [...speciesMoves.values()].filter(entry=>{
+    if (owned.has(normalizeRequirement(entry.name))) return false;
+    const requirement = speciesRequirement(entry,profile,actor.system.level);
+    return !requirement.error && !requirement.review;
+  });
+  if (!eligible.length) return ui.notifications.info("There are no new starting or level-up moves available.");
+  const choice = await DialogV2.prompt({window:{title:"Learn Species Move"},
+    content:`<label>Eligible move <select name="move">${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)}</option>`).join("")}</select></label>`,
+    ok:{label:"Learn",callback:(event,button)=>new FormData(button.form).get("move")},rejectClose:false});
+  if (choice == null) return;
+  const move = eligible[Number(choice)];
+  if (!move || actor.system.dexPage !== profile.page || actor.items.some(item=>item.type === "move" && normalizeRequirement(item.name) === normalizeRequirement(move.name))) return;
+  const current = speciesRequirement(move,profile,actor.system.level);
+  if (current.error || current.review) return ui.notifications.warn("The Pokémon is no longer eligible for that move.");
+  const data = catalogItemData(move);
+  data.system.knownOnly = battleSlotsUsed(actor) >= actor.system.battleMoveLimit;
+  await actor.createEmbeddedDocuments("Item",[data]);
 }
 
 const pendingGear = new Set();
@@ -747,6 +809,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return this.document.update(combatDamageUpdate(this.document.system,amount));
       },
       books() { return showBooks(); },
+      speciesArtwork() { return applySpeciesArtwork(this.document); },
+      learnSpeciesMove() { return learnSpeciesMove(this.document); },
       profile() { return showProfile(this.document.system.dexPage); },
       dex() { return new Dex({destination:this.document}).render({force:true}); },
       async openPartner(event,target) { return game.actors.get(target.dataset.id)?.sheet.render({force:true}); }
@@ -820,12 +884,14 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
       const entry = this.entries.find(row => row.page === Number(target.dataset.page));
       if (!entry) return;
       const system = {species:entry.name,dexPage:entry.page,stats:entry.stats,type1:entry.types[0] ?? "",type2:entry.types[1] ?? ""};
+      const art = await tokenArtwork(entry.page);
       if (this.destination?.isOwner) {
         system.health = {value:maxHP(this.destination.system.level,entry.stats.hp,true)};
-        await this.destination.update({system});
+        await this.destination.update({system,...(art ? {img:art,"prototypeToken.texture.src":art} : {})});
       } else {
         if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need permission to create an Actor.");
-        const actor = await Actor.create({type:"pokemon",name:entry.name,system});
+        const actor = await Actor.create({type:"pokemon",name:entry.name,system,items:startingMoveData(entry),
+          ...(art ? {img:art,prototypeToken:{texture:{src:art}}} : {})});
         actor?.sheet.render({force:true});
       }
     }}
@@ -862,6 +928,8 @@ Hooks.once("init", () => {
       hint:"Enter a Foundry Data path or an HTTPS URL accessible to your group.",
       scope:"world",config:true,type:String,default:""});
   }
+  game.settings.register(ID,"token-directory",{name:"Pokémon PNG folder",
+    hint:"Foundry Data folder containing the extracted page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
   game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks};
 });
 

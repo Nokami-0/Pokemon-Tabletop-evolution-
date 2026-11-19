@@ -63,21 +63,35 @@ function namesFrom(text) {
   return text.split(",").map(normalizeRequirement);
 }
 
+export function normalizeMoveName(value) {
+  const name = normalizeRequirement(value);
+  return ({vicegrip:"vice grip","haunting breeze":"haunted breeze"})[name] || name;
+}
+
 export function speciesRequirement(entry, profile, level) {
   if (!profile) return {review:"Set the Pokémon’s species using the Pokédex or have the GM confirm this grant."};
-  const name = normalizeRequirement(entry.name);
+  const name = entry.category === "Pokémon Abilities" ? normalizeRequirement(entry.name) : normalizeMoveName(entry.name);
   if (entry.category === "Pokémon Abilities") {
     if (namesFrom(profile.abilities || "").includes(name)) return {};
     return {review:"This ability is outside the recorded species list. A GM must verify an alternate grant."};
   }
-  if (profile.starting.some(move=>normalizeRequirement(move)===name)) return {};
+  if (profile.starting.some(move=>normalizeMoveName(move)===name)) return {};
   const levels = profile.levelUp.flatMap(line=>{
     const match = /^(\d+) · (.+?)(?:\s+-\s+[^-]+)?$/.exec(line);
-    return match && normalizeRequirement(match[2]) === name ? [Number(match[1])] : [];
+    return match && normalizeMoveName(match[2]) === name ? [Number(match[1])] : [];
   });
   if (levels.some(value=>level >= value)) return {};
-  const tutor = profile.tutor.some(line=>namesFrom(line.replace(/^(?:Unique|Generic):\s*/i,"")).includes(name));
-  if (tutor) return {review:"Verify the required tutor tier, available tutor selection, or an alternate grant."};
+  const tutor = profile.tutor.some(line=>line.replace(/^(?:Unique|Generic):\s*/i,"").split(",").map(normalizeMoveName).includes(name));
+  if (tutor) {
+    const groups = profile.tutor;
+    const standard = groups.length === 6 && groups.every((line,index)=>(index % 2 ? /^Generic:/i : /^Unique:/i).test(line));
+    if (standard) {
+      const tier = groups.findIndex(line=>line.replace(/^(?:Unique|Generic):\s*/i,"").split(",").map(normalizeMoveName).includes(name));
+      const required = [10,20,40][Math.floor(tier / 2)];
+      if (level < required && !levels.length) return {review:`Species tutoring for this move starts at level ${required}. Verify an alternate grant if adding it now.`};
+    }
+    return {review:"Verify the tutor tier, an available tutor selection, or an alternate grant."};
+  }
   if (levels.length) return {error:`Requires Pokémon level ${Math.min(...levels)} for this learnset move.`};
   return {review:"This move is outside the recorded starting and level-up list. A GM must verify its source."};
 }

@@ -331,6 +331,9 @@ const catalogNames = new Set(catalog.filter(entry=>entry.kind === "class" || ent
   .map(entry=>normalizeRequirement(entry.name)));
 
 async function acquisitionCheck(actor, entry) {
+  if (entry?.category === "Pokémon Minion Traits") {
+    return game.user.isGM && pokemon(actor) ? {} : {error:"A GM can add Minion Traits to Pokémon sheets."};
+  }
   if (!entry) return {review:"A custom class, feature, or move requires GM approval."};
   const owned = new Set();
   const classes = new Set();
@@ -409,7 +412,7 @@ async function allowCatalogAcquisition(actor,data) {
 
 async function pickCatalogEntry(type) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
-    .filter(entry => entry.kind === type), entry => entry.category);
+    .filter(entry => entry.kind === type && (entry.category !== "Pokémon Minion Traits" || game.user.isGM)), entry => entry.category);
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`

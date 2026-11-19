@@ -14,6 +14,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
       afflictions:new SchemaField(keyset(Object.keys(afflictions),() => new BooleanField({initial:false}))),
       afflictionNotes:text(),
+      healingPotionUsed:new BooleanField({initial:false}),
       stages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),
       defaultStages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),
       health:new SchemaField({value:count(),temp:count(),max:count()}),

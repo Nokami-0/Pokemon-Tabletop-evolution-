@@ -49,3 +49,32 @@ export function afflictionTickDamage(maxHP, active, movedFar) {
   const ticks = Number(Boolean(active.burned)) + Number(Boolean(active.poisoned)) + (active.wounded ? (movedFar ? 2 : 1) : 0);
   return Math.floor(maxHP / 10) * ticks;
 }
+
+export const recoveryGear = {
+  "Basic Healing Potion": {heal:[3,50], revive:[1,20], cure:1},
+  "Greater Healing Potion": {heal:[5,100], revive:[3,50], cure:2},
+  "Simple Poultice": {heal:[2,50], cure:1},
+  "Greater Poultice": {heal:[4,100], cure:2}
+};
+
+export function recoveryPlan(system, gear, mode, chosen = []) {
+  const {value,max} = system.health;
+  if (gear.revive && system.healingPotionUsed) return {error:"This combatant already received a healing potion this scene."};
+  if (mode === "cure") {
+    const keys = [...new Set(chosen)];
+    if (!value || !keys.length || keys.length > gear.cure ||
+      keys.some(key => !Object.hasOwn(afflictions,key) || !system.afflictions[key])) {
+      return {error:`Choose up to ${gear.cure} active afflictions on a conscious combatant.`};
+    }
+    return {updates:Object.fromEntries(keys.map(key => [`system.afflictions.${key}`,false])),
+      message:`cured ${keys.map(key => afflictions[key]).join(", ")}`};
+  }
+  if (!["heal","revive"].includes(mode) || !gear[mode]) return {error:"Choose a recovery effect."};
+  if (system.afflictions.wounded) return {error:"A Wounded combatant cannot recover HP."};
+  if (mode === "revive" && value !== 0) return {error:"Only a fainted combatant can be revived."};
+  if (mode === "heal" && (!value || value >= max)) return {error:"HP recovery requires a conscious combatant below maximum HP."};
+  const [ticks,minimum] = gear[mode];
+  const restored = Math.min(max,value + Math.max(Math.floor(max / 10) * ticks,minimum));
+  return {updates:{"system.health.value":restored},
+    message:mode === "revive" ? `revived at ${restored} HP` : `recovered ${restored - value} HP`};
+}

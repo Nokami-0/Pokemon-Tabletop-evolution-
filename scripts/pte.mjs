@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -212,6 +212,56 @@ async function pickCatalogEntry(type) {
     description:entry.rules || (entry.source ? "See the linked reference for this entry’s effects." : `${entry.category}. See the cited page for prerequisites and effects.`)}};
 }
 
+const pendingRecovery = new Set();
+
+function recoveryListing(item) {
+  if (item?.type !== "gear") return null;
+  const listing = catalogListing(item);
+  return listing && Object.hasOwn(recoveryGear,listing.name) ? recoveryGear[listing.name] : null;
+}
+
+async function useRecoveryGear(actor,id) {
+  const item = actor.items.get(id);
+  const gear = recoveryListing(item);
+  if (!actor.isOwner || !gear || item.system.quantity < 1) return;
+  const selected = [...game.user.targets].map(token => token.actor).filter(Boolean);
+  if (selected.length > 1) return ui.notifications.warn("Select one target, or clear targets to use this on yourself.");
+  const target = selected[0] ?? actor;
+  if (!target.isOwner) return ui.notifications.warn("The GM or an owner of both actors must apply this item.");
+  const lock = [item.uuid,target.uuid];
+  if (lock.some(key => pendingRecovery.has(key))) return;
+  lock.forEach(key => pendingRecovery.add(key));
+  try {
+    const afflictionOptions = Object.entries(afflictions).filter(([key])=>afflicted(target,key))
+      .map(([key,label])=>`<label><input type="checkbox" name="cure" value="${key}"> ${label}</label>`).join("");
+    const form = await DialogV2.prompt({
+      window:{title:`Use ${item.name}`},
+      content:`<p>Target · ${escape(target.name)}. Confirm the action cost and legal range at the table.${gear.revive ? "" : " Poultices require an adjacent target."}</p>
+        <label>Effect <select name="mode"><option value="heal">Restore HP</option>
+          ${gear.revive ? '<option value="revive">Revive</option>' : ""}
+          <option value="cure">Cure afflictions (up to ${gear.cure})</option></select></label>
+        ${afflictionOptions ? `<fieldset><legend>Afflictions to cure</legend>${afflictionOptions}</fieldset>` : ""}`,
+      ok:{label:"Use One",callback:(event,button)=>new FormData(button.form)},
+      rejectClose:false
+    });
+    if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
+    const plan = recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
+    if (plan.error) return ui.notifications.warn(plan.error);
+    const quantity = item.system.quantity;
+    await item.update({"system.quantity":quantity - 1});
+    try {
+      await target.update({...plan.updates,...(gear.revive ? {"system.healingPotionUsed":true} : {})});
+    } catch (error) {
+      if (actor.items.has(id) && item.system.quantity === quantity - 1) await item.update({"system.quantity":quantity});
+      throw error;
+    }
+    await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
+      content:`<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.</p>`});
+  } finally {
+    lock.forEach(key => pendingRecovery.delete(key));
+  }
+}
+
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
@@ -240,7 +290,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return actor.update({[`system.afflictions.${key}`]:!afflicted(actor,key)});
       },
       clearAfflictions() {
-        return this.document.update(Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false])));
+        const updates = Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false]));
+        return this.document.update({...updates,"system.healingPotionUsed":false});
       },
       async endTurnTicks() {
         const actor = this.document;
@@ -271,6 +322,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const item = this.document.items.get(target.dataset.id);
         if (item && await DialogV2.confirm({window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
       },
+      useGear(event,target) { return useRecoveryGear(this.document,target.dataset.id); },
       equip(event,target) {
         const item = this.document.items.get(target.dataset.id);
         return item?.update({"system.equipped":!item.system.equipped});
@@ -335,7 +387,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,move:type === "move",gear:type === "gear",price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }

@@ -24,6 +24,8 @@ function combatStat(actor,key) {
 }
 const vulnerable = actor => afflicted(actor,"chilled") || afflicted(actor,"paralyzed");
 const potionBonus = (actor,key) => actor.system.potionBonuses?.[key] ?? 0;
+const accuracyModifier = actor => capCombatModifier(actor.system.accuracy +
+  potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0));
 function attackEvasion(actor, defense) {
   if (vulnerable(actor)) return 0;
   return capCombatModifier(Math.max(evasion(defense),afflicted(actor,"slowed") ? 0 : evasion(combatStat(actor,"spe"))) +
@@ -152,7 +154,7 @@ async function useMove(actor, item) {
   if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
   if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
   const needsAccuracy = move.accuracyRequired !== false;
-  const roll = await new Roll("1d20 + @accuracy", {accuracy:capCombatModifier(actor.system.accuracy + potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0))}).evaluate();
+  const roll = await new Roll("1d20 + @accuracy", {accuracy:accuracyModifier(actor)}).evaluate();
   const natural = roll.dice[0].values[0];
   const critical = move.category !== "Status" && natural >= Math.max(1,move.crit - capCombatModifier(potionBonus(actor,"crit")));
   const special = move.category === "Special";
@@ -254,8 +256,8 @@ async function useGear(actor,id) {
     const variant = item.system.variant;
     const form = malady ? await DialogV2.prompt({
       window:{title:`Throw ${item.name}`},
-      content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Adjacent throws are Sureshot.</p>
-        <label>Throw result <select name="result" required><option value="">Choose the result</option><option value="hit">Hit</option><option value="miss">Miss</option></select></label>
+      content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Confirm range and spend the Standard action at the table.</p>
+        <label>Throw result <select name="result" required><option value="roll">Roll against Speed Evasion</option><option value="adjacent">Adjacent · Sureshot</option><option value="hit">Manual Hit</option><option value="miss">Manual Miss</option></select></label>
         ${variant === "entranced" ? "<p>Record the fixation in the target’s affliction notes.</p>" : ""}`,
       ok:{label:"Spend One",callback:(event,button)=>new FormData(button.form).get("result")},rejectClose:false
     }) : boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
@@ -272,8 +274,12 @@ async function useGear(actor,id) {
     });
     if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
     if ((boost || malady) && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
-    if (malady && !["hit","miss"].includes(form)) return;
-    const plan = malady ? maladyPlan(target.system,malady,variant,elements(target),form === "hit") :
+    if (malady && !["roll","adjacent","hit","miss"].includes(form)) return;
+    const throwRoll = malady && form === "roll" ?
+      await new Roll("1d20 + @accuracy",{accuracy:accuracyModifier(actor)}).evaluate() : null;
+    const throwDC = throwRoll ? 4 + attackEvasion(target,0) : null;
+    const hit = throwRoll ? throwRoll.total >= throwDC : form === "hit" || form === "adjacent";
+    const plan = malady ? maladyPlan(target.system,malady,variant,elements(target),hit) :
       boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
     if (plan.error) return ui.notifications.warn(plan.error);
     const quantity = item.system.quantity;
@@ -284,8 +290,13 @@ async function useGear(actor,id) {
       if (actor.items.has(id) && item.system.quantity === quantity - 1) await item.update({"system.quantity":quantity});
       throw error;
     }
-    await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
-      content:`<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.</p>`});
+    const summary = `<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.</p>`;
+    const speaker = ChatMessage.getSpeaker({actor});
+    if (throwRoll) {
+      await throwRoll.toMessage({speaker,flavor:`Throw · TN ${throwDC} · ${hit ? "Hit" : "Miss"}${summary}`});
+    } else {
+      await ChatMessage.create({speaker,content:form === "adjacent" ? `<p>Throw · Sureshot</p>${summary}` : summary});
+    }
   } finally {
     lock.forEach(key => pendingGear.delete(key));
   }

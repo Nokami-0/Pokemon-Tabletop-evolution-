@@ -33,6 +33,10 @@ function attackEvasion(actor, defense) {
 }
 const pokemon = actor => actor.type === "pokemon";
 const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
+function actionPool(actor,pool) {
+  const trainer = linkedTrainer(actor);
+  return {owner:trainer || actor,key:trainer || pool === "team" ? "partnerActions" : "actions"};
+}
 const elements = actor => pokemon(actor) ? [...new Set([actor.system.type1,actor.system.type2].filter(Boolean))] : [];
 const dex = () => fetch(foundry.utils.getRoute(`${root}/data/dex.json`)).then(response => {
   if (!response.ok) throw new Error("Could not load the Pokédex.");
@@ -247,7 +251,8 @@ async function useGear(actor,id) {
   if (malady && !selected.length) return ui.notifications.warn("Target a token to throw a Malady Potion.");
   const target = selected[0] ?? actor;
   if (!target.isOwner) return ui.notifications.warn("The GM or an owner of both actors must apply this item.");
-  const lock = [item.uuid,target.uuid];
+  const pool = malady ? actionPool(actor) : null;
+  const lock = [item.uuid,target.uuid,...(pool ? [pool.owner.uuid] : [])];
   if (lock.some(key => pendingGear.has(key))) return;
   lock.forEach(key => pendingGear.add(key));
   try {
@@ -256,10 +261,11 @@ async function useGear(actor,id) {
     const variant = item.system.variant;
     const form = malady ? await DialogV2.prompt({
       window:{title:`Throw ${item.name}`},
-      content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Confirm range and spend the Standard action at the table.</p>
+      content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Confirm the target is in range.</p>
+        <label><input type="checkbox" name="manualAction"> Action handled manually</label>
         <label>Throw result <select name="result" required><option value="roll">Roll against Speed Evasion</option><option value="adjacent">Adjacent · Sureshot</option><option value="hit">Manual Hit</option><option value="miss">Manual Miss</option></select></label>
         ${variant === "entranced" ? "<p>Record the fixation in the target’s affliction notes.</p>" : ""}`,
-      ok:{label:"Spend One",callback:(event,button)=>new FormData(button.form).get("result")},rejectClose:false
+      ok:{label:"Throw",callback:(event,button)=>new FormData(button.form)},rejectClose:false
     }) : boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
       content:`<p>${escape(target.name)} · ${escape(potionVariants[variant])}. Confirm the action cost and legal range at the table.</p>`,
       yes:{label:"Use One"},rejectClose:false}) : await DialogV2.prompt({
@@ -274,28 +280,44 @@ async function useGear(actor,id) {
     });
     if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
     if ((boost || malady) && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
-    if (malady && !["roll","adjacent","hit","miss"].includes(form)) return;
-    const throwRoll = malady && form === "roll" ?
+    const result = malady ? form.get("result") : null;
+    if (malady && !["roll","adjacent","hit","miss"].includes(result)) return;
+    const trackAction = malady && !form.has("manualAction");
+    const actionPath = trackAction ? `system.${pool.key}.standard` : null;
+    if (trackAction && !pool.owner.isOwner) return ui.notifications.warn("Only a Trainer owner or the GM can spend this action.");
+    if (trackAction && pool.owner.system[pool.key].standard) return ui.notifications.warn("The Standard action is already spent.");
+    const throwRoll = result === "roll" ?
       await new Roll("1d20 + @accuracy",{accuracy:accuracyModifier(actor)}).evaluate() : null;
     const throwDC = throwRoll ? 4 + attackEvasion(target,0) : null;
-    const hit = throwRoll ? throwRoll.total >= throwDC : form === "hit" || form === "adjacent";
+    const hit = throwRoll ? throwRoll.total >= throwDC : result === "hit" || result === "adjacent";
     const plan = malady ? maladyPlan(target.system,malady,variant,elements(target),hit) :
       boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
     if (plan.error) return ui.notifications.warn(plan.error);
     const quantity = item.system.quantity;
-    await item.update({"system.quantity":quantity - 1});
+    let actionSpent = false;
+    let itemSpent = false;
     try {
+      if (trackAction) {
+        if (pool.owner.system[pool.key].standard) return ui.notifications.warn("The Standard action is already spent.");
+        await pool.owner.update({[actionPath]:true});
+        actionSpent = true;
+      }
+      await item.update({"system.quantity":quantity - 1});
+      itemSpent = true;
       if (plan.updates) await target.update({...plan.updates,...(gear?.revive ? {"system.healingPotionUsed":true} : {})});
     } catch (error) {
-      if (actor.items.has(id) && item.system.quantity === quantity - 1) await item.update({"system.quantity":quantity});
+      const rollback = [];
+      if (itemSpent && actor.items.has(id) && item.system.quantity === quantity - 1) rollback.push(item.update({"system.quantity":quantity}));
+      if (actionSpent && pool.owner.system[pool.key].standard) rollback.push(pool.owner.update({[actionPath]:false}));
+      await Promise.allSettled(rollback);
       throw error;
     }
-    const summary = `<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.</p>`;
+    const summary = `<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.${actionSpent ? " Standard action spent." : ""}</p>`;
     const speaker = ChatMessage.getSpeaker({actor});
     if (throwRoll) {
       await throwRoll.toMessage({speaker,flavor:`Throw · TN ${throwDC} · ${hit ? "Hit" : "Miss"}${summary}`});
     } else {
-      await ChatMessage.create({speaker,content:form === "adjacent" ? `<p>Throw · Sureshot</p>${summary}` : summary});
+      await ChatMessage.create({speaker,content:result === "adjacent" ? `<p>Throw · Sureshot</p>${summary}` : summary});
     }
   } finally {
     lock.forEach(key => pendingGear.delete(key));
@@ -369,20 +391,14 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return item?.update({"system.equipped":!item.system.equipped});
       },
       async spendAction(event,target) {
-        const actor = this.document;
-        const trainer = linkedTrainer(actor);
-        const pool = trainer || actor;
+        const {owner:pool,key:name} = actionPool(this.document,target.dataset.pool);
         if (!pool.isOwner) return ui.notifications.warn("Only a Trainer owner or the GM can change this action pool.");
-        const name = trainer || target.dataset.pool === "team" ? "partnerActions" : "actions";
         const path = `system.${name}.${target.dataset.key}`;
         await pool.update({[path]:!pool.system[name][target.dataset.key]});
       },
       async refreshActions(event,target) {
-        const actor = this.document;
-        const trainer = linkedTrainer(actor);
-        const pool = trainer || actor;
+        const {owner:pool,key:name} = actionPool(this.document,target.dataset.pool);
         if (!pool.isOwner) return;
-        const name = trainer || target.dataset.pool === "team" ? "partnerActions" : "actions";
         await pool.update(Object.fromEntries(actions.map(key => [`system.${name}.${key}`,false])));
       },
       resetStages() {

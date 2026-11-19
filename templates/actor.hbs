@@ -5,7 +5,9 @@
       <span>{{#if pokemon}}POKÉMON PROFILE{{else}}TRAINER CARD{{/if}} · TIER {{tier}}</span>
       <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
     </div>
-    {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>{{/if}}
+    <button type="button" data-action="books">Rule Library</button>
+    {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
+    {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}{{/if}}
   </header>
   <fieldset {{#unless editable}}disabled{{/unless}}>
     <div class="pte-grid">

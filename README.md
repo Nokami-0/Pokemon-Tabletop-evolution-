@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.4 adds Rule Book prices to catalog gear.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.5 adds expanded species profiles and a Rule Library.
 
 ## Install from Foundry
 
@@ -24,9 +24,15 @@ Open **Game Systems → Install System** and paste this manifest URL.
 
 Gear prices appear in the dropdown, Bag, and gear sheet. The editable unit price supports fixed prices, variable listings, and free items. Adding gear does not spend money.
 
+## Rule Library
+
+Open **Rule Library** from a Trainer or Pokémon sheet. A GM can point each of the six entries at a PDF in Foundry Data or at an HTTPS address under **Configure Settings → Pokémon Tabletop Evolution**. The books themselves are supplied by the GM. Pokédex Details links straight to the species page once the Pokédex PDF is configured.
+
+The Pokédex offers **Details** for evolution, abilities, capabilities, skill ranks, physical profile, and starting, level-up, and tutor attack lists where present. After species import the same profile is available from the Pokémon sheet.
+
 ## Coverage
 
-The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Dex data covers species names, types, base stats, starting attack names when extractable, and source pages.
+The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack definitions, prerequisites, and other PDF mechanics are still resolved separately.
 
 ### Source books
 
@@ -38,7 +44,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.4`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.5`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

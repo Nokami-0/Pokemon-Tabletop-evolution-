@@ -21,6 +21,75 @@ const dex = () => fetch(foundry.utils.getRoute(`${root}/data/dex.json`)).then(re
   return response.json();
 });
 
+const books = {
+  rulebook:"PTE Rule Book",
+  gm:"PTE GM Guide",
+  cheat:"PTE Cheat Sheet",
+  dex:"PTE Pokédex",
+  elementalism:"Path of Elementalism",
+  occultism:"Path of Occultism"
+};
+
+function bookLink(key, page = 1) {
+  const path = game.settings.get(ID, `pdf-${key}`).trim();
+  if (!path) return "";
+  try {
+    const source = /^[a-z][a-z\d+.-]*:/i.test(path) ? path : foundry.utils.getRoute(path);
+    const url = new URL(source, window.location.href);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+    url.hash = `page=${page}`;
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function showBooks() {
+  const content = Object.entries(books).map(([key,title]) => {
+    const url = bookLink(key);
+    return url ? `<li><a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(title)}</a></li>`
+      : `<li>${escape(title)} · PDF path needed</li>`;
+  }).join("");
+  return DialogV2.prompt({window:{title:"PTE Rule Library"},
+    content:`<ul>${content}</ul><p>GMs can link PDFs in Configure Settings under Pokémon Tabletop Evolution.</p>`,
+    ok:{label:"Close"},rejectClose:false});
+}
+
+let profiles;
+function dexProfiles() {
+  profiles ??= (async () => {
+    const response = await fetch(foundry.utils.getRoute(`${root}/data/dex-profiles.json.gz`));
+    if (!response.ok || !response.body) throw new Error("Could not load Pokédex profiles.");
+    const stream = response.body.pipeThrough(new DecompressionStream("gzip"));
+    const entries = await new Response(stream).json();
+    return new Map(entries.map(entry => [entry.page,entry]));
+  })().catch(error => { profiles = undefined; throw error; });
+  return profiles;
+}
+
+function describeProfile(entry) {
+  const fields = [["Evolution",entry.evolution],["Abilities",entry.abilities],
+    ["Capabilities",entry.capabilities],["Skill ranks",entry.skillRanks],
+    ["Profile",entry.profile],["Starting attacks",entry.starting.join(", ")]];
+  const text = fields.filter(([,value])=>value).map(([label,value])=>
+    `<p><strong>${label}</strong> · ${escape(value)}</p>`).join("");
+  const list = (label,values) => values.length ? `<h3>${label}</h3><ul>${values.map(value=>`<li>${escape(value)}</li>`).join("")}</ul>` : "";
+  const url = bookLink("dex",entry.page);
+  return `<div style="max-height:62vh;overflow:auto">${text}${list("Level-up attacks",entry.levelUp)}${list("Tutor attacks",entry.tutor)}
+    <p>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">Pokédex p. ${entry.page}</a>` : `Pokédex p. ${entry.page}`}</p></div>`;
+}
+
+async function showProfile(page) {
+  try {
+    const entry = (await dexProfiles()).get(page);
+    if (!entry) return ui.notifications.warn("Choose a Pokémon from the Pokédex first.");
+    return DialogV2.prompt({window:{title:entry.name},content:describeProfile(entry),ok:{label:"Close"},rejectClose:false});
+  } catch (error) {
+    console.error(error);
+    ui.notifications.error("Could not open this Pokédex profile.");
+  }
+}
+
 class PTEActor extends Actor {
   prepareDerivedData() {
     super.prepareDerivedData();
@@ -170,6 +239,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const {temp,value} = this.document.system.health;
         return this.document.update({"system.health.temp":Math.max(0,temp-amount),"system.health.value":Math.max(0,value-Math.max(0,amount-temp))});
       },
+      books() { return showBooks(); },
+      profile() { return showProfile(this.document.system.dexPage); },
       dex() { return new Dex({destination:this.document}).render({force:true}); },
       async openPartner(event,target) { return game.actors.get(target.dataset.id)?.sheet.render({force:true}); }
     }
@@ -207,8 +278,12 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.document;
     const listing = catalogGear(item);
+    const [sourceName,pageNumber] = item.system.source.split(", p. ");
+    const sourceKey = Object.keys(books).find(key => books[key] === sourceName ||
+      (key === "occultism" && sourceName === "Path of Occultism (draft)"));
+    const sourceLink = sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
+      sourceLink,priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status"],item.system.category),
       elements:choices(["",...types],item.system.element)};
   }
@@ -216,7 +291,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
 class Dex extends HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
   static DEFAULT_OPTIONS = {classes:["pte","pte-dex"],position:{width:580,height:580},window:{title:"Pokédex",resizable:true},
-    actions:{async importEntry(event,target) {
+    actions:{profile(event,target) { return showProfile(Number(target.dataset.page)); }, async importEntry(event,target) {
       const entry = this.entries.find(row => row.page === Number(target.dataset.page));
       if (!entry) return;
       const system = {species:entry.name,dexPage:entry.page,stats:entry.stats,type1:entry.types[0] ?? "",type2:entry.types[1] ?? ""};
@@ -257,7 +332,12 @@ Hooks.once("init", () => {
   const {DocumentSheetConfig} = foundry.applications.apps;
   DocumentSheetConfig.registerSheet(Actor, ID, PTESheet, {types:["trainer","pokemon"],makeDefault:true});
   DocumentSheetConfig.registerSheet(Item, ID, PTEItemSheet, {types:Object.keys(itemTypes),makeDefault:true});
-  game.pte = {openDex:() => new Dex().render({force:true})};
+  for (const [key,title] of Object.entries(books)) {
+    game.settings.register(ID,`pdf-${key}`,{name:`${title} PDF path`,
+      hint:"Enter a Foundry Data path or an HTTPS URL accessible to your group.",
+      scope:"world",config:true,type:String,default:""});
+  }
+  game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks};
 });
 
 Hooks.on("updateActor", (actor, changes) => {

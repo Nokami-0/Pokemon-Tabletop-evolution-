@@ -5,6 +5,7 @@
     {{#each entries}}
     <div class="pte-row pte-dexrow" data-search="{{name}} {{typing}}">
       <div><strong>{{name}}</strong> <small>p. {{page}}</small><p>{{typing}}{{#if moves}} · {{moves}}{{/if}}</p></div>
+      <button type="button" data-action="profile" data-page="{{page}}">Details</button>
       <button type="button" data-action="importEntry" data-page="{{page}}">{{#if ../applying}}Use Stats{{else}}Create Actor{{/if}}</button>
     </div>
     {{/each}}

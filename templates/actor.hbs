@@ -22,7 +22,7 @@
       <label>XP <input name="system.xp" type="number" min="0" value="{{system.xp}}"></label>
       <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
       {{else}}
-      <label>Class <input name="system.trainerClass" value="{{system.trainerClass}}"></label>
+      {{#if system.trainerClass}}<label>Class notes <input name="system.trainerClass" value="{{system.trainerClass}}"></label>{{/if}}
       <label>Money <input name="system.money" type="number" min="0" value="{{system.money}}"></label>
       {{/if}}
     </div>

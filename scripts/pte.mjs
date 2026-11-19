@@ -1,3 +1,4 @@
+import {catalog} from "../data/catalog.mjs";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
 import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula} from "./rules.mjs";
 
@@ -87,6 +88,30 @@ async function useMove(actor, item) {
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
 }
 
+const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
+
+async function pickCatalogEntry(type) {
+  const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
+    .filter(entry => entry.kind === type), entry => entry.category);
+  const options = Object.entries(groups).map(([label,entries]) =>
+    `<optgroup label="${escape(label)}">${entries.map(entry =>
+      `<option value="${entry.index}">${escape(entry.name)} · p. ${entry.page}</option>`
+    ).join("")}</optgroup>`
+  ).join("");
+  const selection = await DialogV2.prompt({
+    window:{title:`Add ${titleCase(type)}`},
+    content:`<label>Catalog <select name="entry"><option value="custom">Custom ${escape(type)}</option>${options}</select></label>`,
+    ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
+    rejectClose:false
+  });
+  if (selection == null) return null;
+  if (selection === "custom") return {name:`New ${titleCase(type)}`,type};
+  const entry = catalog[Number(selection)];
+  if (entry?.kind !== type) return null;
+  return {name:entry.name,type,system:{source:`${entry.book}, p. ${entry.page}`,
+    description:`${entry.category}. See the cited page for prerequisites and effects.`}};
+}
+
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
@@ -99,7 +124,11 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       open(event,target) { return this.document.items.get(target.dataset.id)?.sheet.render({force:true}); },
       async add(event,target) {
         const type = target.dataset.type;
-        const [item] = await this.document.createEmbeddedDocuments("Item",[{name:`New ${titleCase(type)}`,type}]);
+        if (!this.isEditable || !Object.hasOwn(itemTypes,type)) return;
+        if (type === "class" && pokemon(this.document)) return;
+        const data = type === "move" ? {name:"New Move",type} : await pickCatalogEntry(type);
+        if (!data) return;
+        const [item] = await this.document.createEmbeddedDocuments("Item",[data]);
         item?.sheet.render({force:true});
       },
       async remove(event,target) {
@@ -158,7 +187,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
-      groups:["move","gear","feature"].map((type,index) => ({type,label:["Moves","Bag","Features"][index],items:actor.items.filter(i => i.type === type).map(i => ({
+      groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
         id:i.id,name:i.name,move:type === "move",gear:type === "gear",system:i.system
       }))}))
     };
@@ -216,10 +245,10 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
 Hooks.once("init", () => {
   CONFIG.Actor.documentClass = PTEActor;
   Object.assign(CONFIG.Actor.dataModels,{trainer:TrainerData,pokemon:PokemonData});
-  Object.assign(CONFIG.Item.dataModels,{move:MoveData,gear:GearData,feature:FeatureData});
+  Object.assign(CONFIG.Item.dataModels,{move:MoveData,gear:GearData,feature:FeatureData,class:FeatureData});
   const {DocumentSheetConfig} = foundry.applications.apps;
   DocumentSheetConfig.registerSheet(Actor, ID, PTESheet, {types:["trainer","pokemon"],makeDefault:true});
-  DocumentSheetConfig.registerSheet(Item, ID, PTEItemSheet, {types:["move","gear","feature"],makeDefault:true});
+  DocumentSheetConfig.registerSheet(Item, ID, PTEItemSheet, {types:Object.keys(itemTypes),makeDefault:true});
   game.pte = {openDex:() => new Dex().render({force:true})};
 });
 

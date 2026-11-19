@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.2 fixes the compatibility metadata used by Foundry to enable world creation and launch.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.3 adds catalog dropdowns for gear, features, and classes.
 
 ## Install from Foundry
 
@@ -20,7 +20,7 @@ Open **Game Systems → Install System** and paste this manifest URL.
 - Use **Pokédex** on a Pokémon sheet to search 1,002 entries from PTE Pokédex 1.0. **Use Stats** overwrites the six base stats and types and fills HP for the current level. Apply it before allocating level-up points. The search results list species starting attack names where available. Enter the move mechanics separately using **Add Move**. GMs can also run `game.pte.openDex()` in a Script Macro to create a new Actor from an entry.
 - Enter a move's type, category, AC and DB. Target tokens on the canvas and choose **Roll** next to the move. The chat message shows accuracy, each target's hit result, and calculated damage. Apply the final damage from the target's sheet. Temporary HP is used first.
 - Click a skill name for a PTE dice pool, Boon or Bane, and optional Spirit Point spend. The result includes success count and CR outcome. Use party skill totals to determine initiative per the Rule Book.
-- Use **Features** for class abilities, orders, roles, and optional techniques. Record the effect, source, action cost, and frequency. Manage gear with the Bag.
+- Use **Add Gear**, **Add Feature**, or **Add Class** under **Bag**, **Features**, or **Classes**. The dropdowns include core and optional source entries with page references, and a custom option for homebrew. You can add multiple classes to a trainer. Class prerequisites, feature effects, and gear rules are handled at the table.
 
 ## Coverage
 
@@ -36,7 +36,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.2`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.3`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

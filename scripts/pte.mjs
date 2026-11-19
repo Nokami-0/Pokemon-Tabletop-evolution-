@@ -5,6 +5,9 @@ const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
 const {HandlebarsApplicationMixin, DialogV2} = foundry.applications.api;
 const {ActorSheetV2, ItemSheetV2} = foundry.applications.sheets;
+const {Actor, ChatMessage, Item} = foundry.documents;
+const {Roll} = foundry.dice;
+const {Hooks} = foundry.helpers;
 const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const choices = (options, selected) => options.map(value => ({value, selected:value === selected}));
 const actions = ["standard","swift","movement","reaction"];
@@ -12,12 +15,12 @@ const titleCase = str => str[0].toUpperCase() + str.slice(1);
 const pokemon = actor => actor.type === "pokemon";
 const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
 const elements = actor => pokemon(actor) ? [...new Set([actor.system.type1,actor.system.type2].filter(Boolean))] : [];
-const dex = () => fetch(`${root}/data/dex.json`).then(response => {
+const dex = () => fetch(foundry.utils.getRoute(`${root}/data/dex.json`)).then(response => {
   if (!response.ok) throw new Error("Could not load the Pokédex.");
   return response.json();
 });
 
-class PTEActor extends foundry.documents.Actor {
+class PTEActor extends Actor {
   prepareDerivedData() {
     super.prepareDerivedData();
     const {system} = this;
@@ -86,7 +89,7 @@ async function useMove(actor, item) {
 
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes:["pte","pte-actor"], position:{width:760,height:815}, window:{resizable:true},
+    classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
@@ -163,7 +166,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 }
 
 class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
-  static DEFAULT_OPTIONS = {classes:["pte","pte-item"],position:{width:550,height:"auto"},form:{submitOnChange:true,closeOnSubmit:false}};
+  static DEFAULT_OPTIONS = {classes:["pte","pte-item"], tag:"form",position:{width:550,height:"auto"},form:{submitOnChange:true,closeOnSubmit:false}};
   static PARTS = {body:{template:`${root}/templates/item.hbs`}};
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
@@ -185,7 +188,7 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
         await this.destination.update({system});
       } else {
         if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need permission to create an Actor.");
-        const actor = await foundry.documents.Actor.create({type:"pokemon",name:entry.name,system});
+        const actor = await Actor.create({type:"pokemon",name:entry.name,system});
         actor?.sheet.render({force:true});
       }
     }}
@@ -215,8 +218,8 @@ Hooks.once("init", () => {
   Object.assign(CONFIG.Actor.dataModels,{trainer:TrainerData,pokemon:PokemonData});
   Object.assign(CONFIG.Item.dataModels,{move:MoveData,gear:GearData,feature:FeatureData});
   const {DocumentSheetConfig} = foundry.applications.apps;
-  DocumentSheetConfig.registerSheet(foundry.documents.Actor, ID, PTESheet, {types:["trainer","pokemon"],makeDefault:true});
-  DocumentSheetConfig.registerSheet(foundry.documents.Item, ID, PTEItemSheet, {types:["move","gear","feature"],makeDefault:true});
+  DocumentSheetConfig.registerSheet(Actor, ID, PTESheet, {types:["trainer","pokemon"],makeDefault:true});
+  DocumentSheetConfig.registerSheet(Item, ID, PTEItemSheet, {types:["move","gear","feature"],makeDefault:true});
   game.pte = {openDex:() => new Dex().render({force:true})};
 });
 

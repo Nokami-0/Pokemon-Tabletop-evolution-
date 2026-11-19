@@ -325,14 +325,33 @@ const catalogListings = new Map(catalog.map(entry => [
   listingKey(entry.kind, entrySource(entry), entry.name),entry
 ]));
 const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
+const roleCategory = "Pokémon Roles";
+const isRoleItem = item => catalogListing(item)?.category === roleCategory;
+const isAbilityItem = item => catalogListing(item)?.category === "Pokémon Abilities";
 const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
 
 const catalogNames = new Set(catalog.filter(entry=>entry.kind === "class" || entry.kind === "feature")
   .map(entry=>normalizeRequirement(entry.name)));
 
 async function acquisitionCheck(actor, entry) {
-  if (entry?.category === "Pokémon Minion Traits") {
-    return game.user.isGM && pokemon(actor) ? {} : {error:"A GM can add Minion Traits to Pokémon sheets."};
+  if (entry?.category === roleCategory) {
+    if (!pokemon(actor)) return {error:"Pokémon Roles can only be added to Pokémon."};
+    const roles = actor.items.filter(isRoleItem);
+    if (roles.some(item=>normalizeRequirement(item.name) === normalizeRequirement(entry.name))) {
+      return {error:"This Pokémon already has that role."};
+    }
+    const legacy = normalizeRequirement(actor.system.role || "");
+    const separateLegacyRole = legacy && !roles.some(item=>normalizeRequirement(item.name) === legacy);
+    const replacingLegacy = separateLegacyRole && legacy === normalizeRequirement(entry.name);
+    const roleCount = roles.length + Number(Boolean(separateLegacyRole));
+    if (roleCount >= 2 && !replacingLegacy) return {error:"This Pokémon already has two roles."};
+    if (roleCount && !replacingLegacy) {
+      if (actor.system.level < 30) return {error:"A second Pokémon Role requires level 30."};
+      if (actor.items.filter(isAbilityItem).length >= 2) {
+        return {review:"Verify an alternate grant. The normal level 30 benefit is a second role or a second ability."};
+      }
+    }
+    return {};
   }
   if (!entry) return {review:"A custom class, feature, or move requires GM approval."};
   const owned = new Set();
@@ -385,7 +404,9 @@ async function acquisitionCheck(actor, entry) {
       if (abilities.length) {
         return {review:actor.system.level < 30 ?
           "The normal second ability is available at level 30. Verify a separate rule if it is being granted earlier." :
-          "Confirm the Pokémon chose its extra ability instead of a second role, or has another rule granting it."};
+          actor.items.filter(isRoleItem).length >= 2 ?
+            "This Pokémon already has a second role. Verify an alternate rule granting the extra ability." :
+            "Confirm this ability is the chosen level 30 benefit or comes from another grant."};
       }
     }
   }
@@ -410,24 +431,24 @@ async function allowCatalogAcquisition(actor,data) {
     yes:{label:"Grant Entry"},rejectClose:false});
 }
 
-async function pickCatalogEntry(type) {
+async function pickCatalogEntry(type, rolesOnly = false) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
-    .filter(entry => entry.kind === type && (entry.category !== "Pokémon Minion Traits" || game.user.isGM)), entry => entry.category);
+    .filter(entry => entry.kind === type && ((entry.category === roleCategory) === rolesOnly)), entry => entry.category);
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
     ).join("")}</optgroup>`
   ).join("");
   const selection = await DialogV2.prompt({
-    window:{title:`Add ${titleCase(type)}`},
-    content:`<label>Catalog <select name="entry"><option value="custom">Custom ${escape(type)}</option>${options}</select></label>`,
+    window:{title:rolesOnly ? "Add Pokémon Role" : `Add ${titleCase(type)}`},
+    content:`<label>Catalog <select name="entry">${rolesOnly ? "" : `<option value="custom">Custom ${escape(type)}</option>`}${options}</select></label>`,
     ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
     rejectClose:false
   });
   if (selection == null) return null;
-  if (selection === "custom") return {name:`New ${titleCase(type)}`,type};
+  if (!rolesOnly && selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = catalog[Number(selection)];
-  if (entry?.kind !== type) return null;
+  if (entry?.kind !== type || (entry.category === roleCategory) !== rolesOnly) return null;
   return {name:entry.name,type,system:{source:entrySource(entry),
     ...entry.stats,
     ...(entry.price ? {price:entry.price} : {}),
@@ -634,7 +655,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const type = target.dataset.type;
         if (!this.isEditable || !Object.hasOwn(itemTypes,type)) return;
         if (type === "class" && pokemon(this.document)) return;
-        const data = await pickCatalogEntry(type);
+        const rolesOnly = target.dataset.roles === "true";
+        if (rolesOnly && !pokemon(this.document)) return;
+        const data = await pickCatalogEntry(type,rolesOnly);
         if (!data || !await allowCatalogAcquisition(this.document,data)) return;
         if (type === "move" && pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit) {
           data.system = {...data.system,knownOnly:true};
@@ -726,8 +749,12 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
+      roles:pokemon(actor) ? actor.items.filter(isRoleItem).map(item=>({
+        id:item.id,name:item.name,startingStats:catalogListing(item).startingStats
+      })) : [],
+      rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
+      groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || !isRoleItem(i))).map(i => ({
         id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };

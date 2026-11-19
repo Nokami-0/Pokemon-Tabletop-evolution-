@@ -95,6 +95,15 @@
     <div class="pte-buttons"><button type="button" data-action="basicAttack">Basic Attack</button><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>
     <button type="button" data-action="resetAttackScene">Reset Attack Scene</button></div>
   </section>{{/if}}
+  {{#if pokemon}}<section>
+    <div class="pte-row"><h2>Pokémon Roles</h2>{{#if editable}}<button type="button" data-action="add" data-type="feature" data-roles="true">Add Role</button>{{/if}}</div>
+    <p>Rank 1 effect {{#if rankOneUnlocked}}unlocked{{else}}unlocks at level 10{{/if}} · Second role option at level 30</p>
+    {{#each roles}}<div class="pte-row pte-itemrow">
+      <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+      <small>Primary role stat options · {{startingStats}}</small>
+      {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
+    </div>{{/each}}
+  </section>{{/if}}
   {{#each groups}}
   <section>
     <div class="pte-row"><h2>{{label}}</h2>{{#if ../editable}}<button type="button" data-action="add" data-type="{{type}}">Add {{type}}</button>{{/if}}</div>

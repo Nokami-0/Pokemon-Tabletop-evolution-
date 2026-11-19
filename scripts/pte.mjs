@@ -159,10 +159,12 @@ async function useMove(actor, item) {
 
 const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
 
-const gearCatalog = new Map(catalog.filter(entry => entry.kind === "gear")
-  .map(entry => [`${entry.book}, p. ${entry.page}|${entry.name}`, entry]));
-const catalogGear = item => item.type === "gear" ? gearCatalog.get(`${item.system.source}|${item.name}`) : undefined;
-const gearPrice = item => item.system.price || catalogGear(item)?.price || "";
+const listingKey = (type, source, name) => `${type}|${source}|${name}`;
+const catalogListings = new Map(catalog.map(entry => [
+  listingKey(entry.kind, `${entry.book}, p. ${entry.page}`, entry.name),entry
+]));
+const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
+const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
 
 async function pickCatalogEntry(type) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
@@ -184,7 +186,9 @@ async function pickCatalogEntry(type) {
   if (entry?.kind !== type) return null;
   return {name:entry.name,type,system:{source:`${entry.book}, p. ${entry.page}`,
     ...(entry.price ? {price:entry.price} : {}),
-    description:`${entry.category}. See the cited page for prerequisites and effects.`}};
+    ...(entry.frequency ? {frequency:entry.frequency} : {}),
+    ...(entry.action ? {action:entry.action} : {}),
+    description:entry.rules || `${entry.category}. See the cited page for prerequisites and effects.`}};
 }
 
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -277,13 +281,18 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const item = this.document;
-    const listing = catalogGear(item);
+    const listing = catalogListing(item);
+    const defaultDescription = listing && `${listing.category}. See the cited page for prerequisites and effects.`;
+    const description = listing?.rules && (!item.system.description || item.system.description === defaultDescription)
+      ? listing.rules : item.system.description;
     const [sourceName,pageNumber] = item.system.source.split(", p. ");
     const sourceKey = Object.keys(books).find(key => books[key] === sourceName ||
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
     const sourceLink = sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      sourceLink,priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
+      sourceLink,description,prerequisites:listing?.prerequisites,keywords:listing?.keywords,
+      frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
+      priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status"],item.system.category),
       elements:choices(["",...types],item.system.element)};
   }

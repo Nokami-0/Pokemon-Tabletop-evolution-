@@ -11,12 +11,14 @@ const bases = [
   [4,10,20],[5,10,20],[5,12,25],[6,12,25],[6,12,30],[6,12,35],[6,12,40],
   [6,12,45],[6,12,50],[6,12,55],[6,12,60],[7,12,65],[8,12,70],[8,12,80]
 ];
-export function effectiveness(type, defenders) {
+export function effectiveness(type, defenders, {basic = false} = {}) {
   const index = types.indexOf(type);
   if (index < 0) return 1;
   const has = (row, defender) => row[index].split(" ").includes(defender);
-  if (defenders.some(defender => has(immune, defender))) return 0;
-  const steps = defenders.reduce((sum, defender) => sum + Number(has(strong, defender)) - Number(has(weak, defender)), 0);
+  const ghostException = defender => basic && defender === "Ghost" && has(immune,defender);
+  if (defenders.some(defender => has(immune,defender) && !ghostException(defender))) return 0;
+  const steps = defenders.reduce((sum,defender) => sum + Number(has(strong,defender)) -
+    Number(has(weak,defender) || ghostException(defender)),0);
   return [0.25, 0.5, 1, 1.5, 2][2 + Math.max(-2, Math.min(2, steps))];
 }
 export const tier = (level, pokemon) => level >= (pokemon ? 50 : 10) ? 3 : level >= (pokemon ? 21 : 5) ? 2 : 1;
@@ -166,4 +168,24 @@ export function restPlan(system, mode) {
   if (value === 0) return {error:"Resolve the combatant’s fainting recovery first."};
   if (system.afflictions.wounded) return {error:"A Wounded combatant cannot recover HP."};
   return {value:mode === "full" ? max : Math.min(max,value + Math.floor(max / 2))};
+}
+
+
+export const basicAttackProfiles = {
+  unarmed:{label:"Melee",range:"Melee, 1 Target",db:4},
+  melee:{label:"Melee weapon",range:"Melee, 1 Target",db:6},
+  short:{label:"Short-ranged weapon or Ranger role",range:"6 m, 1 Target",db:4},
+  long:{label:"Long-ranged weapon",range:"12 m, 1 Target, no adjacent targets",db:4}
+};
+
+export function basicAttackData(category, element, profile, actorTypes) {
+  if (!["Physical","Special"].includes(category) || !["Normal",...actorTypes].includes(element) ||
+    !Object.hasOwn(basicAttackProfiles,profile)) return null;
+  const {range,db} = basicAttackProfiles[profile];
+  return {category,element,range,db,ac:4,crit:20,damage:0,accuracyRequired:true,frequency:"At-Will",action:"Standard",
+    description:"Confirm range, weapon or role, and any effect that specifically applies to Basic Attacks."};
+}
+
+export function opposedResult(left, right) {
+  return Math.sign(left.successes - right.successes || left.total - right.total);
 }

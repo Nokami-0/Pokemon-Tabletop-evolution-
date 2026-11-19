@@ -10,6 +10,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       level:count(1,1),attackTurn:count(),attackScene:count(),
+      basicAttack:new SchemaField({useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count()}),
       stats:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count(5))),
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
       afflictions:new SchemaField(keyset(Object.keys(afflictions),() => new BooleanField({initial:false}))),

@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -151,6 +151,48 @@ async function skill(actor, index) {
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}`});
 }
 
+async function multiSkillCheck(actor, opposed) {
+  const unique = new Map([[actor.uuid,actor]]);
+  for (const token of game.user.targets) if (token.actor) unique.set(token.actor.uuid,token.actor);
+  const participants = [...unique.values()];
+  if (opposed ? participants.length !== 2 : participants.length < 3) {
+    return ui.notifications.warn(opposed ? "Target one other actor for an opposed check." : "Include at least three actors by targeting the other participants.");
+  }
+  if (participants.some(participant=>!participant.isOwner)) {
+    return ui.notifications.warn("The GM or an owner of every participant must roll this check.");
+  }
+  const fields = participants.map((participant,index)=>`<fieldset><legend>${escape(participant.name)}</legend>
+    <label>Skill <select name="skill${index}">${skills.map((skill,id)=>`<option value="${id}">${escape(skill)}</option>`).join("")}</select></label>
+    <label>Modifier <select name="mode${index}"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label></fieldset>`).join("");
+  const form = await DialogV2.prompt({
+    window:{title:opposed ? "Opposed Skill Check" : "Group Skill Check"},
+    content:`<div style="max-height:62vh;overflow:auto">${opposed ? "" : '<label>Base Challenge Rating <input name="cr" type="number" min="0" value="2"></label>'}${fields}</div>`,
+    ok:{label:"Roll",callback:(event,button)=>new FormData(button.form)},rejectClose:false
+  });
+  if (!form) return;
+  const choices = participants.map((participant,index)=>({
+    participant,index:Number(form.get(`skill${index}`)),threshold:Number(form.get(`mode${index}`))
+  }));
+  if (choices.some(choice=>!skills[choice.index] || ![3,4,5].includes(choice.threshold))) return;
+  const results = await Promise.all(choices.map(async ({participant,index,threshold})=>{
+    const roll = await new Roll(`${participant.system.skills[`s${index}`]}d6`).evaluate();
+    const dice = roll.dice[0].values;
+    return {name:participant.name,skill:skills[index],roll,dice,successes:successes(dice,threshold),total:dice.reduce((sum,value)=>sum+value,0)};
+  }));
+  let outcome;
+  if (opposed) {
+    const comparison = opposedResult(results[0],results[1]);
+    outcome = comparison ? `${escape(results[comparison > 0 ? 0 : 1].name)} wins` : "Tie · GM adjudication";
+  } else {
+    const cr = Math.max(0,Math.trunc(Number(form.get("cr")) || 0)) + participants.length;
+    const total = results.reduce((sum,result)=>sum+result.successes,0);
+    outcome = `${total} successes vs CR ${cr} · ${total >= cr ? "Pass" : "Fail"}`;
+  }
+  const details = results.map(result=>`<li>${escape(result.name)} · ${escape(result.skill)} · ${result.dice.join(", ")} · ${result.successes} successes · dice total ${result.total}</li>`).join("");
+  return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls:results.map(result=>result.roll),
+    content:`<p><strong>${opposed ? "Opposed Check" : "Group Check"} · ${outcome}</strong></p><ul>${details}</ul>`});
+}
+
 async function trackedMove(actor,item) {
   if (!actor.isOwner || item?.type !== "move") return;
   const pool = actionPool(actor);
@@ -203,7 +245,7 @@ async function useMove(actor, item, pool = null) {
     const defense = move.category === "Status" ? 0 : combatStat(target,special ? "spd" : "def");
     const targetEvasion = attackEvasion(target,defense);
     const needed = move.ac + targetEvasion;
-    const factor = damage ? effectiveness(move.element,elements(target)) : 1;
+    const factor = damage ? effectiveness(move.element,elements(target),{basic:item.basic}) : 1;
     const hit = factor && (!needsAccuracy || roll.total >= needed);
     const amount = hit && damage ? Math.floor(Math.max(0,damage.total-defense-target.system.reduction)*factor) : 0;
     const result = !factor ? "Immune" : !hit ? "Miss" : !damage ? "Hit" : `Hit · ${amount} damage (×${factor})`;
@@ -222,6 +264,29 @@ async function useMove(actor, item, pool = null) {
       ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : ""}
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
   if (pool) await applyMoveDamage(results);
+}
+
+async function rollBasicAttack(actor) {
+  if (!actor.isOwner) return;
+  const types = elements(actor);
+  const form = await DialogV2.prompt({
+    window:{title:"Basic Attack"},
+    content:`<label>Category <select name="category"><option>Physical</option><option>Special</option></select></label>
+      <label>Type <select name="element">${[...new Set(["Normal",...types])].map(type=>`<option>${escape(type)}</option>`).join("")}</select></label>
+      <label>Profile <select name="profile">${Object.entries(basicAttackProfiles).map(([key,entry])=>`<option value="${key}">${entry.label}</option>`).join("")}</select></label>
+      <label><input type="checkbox" name="manual"> Roll only · action handled manually</label>
+      <p>Check range, adjacency, and eligibility for the selected profile at the table.</p>`,
+    ok:{label:"Roll",callback:(event,button)=>new FormData(button.form)},rejectClose:false
+  });
+  if (!form) return;
+  const data = basicAttackData(form.get("category"),form.get("element"),form.get("profile"),elements(actor));
+  if (!data) return;
+  const item = {name:"Basic Attack",type:"move",basic:true,uuid:`${actor.uuid}.BasicAttack`,
+    system:{...actor.system.basicAttack,...data},
+    update:changes=>actor.update(Object.fromEntries(Object.entries(changes).map(([path,value])=>
+      [path.replace("system.","system.basicAttack."),value])))};
+  if (form.has("manual")) return useMove(actor,item);
+  return trackedMove(actor,item);
 }
 
 async function applyMoveDamage(results) {
@@ -393,6 +458,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
+      opposedSkill() { return multiSkillCheck(this.document,true); },
+      groupSkill() { return multiSkillCheck(this.document,false); },
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
       async save() {
         const actor = this.document;
@@ -432,6 +499,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
+      basicAttack() { return rollBasicAttack(this.document); },
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },
       trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },

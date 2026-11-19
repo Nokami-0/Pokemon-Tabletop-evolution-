@@ -84,7 +84,7 @@
   {{/unless}}
   {{#if editable}}<section>
     <h2>Attack Tracking · Turn {{system.attackTurn}}</h2>
-    <div class="pte-buttons"><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>
+    <div class="pte-buttons"><button type="button" data-action="basicAttack">Basic Attack</button><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>
     <button type="button" data-action="resetAttackScene">Reset Attack Scene</button></div>
   </section>{{/if}}
   {{#each groups}}
@@ -102,6 +102,8 @@
   {{/each}}
   <section>
     <h2>Skills</h2>
+    {{#if editable}}<div class="pte-buttons"><button type="button" data-action="opposedSkill">Opposed Check</button>
+      <button type="button" data-action="groupSkill">Group Check</button></div>{{/if}}
     <div class="pte-grid pte-skills">
       {{#each skills}}
       <label><button type="button" data-action="skill" data-index="{{index}}">{{label}}</button>

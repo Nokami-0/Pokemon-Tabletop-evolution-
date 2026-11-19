@@ -13,6 +13,9 @@
       <label>Range <input name="system.range" value="{{system.range}}"></label>
       {{/if}}
       {{#if gear}}
+      {{#if variants}}<label>Potion Variant <select name="system.variant"><option value="">Choose a variant</option>
+        {{#each variants}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select></label>{{/if}}
       <label>Unit Price <input name="system.price" value="{{price}}"></label>
       <label>Quantity <input type="number" min="0" name="system.quantity" value="{{system.quantity}}"></label>
       <label class="pte-check">Equipped <input type="checkbox" name="system.equipped" {{#if system.equipped}}checked{{/if}}></label>

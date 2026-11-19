@@ -78,3 +78,32 @@ export function recoveryPlan(system, gear, mode, chosen = []) {
   return {updates:{"system.health.value":restored},
     message:mode === "revive" ? `revived at ${restored} HP` : `recovered ${restored - value} HP`};
 }
+
+export const potionVariants = {
+  atk:"Attack", spa:"Special Attack", def:"Defense", spd:"Special Defense",
+  crit:"Critical Range", accuracy:"Accuracy", evasion:"Evasion", save:"Save Checks"
+};
+
+export const boostGear = {
+  "Basic Strength Potion": {atk:2,spa:2,crit:2,accuracy:2},
+  "Greater Strength Potion": {atk:3,spa:3,crit:3,accuracy:3},
+  "Basic Vitality Potion": {def:2,spd:2,evasion:3,save:2},
+  "Greater Vitality Potion": {def:3,spd:3,evasion:6,save:4}
+};
+
+export const capCombatModifier = value => Math.max(-6,Math.min(6,value));
+
+export function boostPlan(system, gear, variant) {
+  if (!Object.hasOwn(gear,variant)) return {error:"Choose a variant on the potion’s item sheet first."};
+  if (system.health.value <= 0) return {error:"A fainted combatant cannot benefit from this potion."};
+  if ((variant === "def" && system.afflictions.burned) || (variant === "spd" && system.afflictions.poisoned)) {
+    return {error:"The active affliction prevents that combat stage from increasing."};
+  }
+  const stage = Object.hasOwn(system.stages,variant);
+  const bucket = stage ? "stages" : "potionBonuses";
+  const current = system[bucket][variant];
+  const next = stage ? Math.min(6,current + gear[variant]) : current + gear[variant];
+  if (next === current) return {error:"That combat stage is already at its maximum."};
+  return {updates:{[`system.${bucket}.${variant}`]:next},message:
+    `gained +${next-current} ${potionVariants[variant]}${stage ? " combat stages" : " for the scene"}`};
+}

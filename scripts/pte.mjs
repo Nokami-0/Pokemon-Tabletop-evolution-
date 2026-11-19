@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -23,10 +23,11 @@ function combatStat(actor,key) {
   return stagedStat(actor.system.stats[key],stage - (penalty ? 2 : 0));
 }
 const vulnerable = actor => afflicted(actor,"chilled") || afflicted(actor,"paralyzed");
+const potionBonus = (actor,key) => actor.system.potionBonuses?.[key] ?? 0;
 function attackEvasion(actor, defense) {
   if (vulnerable(actor)) return 0;
-  return Math.max(evasion(defense),afflicted(actor,"slowed") ? 0 : evasion(combatStat(actor,"spe"))) +
-    actor.system.evasion - (afflicted(actor,"cursed") ? 3 : 0);
+  return capCombatModifier(Math.max(evasion(defense),afflicted(actor,"slowed") ? 0 : evasion(combatStat(actor,"spe"))) +
+    actor.system.evasion + potionBonus(actor,"evasion") - (afflicted(actor,"cursed") ? 3 : 0));
 }
 const pokemon = actor => actor.type === "pokemon";
 const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
@@ -151,9 +152,9 @@ async function useMove(actor, item) {
   if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
   if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
   const needsAccuracy = move.accuracyRequired !== false;
-  const roll = await new Roll("1d20 + @accuracy", {accuracy:actor.system.accuracy - (afflicted(actor,"cursed") ? 3 : 0)}).evaluate();
+  const roll = await new Roll("1d20 + @accuracy", {accuracy:capCombatModifier(actor.system.accuracy + potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0))}).evaluate();
   const natural = roll.dice[0].values[0];
-  const critical = move.category !== "Status" && natural >= move.crit;
+  const critical = move.category !== "Status" && natural >= Math.max(1,move.crit - capCombatModifier(potionBonus(actor,"crit")));
   const special = move.category === "Special";
   const db = move.db + (elements(actor).includes(move.element) ? 2 : 0);
   const damage = move.category === "Status" || move.db === 0 ? null :
@@ -212,7 +213,7 @@ async function pickCatalogEntry(type) {
     description:entry.rules || (entry.source ? "See the linked reference for this entry’s effects." : `${entry.category}. See the cited page for prerequisites and effects.`)}};
 }
 
-const pendingRecovery = new Set();
+const pendingGear = new Set();
 
 function recoveryListing(item) {
   if (item?.type !== "gear") return null;
@@ -220,21 +221,32 @@ function recoveryListing(item) {
   return listing && Object.hasOwn(recoveryGear,listing.name) ? recoveryGear[listing.name] : null;
 }
 
-async function useRecoveryGear(actor,id) {
+function boostListing(item) {
+  if (item?.type !== "gear") return null;
+  const listing = catalogListing(item);
+  return listing && Object.hasOwn(boostGear,listing.name) ? boostGear[listing.name] : null;
+}
+
+async function useGear(actor,id) {
   const item = actor.items.get(id);
   const gear = recoveryListing(item);
-  if (!actor.isOwner || !gear || item.system.quantity < 1) return;
+  const boost = boostListing(item);
+  if (!actor.isOwner || (!gear && !boost) || item.system.quantity < 1) return;
+  if (boost && !Object.hasOwn(boost,item.system.variant)) return ui.notifications.warn("Choose a variant on the potion’s item sheet first.");
   const selected = [...game.user.targets].map(token => token.actor).filter(Boolean);
   if (selected.length > 1) return ui.notifications.warn("Select one target, or clear targets to use this on yourself.");
   const target = selected[0] ?? actor;
   if (!target.isOwner) return ui.notifications.warn("The GM or an owner of both actors must apply this item.");
   const lock = [item.uuid,target.uuid];
-  if (lock.some(key => pendingRecovery.has(key))) return;
-  lock.forEach(key => pendingRecovery.add(key));
+  if (lock.some(key => pendingGear.has(key))) return;
+  lock.forEach(key => pendingGear.add(key));
   try {
     const afflictionOptions = Object.entries(afflictions).filter(([key])=>afflicted(target,key))
       .map(([key,label])=>`<label><input type="checkbox" name="cure" value="${key}"> ${label}</label>`).join("");
-    const form = await DialogV2.prompt({
+    const variant = item.system.variant;
+    const form = boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
+      content:`<p>${escape(target.name)} · ${escape(potionVariants[variant])}. Confirm the action cost and legal range at the table.</p>`,
+      yes:{label:"Use One"},rejectClose:false}) : await DialogV2.prompt({
       window:{title:`Use ${item.name}`},
       content:`<p>Target · ${escape(target.name)}. Confirm the action cost and legal range at the table.${gear.revive ? "" : " Poultices require an adjacent target."}</p>
         <label>Effect <select name="mode"><option value="heal">Restore HP</option>
@@ -245,12 +257,13 @@ async function useRecoveryGear(actor,id) {
       rejectClose:false
     });
     if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
-    const plan = recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
+    if (boost && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
+    const plan = boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
     if (plan.error) return ui.notifications.warn(plan.error);
     const quantity = item.system.quantity;
     await item.update({"system.quantity":quantity - 1});
     try {
-      await target.update({...plan.updates,...(gear.revive ? {"system.healingPotionUsed":true} : {})});
+      await target.update({...plan.updates,...(gear?.revive ? {"system.healingPotionUsed":true} : {})});
     } catch (error) {
       if (actor.items.has(id) && item.system.quantity === quantity - 1) await item.update({"system.quantity":quantity});
       throw error;
@@ -258,7 +271,7 @@ async function useRecoveryGear(actor,id) {
     await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
       content:`<p><strong>${escape(item.name)}</strong> · ${escape(target.name)} ${escape(plan.message)}.</p>`});
   } finally {
-    lock.forEach(key => pendingRecovery.delete(key));
+    lock.forEach(key => pendingGear.delete(key));
   }
 }
 
@@ -270,7 +283,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
       async save() {
         const actor = this.document;
-        const penalty = afflicted(actor,"cursed") ? -3 : 0;
+        const penalty = capCombatModifier(potionBonus(actor,"save") - (afflicted(actor,"cursed") ? 3 : 0));
         const roll = await new Roll("1d20 + @penalty",{penalty}).evaluate();
         await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:"Affliction Save · 15+"});
         if (roll.total < 15 || !this.isEditable) return;
@@ -291,6 +304,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       clearAfflictions() {
         const updates = Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false]));
+        for (const key of Object.keys(this.document.system.potionBonuses)) updates[`system.potionBonuses.${key}`] = 0;
         return this.document.update({...updates,"system.healingPotionUsed":false});
       },
       async endTurnTicks() {
@@ -322,7 +336,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const item = this.document.items.get(target.dataset.id);
         if (item && await DialogV2.confirm({window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
       },
-      useGear(event,target) { return useRecoveryGear(this.document,target.dataset.id); },
+      useGear(event,target) { return useGear(this.document,target.dataset.id); },
       equip(event,target) {
         const item = this.document.items.get(target.dataset.id);
         return item?.update({"system.equipped":!item.system.equipped});
@@ -380,6 +394,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         key,label,current:system.stages[key],defaultStage:system.defaultStages[key],effective:combatStat(actor,key)
       })),
       effectiveMovement:Math.max(0,Math.floor((system.movement + Math.trunc(system.stages.spe / 2)) / (afflicted(actor,"slowed") ? 2 : 1))),
+      potionEffects:Object.entries(system.potionBonuses).filter(([,value])=>value).map(([key,value])=>({label:potionVariants[key],value})),
       afflictions:Object.entries(afflictions).map(([key,label])=>({key,label,active:afflicted(actor,key)})),
       evasion:["def","spd","spe"].map(key => evasion(combatStat(actor,key))).join(" / "),
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
@@ -387,7 +402,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }
@@ -400,6 +415,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.document;
     const listing = catalogListing(item);
+    const variants = Object.keys(boostListing(item) || {}).map(value=>({value,label:potionVariants[value],selected:item.system.variant===value}));
     const defaultDescription = listing && `${listing.category}. See the cited page for prerequisites and effects.`;
     const description = listing?.rules && (!item.system.description || item.system.description === defaultDescription)
       ? listing.rules : item.system.description;
@@ -408,7 +424,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      sourceLink,description,prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
+      sourceLink,description,variants,prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status","WT"],item.system.category),

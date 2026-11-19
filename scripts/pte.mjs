@@ -1,3 +1,4 @@
+import {normalizeRequirement, requirementResult, speciesRequirement} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
@@ -326,6 +327,86 @@ const catalogListings = new Map(catalog.map(entry => [
 const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
 const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
 
+const catalogNames = new Set(catalog.filter(entry=>entry.kind === "class" || entry.kind === "feature")
+  .map(entry=>normalizeRequirement(entry.name)));
+
+async function acquisitionCheck(actor, entry) {
+  if (!entry) return {review:"A custom class, feature, or move requires GM approval."};
+  const owned = new Set();
+  const classes = new Set();
+  const featureCounts = new Map();
+  const counted = new Set();
+  for (const item of actor.items) {
+    if (item.type !== "class" && item.type !== "feature") continue;
+    const name = normalizeRequirement(item.name);
+    owned.add(name);
+    if (item.type === "class") classes.add(name);
+    const listing = catalogListing(item);
+    if (item.type !== "feature" || !listing || counted.has(name)) continue;
+    counted.add(name);
+    const group = normalizeRequirement(listing.category);
+    featureCounts.set(group,(featureCounts.get(group) || 0)+1);
+  }
+  const legacyClass = normalizeRequirement(actor.system.trainerClass || "");
+  if (legacyClass) {
+    classes.add(legacyClass);
+    owned.add(legacyClass);
+  }
+  const prerequisites = entry.prerequisites || [];
+  const result = requirementResult(prerequisites,{level:actor.system.level,skills:actor.system.skills,owned,classes,featureCounts,catalogNames});
+  if (result === false) return {error:"Prerequisites unmet. " + prerequisites.join(" / ")};
+  if (result === null) return {review:"Confirm the requirements in the Rule Book. " + prerequisites.join(" / ")};
+  if (entry.category === "Pokémon Abilities" && !pokemon(actor)) {
+    return {review:"A Trainer needs a rule or feature granting this Pokémon ability."};
+  }
+  if (entry.kind === "move" && (!pokemon(actor) || entry.category !== "Moves")) {
+    return {review:"Confirm the class, feature, weapon, or other rule that grants this move."};
+  }
+  if (pokemon(actor) && (entry.category === "Pokémon Abilities" || entry.kind === "move")) {
+    let profile;
+    if (actor.system.dexPage) {
+      try {
+        profile = (await dexProfiles()).get(actor.system.dexPage);
+      } catch {
+        return {review:"The Pokédex could not load. Check the species entry before granting this option."};
+      }
+    }
+    if (profile && normalizeRequirement(profile.name) !== normalizeRequirement(actor.system.species || "")) profile = null;
+    const eligibility = speciesRequirement(entry,profile,actor.system.level);
+    if (eligibility.error || eligibility.review) return eligibility;
+    if (entry.category === "Pokémon Abilities") {
+      const abilities = actor.items.filter(item=>catalogListing(item)?.category === "Pokémon Abilities");
+      if (abilities.some(item=>normalizeRequirement(item.name) === normalizeRequirement(entry.name))) {
+        return {error:"This Pokémon already has that ability."};
+      }
+      if (abilities.length) {
+        return {review:actor.system.level < 30 ?
+          "The normal second ability is available at level 30. Verify a separate rule if it is being granted earlier." :
+          "Confirm the Pokémon chose its extra ability instead of a second role, or has another rule granting it."};
+      }
+    }
+  }
+  return {};
+}
+
+async function allowCatalogAcquisition(actor,data) {
+  if (data.type === "gear") return true;
+  const entry = data.system && catalogListing(data);
+  const outcome = await acquisitionCheck(actor,entry);
+  if (outcome.error) {
+    ui.notifications.warn(outcome.error);
+    return false;
+  }
+  if (!outcome.review) return true;
+  if (!game.user.isGM) {
+    ui.notifications.warn(`${outcome.review} Ask your GM to add the entry after checking.`);
+    return false;
+  }
+  return DialogV2.confirm({window:{title:"Verify Prerequisite"},
+    content:`<p>${escape(data.name)} · ${escape(outcome.review)}</p>`,
+    yes:{label:"Grant Entry"},rejectClose:false});
+}
+
 async function pickCatalogEntry(type) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
     .filter(entry => entry.kind === type), entry => entry.category);
@@ -551,7 +632,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (!this.isEditable || !Object.hasOwn(itemTypes,type)) return;
         if (type === "class" && pokemon(this.document)) return;
         const data = await pickCatalogEntry(type);
-        if (!data) return;
+        if (!data || !await allowCatalogAcquisition(this.document,data)) return;
         if (type === "move" && pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit) {
           data.system = {...data.system,knownOnly:true};
         }

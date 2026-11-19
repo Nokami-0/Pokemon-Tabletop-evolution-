@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.16 adds Trainer-linked Pokémon progression and Battle and Known attack tracking.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.17 checks prerequisites when adding catalog entries.
 
 ## Install from Foundry
 
@@ -52,6 +52,8 @@ For a multi-actor skill check, target the other participants and choose **Oppose
 
 The Battle list defaults to six slots. Once full, newly added Pokémon moves go to Known. Move attacks between lists when the rules permit it. Use the granted attack checkbox for an attack that does not occupy a slot. Existing moves remain in Battle until you change their assignment.
 
+Catalog acquisition checks supported level, skill rank, ownership, and class feature-count requirements. A linked Pokédex entry checks Pokémon starting and level-up moves and species abilities. Tutor selections, special grants, and ambiguous prerequisites require GM confirmation. These checks run through the sheet’s Add buttons. Existing items, edits, drag-and-drop, and imports are separate workflows.
+
 ## Coverage
 
 The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
@@ -66,7 +68,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.16`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.17`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

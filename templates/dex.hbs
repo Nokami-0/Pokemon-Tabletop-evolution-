@@ -1,0 +1,12 @@
+<div class="pte-body pte-dex-body">
+  <header class="pte-banner"><div><h2>Pokédex</h2><span>PTE FIELD DATABASE</span></div></header>
+  <input type="search" aria-label="Search Pokédex" placeholder="Search species or type">
+  <div class="pte-results">
+    {{#each entries}}
+    <div class="pte-row pte-dexrow" data-search="{{name}} {{typing}}">
+      <div><strong>{{name}}</strong> <small>p. {{page}}</small><p>{{typing}}{{#if moves}} · {{moves}}{{/if}}</p></div>
+      <button type="button" data-action="importEntry" data-page="{{page}}">{{#if ../applying}}Use Stats{{else}}Create Actor{{/if}}</button>
+    </div>
+    {{/each}}
+  </div>
+</div>

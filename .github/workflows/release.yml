@@ -1,0 +1,33 @@
+name: Package Foundry release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release assets
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from "node:fs";
+          const manifest = JSON.parse(fs.readFileSync("system.json", "utf8"));
+          if (process.env.GITHUB_REF_NAME !== `v${manifest.version}`) throw new Error("Tag must match manifest version.");
+          const repo = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+          manifest.url = repo;
+          manifest.manifest = `${repo}/releases/latest/download/system.json`;
+          manifest.download = `${repo}/releases/download/${process.env.GITHUB_REF_NAME}/pokemon-tabletop-evolution.zip`;
+          fs.writeFileSync("system.json", JSON.stringify(manifest, null, 2) + "\n");
+          JS
+          for script in scripts/*.mjs; do node --check "$script" || exit 1; done
+          zip -r pokemon-tabletop-evolution.zip system.json scripts styles templates data README.md
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" system.json pokemon-tabletop-evolution.zip --verify-tag --generate-notes

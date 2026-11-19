@@ -1,0 +1,85 @@
+<div class="pte-body">
+  <header class="pte-banner">
+    <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
+    <div>
+      <span>{{#if pokemon}}POKÉMON PROFILE{{else}}TRAINER CARD{{/if}} · TIER {{tier}}</span>
+      <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
+    </div>
+    {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>{{/if}}
+  </header>
+  <fieldset {{#unless editable}}disabled{{/unless}}>
+    <div class="pte-grid">
+      <label>Level <input name="system.level" type="number" min="1" value="{{system.level}}"></label>
+      <label>HP (max {{system.health.max}}) <input name="system.health.value" type="number" min="0" max="{{system.health.max}}" value="{{system.health.value}}"></label>
+      <label>Temp HP <input name="system.health.temp" type="number" min="0" value="{{system.health.temp}}"></label>
+      <label>Spirit Points <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
+      <label>Movement (m) <input name="system.movement" type="number" min="0" value="{{system.movement}}"></label>
+      {{#if pokemon}}
+      <label>Species <input name="system.species" value="{{system.species}}"></label>
+      <label>Primary Type <select name="system.type1" data-element="{{system.type1}}">{{#each type1}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>Secondary Type <select name="system.type2" data-element="{{system.type2}}">{{#each type2}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>Role <input name="system.role" value="{{system.role}}"></label>
+      <label>XP <input name="system.xp" type="number" min="0" value="{{system.xp}}"></label>
+      <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+      {{else}}
+      <label>Class <input name="system.trainerClass" value="{{system.trainerClass}}"></label>
+      <label>Money <input name="system.money" type="number" min="0" value="{{system.money}}"></label>
+      {{/if}}
+    </div>
+  </fieldset>
+  <section>
+    <h2>Battle Stats</h2>
+    <fieldset class="pte-grid" {{#unless editable}}disabled{{/unless}}>
+      {{#each stats}}<label>{{label}} <input name="system.stats.{{key}}" type="number" min="0" value="{{value}}"></label>{{/each}}
+      <label>Accuracy Mod <input name="system.accuracy" type="number" value="{{system.accuracy}}"></label>
+      <label>Evasion Mod <input name="system.evasion" type="number" value="{{system.evasion}}"></label>
+      <label>Damage Reduction <input name="system.reduction" type="number" min="0" value="{{system.reduction}}"></label>
+    </fieldset>
+    <p>Physical / Special / Speed Evasion · {{evasion}}</p>
+    <div class="pte-buttons">
+      <button type="button" data-action="luck">Luck Check</button>
+      <button type="button" data-action="save">Affliction Save</button>
+      {{#if editable}}<button type="button" data-action="damage">Apply Damage</button><button type="button" data-action="heal">Restore HP</button>{{/if}}
+    </div>
+  </section>
+  {{#each pools}}
+  <section>
+    <h2>{{label}}</h2>
+    <div class="pte-buttons">
+      {{#each actions}}
+      <button type="button" data-action="spendAction" data-pool="{{../key}}" data-key="{{key}}" aria-pressed="{{#if spent}}true{{else}}false{{/if}}" {{#unless ../editable}}disabled{{/unless}}>{{label}}{{#if spent}} · Spent{{/if}}</button>
+      {{/each}}
+      {{#if editable}}<button type="button" data-action="refreshActions" data-pool="{{key}}">Reset</button>{{/if}}
+    </div>
+  </section>
+  {{/each}}
+  {{#unless pokemon}}
+  <section><h2>Team</h2><div class="pte-buttons">
+    {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}<p>Assign a Trainer on a Pokémon sheet to link it here.</p>{{/each}}
+  </div></section>
+  {{/unless}}
+  {{#each groups}}
+  <section>
+    <div class="pte-row"><h2>{{label}}</h2>{{#if ../editable}}<button type="button" data-action="add" data-type="{{type}}">Add {{type}}</button>{{/if}}</div>
+    {{#each items}}
+    <div class="pte-row pte-itemrow">
+      <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+      {{#if move}}<span class="pte-type" data-element="{{system.element}}">{{system.element}}</span><small>{{system.category}} · {{system.frequency}} · {{system.range}}</small><button type="button" data-action="move" data-id="{{id}}">Roll</button>{{/if}}
+      {{#if gear}}<small>Qty {{system.quantity}}</small>{{#if ../../editable}}<button type="button" data-action="equip" data-id="{{id}}">{{#if system.equipped}}Unequip{{else}}Equip{{/if}}</button>{{/if}}{{/if}}
+      {{#if ../../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
+    </div>
+    {{/each}}
+  </section>
+  {{/each}}
+  <section>
+    <h2>Skills</h2>
+    <div class="pte-grid pte-skills">
+      {{#each skills}}
+      <label><button type="button" data-action="skill" data-index="{{index}}">{{label}}</button>
+        <select name="system.skills.s{{index}}" aria-label="{{label}} rank" {{#unless ../editable}}disabled{{/unless}}>{{#each rank}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+      </label>
+      {{/each}}
+    </div>
+  </section>
+  <section><h2>Notes</h2><textarea aria-label="Notes" name="system.biography" rows="4" {{#unless editable}}readonly{{/unless}}>{{system.biography}}</textarea></section>
+</div>

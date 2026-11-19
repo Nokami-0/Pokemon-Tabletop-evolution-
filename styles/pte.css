@@ -1,0 +1,52 @@
+.pte {
+  --pte-red:#b82236;
+  --pte-navy:#172b44;
+  --pte-light:#f4f8fc;
+  --pte-muted:#45617b;
+  --pte-yellow:#ffda72;
+  --pte-line:#cbd9e6;
+}
+.pte .window-content {padding:0; background:var(--pte-light); color:var(--pte-navy); overflow:hidden}
+.pte .pte-body {padding:16px; display:flex; flex-direction:column; gap:12px; overflow:auto; min-height:0; color-scheme:light}
+.pte .pte-banner {
+  padding:14px 16px; border-radius:16px; border-bottom:5px solid #801623;
+  background:linear-gradient(120deg,#ae1f33,#c72b40); color:white;
+  display:flex; gap:14px; align-items:center;
+}
+.pte .pte-banner div {flex:1; min-width:0}
+.pte .pte-banner span {font-size:11px; font-weight:800; color:var(--pte-yellow); letter-spacing:.14em; text-transform:uppercase}
+.pte .pte-banner img {width:54px; height:54px; object-fit:contain; border:2px solid white; border-radius:12px; background:var(--pte-navy)}
+.pte .pte-banner input {display:block; width:100%; background:#ffffffeb; font-size:22px; height:36px}
+.pte section {border:1px solid var(--pte-line); border-radius:12px; padding:12px; background:white}
+.pte h2 {font-size:16px; margin:0 0 8px; color:inherit; border:0}
+.pte .pte-grid {display:grid; grid-template-columns:repeat(auto-fit,minmax(116px,1fr)); gap:8px}
+.pte fieldset {border:0; margin:0; padding:0; min-width:0}
+.pte label {display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:650; color:var(--pte-muted)}
+.pte .pte-check {flex-direction:row; align-items:center}
+.pte input:not([type=checkbox]), .pte select, .pte textarea {width:100%; color:var(--pte-navy); border:1px solid var(--pte-line); border-radius:6px; background:#f9fbfd}
+.pte textarea {resize:vertical; min-height:80px}
+.pte input[type=checkbox] {accent-color:var(--pte-red)}
+.pte button {width:auto; border:1px solid var(--pte-line); border-radius:6px; background:#ecf3fb; color:var(--pte-navy); padding:4px 9px; font-weight:650}
+.pte button:hover {background:#dbe9fa}
+.pte .pte-dex-button {background:var(--pte-yellow)}
+.pte .pte-buttons {display:flex; flex-wrap:wrap; gap:7px; align-items:center}
+.pte .pte-row {display:flex; flex-wrap:wrap; gap:7px; align-items:center; justify-content:space-between}
+.pte .pte-itemrow,.pte .pte-dexrow {padding:6px 0; border-top:1px solid var(--pte-line)}
+.pte .pte-skills {grid-template-columns:repeat(auto-fit,minmax(143px,1fr))}
+.pte .pte-dex-body {height:100%; overflow:hidden}
+.pte .pte-results {overflow:auto; min-height:0; flex:1}
+.pte [hidden] {display:none!important}
+.pte p {margin:4px 0; color:var(--pte-muted)}
+.pte .pte-type {border-radius:12px; font-weight:700; padding:3px 9px; font-size:11px}
+.pte [data-element] {background:#e5eaf0}
+.pte [data-element=Fire] {background:#ffd4c4}
+.pte [data-element=Water] {background:#c6e6ff}
+.pte [data-element=Grass],.pte [data-element=Bug] {background:#cfeec8}
+.pte [data-element=Electric] {background:#ffe693}
+.pte [data-element=Ghost],.pte [data-element=Poison] {background:#dfd1ff}
+.pte [data-element=Ice],.pte [data-element=Flying] {background:#d4f4f9}
+.pte [data-element=Psychic],.pte [data-element=Fairy] {background:#ffd6eb}
+.pte [data-element=Ground],.pte [data-element=Rock],.pte [data-element=Fighting] {background:#f1dfc8}
+.pte [data-element=Dark],.pte [data-element=Steel],.pte [data-element=Dragon] {background:#d3d9eb}
+.pte button[aria-pressed=true] {background:#fee1e6; color:#8b2133}
+.pte button:disabled {opacity:.7; cursor:default}

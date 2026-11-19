@@ -1,0 +1,25 @@
+<div class="pte-body">
+  <header class="pte-banner"><div><span>{{item.type}}</span><input aria-label="Name" name="name" value="{{item.name}}" {{#unless editable}}readonly{{/unless}}></div></header>
+  <fieldset {{#unless editable}}disabled{{/unless}}>
+    <div class="pte-grid">
+      {{#if move}}
+      <label>Type <select name="system.element" data-element="{{system.element}}">{{#each elements}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>Category <select name="system.category">{{#each categories}}<option {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>AC <input type="number" name="system.ac" value="{{system.ac}}"></label>
+      <label>Damage Base <input type="number" min="0" max="28" name="system.db" value="{{system.db}}"></label>
+      <label>Crit Range <input type="number" min="1" max="20" name="system.crit" value="{{system.crit}}"></label>
+      <label>Damage Modifier <input type="number" name="system.damage" value="{{system.damage}}"></label>
+      <label>Range <input name="system.range" value="{{system.range}}"></label>
+      {{/if}}
+      {{#if gear}}
+      <label>Quantity <input type="number" min="0" name="system.quantity" value="{{system.quantity}}"></label>
+      <label class="pte-check">Equipped <input type="checkbox" name="system.equipped" {{#if system.equipped}}checked{{/if}}></label>
+      {{else}}
+      <label>Frequency <input name="system.frequency" value="{{system.frequency}}"></label>
+      <label>Action <input name="system.action" value="{{system.action}}"></label>
+      {{/if}}
+      <label>Source / Page <input name="system.source" value="{{system.source}}"></label>
+    </div>
+    <label>Effects and rules <textarea name="system.description" rows="6">{{system.description}}</textarea></label>
+  </fieldset>
+</div>

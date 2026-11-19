@@ -29,3 +29,9 @@ export function damageFormula(db, crit, offense, modifier) {
   const bonus = flat * multiplier + offense + modifier;
   return `${dice * multiplier}d${faces} ${bonus < 0 ? "-" : "+"} ${Math.abs(bonus)}`;
 }
+
+
+export function stagedStat(base, stage = 0) {
+  const clamped = Math.max(-6,Math.min(6,stage));
+  return Math.floor(base * (10 + clamped * (clamped > 0 ? 2 : 1)) / 10);
+}

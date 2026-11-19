@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.6 adds catalog prerequisites, frequencies, actions, keywords, and selected gear effects.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.7 adds the linked PTE move, weapon attack, and ability catalogs.
 
 ## Install from Foundry
 
@@ -17,7 +17,7 @@ Open **Game Systems → Install System** and paste this manifest URL.
 ## Play
 
 - Create a **trainer** and one or more **pokemon** Actors. Assign each Pokémon's Trainer on its sheet to show it on their team and share the Pokémon action pool. Check off actions as you spend them and reset them each round.
-- Use **Pokédex** on a Pokémon sheet to search 1,002 entries from PTE Pokédex 1.0. **Use Stats** overwrites the six base stats and types and fills HP for the current level. Apply it before allocating level-up points. The search results list species starting attack names where available. Enter the move mechanics separately using **Add Move**. GMs can also run `game.pte.openDex()` in a Script Macro to create a new Actor from an entry.
+- Use **Pokédex** on a Pokémon sheet to search 1,002 entries from PTE Pokédex 1.0. **Use Stats** overwrites the six base stats and types and fills HP for the current level. Apply it before allocating level-up points. The search results list species starting attack names where available. Choose the attack from **Add Move** to import its base mechanics. GMs can also run `game.pte.openDex()` in a Script Macro to create a new Actor from an entry.
 - Enter a move's type, category, AC and DB. Target tokens on the canvas and choose **Roll** next to the move. The chat message shows accuracy, each target's hit result, and calculated damage. Apply the final damage from the target's sheet. Temporary HP is used first.
 - Click a skill name for a PTE dice pool, Boon or Bane, and optional Spirit Point spend. The result includes success count and CR outcome. Use party skill totals to determine initiative per the Rule Book.
 - Use **Add Gear**, **Add Feature**, or **Add Class** under **Bag**, **Features**, or **Classes**. The dropdowns include core and optional source entries with page references, and a custom option for homebrew. You can add multiple classes to a trainer. Class prerequisites, feature effects, and gear rules are handled at the table.
@@ -30,9 +30,11 @@ Open **Rule Library** from a Trainer or Pokémon sheet. A GM can point each of t
 
 The Pokédex offers **Details** for evolution, abilities, capabilities, skill ranks, physical profile, and starting, level-up, and tutor attack lists where present. After species import the same profile is available from the Pokémon sheet.
 
+Combat stages are editable per stat and feed effective movement, evasion, and attack damage. Reset stages to their defaults when a new scene starts.
+
 ## Coverage
 
-The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack definitions, prerequisites, and other PDF mechanics are still resolved separately.
+The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Frequency limits, ranges, and conditional effects are handled at the table.
 
 ### Source books
 
@@ -44,7 +46,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.6`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.7`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

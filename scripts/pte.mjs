@@ -1,6 +1,9 @@
-import {catalog} from "../data/catalog.mjs";
+import {catalog as bookCatalog} from "../data/catalog.mjs";
+import {attackCatalog} from "../data/attacks.mjs";
+const catalog = [...bookCatalog,...attackCatalog];
+const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -13,6 +16,7 @@ const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp
 const choices = (options, selected) => options.map(value => ({value, selected:value === selected}));
 const actions = ["standard","swift","movement","reaction"];
 const titleCase = str => str[0].toUpperCase() + str.slice(1);
+const combatStat = (actor,key) => stagedStat(actor.system.stats[key],actor.system.stages?.[key]);
 const pokemon = actor => actor.type === "pokemon";
 const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
 const elements = actor => pokemon(actor) ? [...new Set([actor.system.type1,actor.system.type2].filter(Boolean))] : [];
@@ -51,7 +55,7 @@ function showBooks() {
       : `<li>${escape(title)} · PDF path needed</li>`;
   }).join("");
   return DialogV2.prompt({window:{title:"PTE Rule Library"},
-    content:`<ul>${content}</ul><p>GMs can link PDFs in Configure Settings under Pokémon Tabletop Evolution.</p>`,
+    content:`<ul>${content}<li><a href="${attackReference}" target="_blank" rel="noopener noreferrer">Attacks &amp; Ability Reference</a></li></ul><p>GMs can link PDFs in Configure Settings under Pokémon Tabletop Evolution.</p>`,
     ok:{label:"Close"},rejectClose:false});
 }
 
@@ -132,36 +136,40 @@ async function skill(actor, index) {
 async function useMove(actor, item) {
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
+  if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
+  if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
+  const needsAccuracy = move.accuracyRequired !== false;
   const roll = await new Roll("1d20 + @accuracy", {accuracy:actor.system.accuracy}).evaluate();
   const natural = roll.dice[0].values[0];
   const critical = move.category !== "Status" && natural >= move.crit;
   const special = move.category === "Special";
   const db = move.db + (elements(actor).includes(move.element) ? 2 : 0);
   const damage = move.category === "Status" || move.db === 0 ? null :
-    await new Roll(damageFormula(db, critical, actor.system.stats[special ? "spa" : "atk"], move.damage)).evaluate();
+    await new Roll(damageFormula(db, critical, combatStat(actor,special ? "spa" : "atk"), move.damage)).evaluate();
   const targets = [...game.user.targets].filter(token => token.actor);
   const lines = targets.map(token => {
     const target = token.actor;
-    const defense = move.category === "Status" ? 0 : target.system.stats[special ? "spd" : "def"];
-    const targetEvasion = Math.max(evasion(defense),evasion(target.system.stats.spe)) + target.system.evasion;
+    const defense = move.category === "Status" ? 0 : combatStat(target,special ? "spd" : "def");
+    const targetEvasion = Math.max(evasion(defense),evasion(combatStat(target,"spe"))) + target.system.evasion;
     const needed = move.ac + targetEvasion;
     const factor = damage ? effectiveness(move.element,elements(target)) : 1;
-    const result = !factor ? "Immune" : roll.total < needed ? "Miss" : !damage ? "Hit" :
+    const result = !factor ? "Immune" : needsAccuracy && roll.total < needed ? "Miss" : !damage ? "Hit" :
       `Hit · ${Math.floor(Math.max(0, damage.total - defense - target.system.reduction) * factor)} damage (×${factor})`;
-    return `<li>${escape(token.name)} · TN ${needed} · ${result}</li>`;
+    return `<li>${escape(token.name)} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}</li>`;
   });
   const range = [move.element,move.category,move.range,move.frequency,move.action].map(escape).join(" · ");
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:
-    `<strong>${escape(item.name)}</strong><br>${range}<br>AC ${move.ac}${critical ? " · Critical" : ""}
+    `<strong>${escape(item.name)}</strong><br>${range}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
       ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : ""}
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
 }
 
 const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
 
+const entrySource = entry => entry.source || `${entry.book}, p. ${entry.page}`;
 const listingKey = (type, source, name) => `${type}|${source}|${name}`;
 const catalogListings = new Map(catalog.map(entry => [
-  listingKey(entry.kind, `${entry.book}, p. ${entry.page}`, entry.name),entry
+  listingKey(entry.kind, entrySource(entry), entry.name),entry
 ]));
 const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
 const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
@@ -171,7 +179,7 @@ async function pickCatalogEntry(type) {
     .filter(entry => entry.kind === type), entry => entry.category);
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
-      `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} · p. ${entry.page}</option>`
+      `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
     ).join("")}</optgroup>`
   ).join("");
   const selection = await DialogV2.prompt({
@@ -184,11 +192,12 @@ async function pickCatalogEntry(type) {
   if (selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = catalog[Number(selection)];
   if (entry?.kind !== type) return null;
-  return {name:entry.name,type,system:{source:`${entry.book}, p. ${entry.page}`,
+  return {name:entry.name,type,system:{source:entrySource(entry),
+    ...entry.stats,
     ...(entry.price ? {price:entry.price} : {}),
     ...(entry.frequency ? {frequency:entry.frequency} : {}),
     ...(entry.action ? {action:entry.action} : {}),
-    description:entry.rules || `${entry.category}. See the cited page for prerequisites and effects.`}};
+    description:entry.rules || (entry.source ? "See the linked reference for this entry’s effects." : `${entry.category}. See the cited page for prerequisites and effects.`)}};
 }
 
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -205,7 +214,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const type = target.dataset.type;
         if (!this.isEditable || !Object.hasOwn(itemTypes,type)) return;
         if (type === "class" && pokemon(this.document)) return;
-        const data = type === "move" ? {name:"New Move",type} : await pickCatalogEntry(type);
+        const data = await pickCatalogEntry(type);
         if (!data) return;
         const [item] = await this.document.createEmbeddedDocuments("Item",[data]);
         item?.sheet.render({force:true});
@@ -235,6 +244,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const name = trainer || target.dataset.pool === "team" ? "partnerActions" : "actions";
         await pool.update(Object.fromEntries(actions.map(key => [`system.${name}.${key}`,false])));
       },
+      resetStages() {
+        const {stages,defaultStages} = this.document.system;
+        return this.document.update(Object.fromEntries(Object.keys(stages).map(key => [`system.stages.${key}`,defaultStages[key]])));
+      },
       heal() { return this.document.update({"system.health.value":this.document.system.health.max,"system.health.temp":0}); },
       async damage() {
         const amount = await DialogV2.prompt({window:{title:"Apply Final Damage"},content:'<label>Damage <input name="amount" type="number" min="0" required></label>',
@@ -263,7 +276,11 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       stats:Object.entries(stats).map(([key,label]) => ({key,label,value:system.stats[key]})),
       skills:skills.map((label,index) => ({index,label,rank:ranks.map((label,i) => ({label,value:i+1,selected:system.skills[`s${index}`] === i+1}))})),
-      evasion:[system.stats.def,system.stats.spd,system.stats.spe].map(evasion).join(" / "),
+      stages:Object.entries(stats).filter(([key])=>key!=="hp").map(([key,label])=>({
+        key,label,current:system.stages[key],defaultStage:system.defaultStages[key],effective:combatStat(actor,key)
+      })),
+      effectiveMovement:Math.max(0,system.movement + Math.trunc(system.stages.spe / 2)),
+      evasion:["def","spd","spe"].map(key => evasion(combatStat(actor,key))).join(" / "),
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
@@ -288,12 +305,12 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const [sourceName,pageNumber] = item.system.source.split(", p. ");
     const sourceKey = Object.keys(books).find(key => books[key] === sourceName ||
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
-    const sourceLink = sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
+    const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      sourceLink,description,prerequisites:listing?.prerequisites,keywords:listing?.keywords,
+      sourceLink,description,prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
-      categories:choices(["Physical","Special","Status"],item.system.category),
+      categories:choices(["Physical","Special","Status","WT"],item.system.category),
       elements:choices(["",...types],item.system.element)};
   }
 }

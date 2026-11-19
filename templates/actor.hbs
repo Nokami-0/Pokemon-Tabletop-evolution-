@@ -44,6 +44,18 @@
       {{#if editable}}<button type="button" data-action="damage">Apply Damage</button><button type="button" data-action="heal">Restore HP</button>{{/if}}
     </div>
   </section>
+  <section>
+    <h2>Combat Stages</h2>
+    <p>Effective movement · {{effectiveMovement}} m</p>
+    <fieldset class="pte-grid" {{#unless editable}}disabled{{/unless}}>
+      {{#each stages}}<div>
+        <strong>{{label}} · {{effective}}</strong>
+        <label>Current stage <input name="system.stages.{{key}}" type="number" min="-6" max="6" value="{{current}}"></label>
+        <label>Scene default <input name="system.defaultStages.{{key}}" type="number" min="-6" max="6" value="{{defaultStage}}"></label>
+      </div>{{/each}}
+    </fieldset>
+    {{#if editable}}<button type="button" data-action="resetStages">Reset to Scene Defaults</button>{{/if}}
+  </section>
   {{#each pools}}
   <section>
     <h2>{{label}}</h2>

@@ -5,6 +5,7 @@
       {{#if move}}
       <label>Type <select name="system.element" data-element="{{system.element}}">{{#each elements}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
       <label>Category <select name="system.category">{{#each categories}}<option {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label class="pte-check"><input type="checkbox" name="system.accuracyRequired" {{#if system.accuracyRequired}}checked{{/if}}> Requires accuracy check</label>
       <label>AC <input type="number" name="system.ac" value="{{system.ac}}"></label>
       <label>Damage Base <input type="number" min="0" max="28" name="system.db" value="{{system.db}}"></label>
       <label>Crit Range <input type="number" min="1" max="20" name="system.crit" value="{{system.crit}}"></label>
@@ -23,6 +24,9 @@
     </div>
     {{#if prerequisites}}<p><strong>Prerequisites</strong></p><ul>{{#each prerequisites}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
     {{#if keywords}}<p><strong>Keywords</strong> {{#each keywords}}{{this}} {{/each}}</p>{{/if}}
+    {{#if tierName}}<p>{{tierName}}</p>{{/if}}
+    {{#if requirements}}<p><strong>Weapon requirements</strong> {{requirements}}</p>{{/if}}
+    {{#if versatile}}<p>This attack has a Versatile effect. See the reference.</p>{{/if}}
     {{#if sourceLink}}<p><a href="{{sourceLink}}" target="_blank" rel="noopener noreferrer">Open source page</a></p>{{/if}}
     {{#if pricePage}}<p>Price reference · PTE Rule Book p. {{pricePage}}{{#if priceNote}} · {{priceNote}}{{/if}}</p>{{/if}}
     <label>Effects and rules <textarea name="system.description" rows="6">{{description}}</textarea></label>

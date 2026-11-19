@@ -10,6 +10,8 @@ class CreatureData extends foundry.abstract.TypeDataModel {
       level:count(1,1),
       stats:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count(5))),
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
+      stages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),
+      defaultStages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),
       health:new SchemaField({value:count(),temp:count(),max:count()}),
       spirit:count(0,0,6),accuracy:count(0,-100),evasion:count(0,-100),reduction:count(),
       movement:count(6),biography:text(),actions:actionFields()
@@ -31,7 +33,7 @@ class ItemData extends foundry.abstract.TypeDataModel {
 }
 export class MoveData extends ItemData {
   static defineSchema() {
-    return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),db:count(4,0,28),
+    return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),
       crit:count(20,1,20),damage:count(0,-100),range:text("Melee"),frequency:text("At-Will"),action:text("Standard")};
   }
 }

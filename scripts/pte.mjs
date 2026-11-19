@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -227,14 +227,22 @@ function boostListing(item) {
   return listing && Object.hasOwn(boostGear,listing.name) ? boostGear[listing.name] : null;
 }
 
+function maladyListing(item) {
+  if (item?.type !== "gear") return null;
+  const name = catalogListing(item)?.name;
+  return Object.hasOwn(maladyGear,name) ? maladyGear[name] : null;
+}
+
 async function useGear(actor,id) {
   const item = actor.items.get(id);
   const gear = recoveryListing(item);
   const boost = boostListing(item);
-  if (!actor.isOwner || (!gear && !boost) || item.system.quantity < 1) return;
-  if (boost && !Object.hasOwn(boost,item.system.variant)) return ui.notifications.warn("Choose a variant on the potion’s item sheet first.");
+  const malady = maladyListing(item);
+  if (!actor.isOwner || (!gear && !boost && !malady) || item.system.quantity < 1) return;
+  if ((boost || malady) && !Object.hasOwn(boost || malady,item.system.variant)) return ui.notifications.warn("Choose a variant on the potion’s item sheet first.");
   const selected = [...game.user.targets].map(token => token.actor).filter(Boolean);
   if (selected.length > 1) return ui.notifications.warn("Select one target, or clear targets to use this on yourself.");
+  if (malady && !selected.length) return ui.notifications.warn("Target a token to throw a Malady Potion.");
   const target = selected[0] ?? actor;
   if (!target.isOwner) return ui.notifications.warn("The GM or an owner of both actors must apply this item.");
   const lock = [item.uuid,target.uuid];
@@ -244,7 +252,13 @@ async function useGear(actor,id) {
     const afflictionOptions = Object.entries(afflictions).filter(([key])=>afflicted(target,key))
       .map(([key,label])=>`<label><input type="checkbox" name="cure" value="${key}"> ${label}</label>`).join("");
     const variant = item.system.variant;
-    const form = boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
+    const form = malady ? await DialogV2.prompt({
+      window:{title:`Throw ${item.name}`},
+      content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Adjacent throws are Sureshot.</p>
+        <label>Throw result <select name="result" required><option value="">Choose the result</option><option value="hit">Hit</option><option value="miss">Miss</option></select></label>
+        ${variant === "entranced" ? "<p>Record the fixation in the target’s affliction notes.</p>" : ""}`,
+      ok:{label:"Spend One",callback:(event,button)=>new FormData(button.form).get("result")},rejectClose:false
+    }) : boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
       content:`<p>${escape(target.name)} · ${escape(potionVariants[variant])}. Confirm the action cost and legal range at the table.</p>`,
       yes:{label:"Use One"},rejectClose:false}) : await DialogV2.prompt({
       window:{title:`Use ${item.name}`},
@@ -257,13 +271,15 @@ async function useGear(actor,id) {
       rejectClose:false
     });
     if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
-    if (boost && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
-    const plan = boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
+    if ((boost || malady) && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
+    if (malady && !["hit","miss"].includes(form)) return;
+    const plan = malady ? maladyPlan(target.system,malady,variant,elements(target),form === "hit") :
+      boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
     if (plan.error) return ui.notifications.warn(plan.error);
     const quantity = item.system.quantity;
     await item.update({"system.quantity":quantity - 1});
     try {
-      await target.update({...plan.updates,...(gear?.revive ? {"system.healingPotionUsed":true} : {})});
+      if (plan.updates) await target.update({...plan.updates,...(gear?.revive ? {"system.healingPotionUsed":true} : {})});
     } catch (error) {
       if (actor.items.has(id) && item.system.quantity === quantity - 1) await item.update({"system.quantity":quantity});
       throw error;
@@ -402,7 +418,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }
@@ -415,7 +431,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.document;
     const listing = catalogListing(item);
-    const variants = Object.keys(boostListing(item) || {}).map(value=>({value,label:potionVariants[value],selected:item.system.variant===value}));
+    const variants = Object.keys(boostListing(item) || maladyListing(item) || {}).map(value=>({value,label:potionVariants[value] || afflictions[value],selected:item.system.variant===value}));
     const defaultDescription = listing && `${listing.category}. See the cited page for prerequisites and effects.`;
     const description = listing?.rules && (!item.system.description || item.system.description === defaultDescription)
       ? listing.rules : item.system.description;

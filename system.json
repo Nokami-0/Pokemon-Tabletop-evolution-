@@ -2,7 +2,7 @@
   "id": "pokemon-tabletop-evolution",
   "title": "Pok\u00e9mon Tabletop Evolution",
   "description": "An unofficial Foundry system for Pok\u00e9mon Tabletop Evolution 1.07.",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "compatibility": {
     "minimum": "13",
     "verified": "14",
@@ -38,5 +38,5 @@
   },
   "url": "https://github.com/Nokami-0/Pokemon-Tabletop-evolution-",
   "manifest": "https://raw.githubusercontent.com/Nokami-0/Pokemon-Tabletop-evolution-/main/system.json",
-  "download": "https://raw.githubusercontent.com/Nokami-0/Pokemon-Tabletop-evolution-/main/dist/pokemon-tabletop-evolution-0.1.10.zip"
+  "download": "https://raw.githubusercontent.com/Nokami-0/Pokemon-Tabletop-evolution-/main/dist/pokemon-tabletop-evolution-0.1.11.zip"
 }

@@ -107,3 +107,19 @@ export function boostPlan(system, gear, variant) {
   return {updates:{[`system.${bucket}.${variant}`]:next},message:
     `gained +${next-current} ${potionVariants[variant]}${stage ? " combat stages" : " for the scene"}`};
 }
+
+export const maladyGear = {
+  "Basic Malady Potion": {burned:true,poisoned:true,enraged:true,entranced:true,suppressed:true,wounded:true},
+  "Greater Malady Potion": {chilled:true,paralyzed:true,cursed:true,dazed:true}
+};
+
+export function maladyPlan(system, gear, variant, types, hit) {
+  if (!Object.hasOwn(gear,variant)) return {error:"Choose an affliction on the potion’s item sheet first."};
+  if (!hit) return {message:"was missed"};
+  if ((afflictionImmunities[variant] || []).some(type => types.includes(type))) {
+    return {message:`is immune to ${afflictions[variant]}`};
+  }
+  if (system.health.value <= 0) return {message:"is fainted"};
+  if (system.afflictions[variant]) return {message:`is already ${afflictions[variant]}`};
+  return {updates:{[`system.afflictions.${variant}`]:true},message:`became ${afflictions[variant]}`};
+}

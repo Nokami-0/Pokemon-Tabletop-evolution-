@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -151,7 +151,39 @@ async function skill(actor, index) {
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}`});
 }
 
-async function useMove(actor, item) {
+async function trackedMove(actor,item) {
+  if (!actor.isOwner || item?.type !== "move") return;
+  const pool = actionPool(actor);
+  if (!pool.owner.isOwner) return ui.notifications.warn("Only a Trainer owner or the GM can spend this action.");
+  const locks = new Set([actor.uuid,item.uuid,pool.owner.uuid]);
+  if ([...locks].some(key=>pendingGear.has(key))) return;
+  locks.forEach(key=>pendingGear.add(key));
+  try {
+    await useMove(actor,item,pool);
+  } finally {
+    locks.forEach(key=>pendingGear.delete(key));
+  }
+}
+
+async function spendMove(actor,item,pool) {
+  const cost = moveActionCost(item.system.action);
+  if (!cost) return {error:"This action cost requires manual resolution. Use Roll Only."};
+  const plan = moveUsePlan(item.system,actor.system.attackTurn,actor.system.attackScene);
+  if (plan.error) return plan;
+  if (cost.some(key=>pool.owner.system[pool.key][key])) return {error:"A required action is already spent."};
+  const actionChanges = spent => Object.fromEntries(cost.map(key=>[`system.${pool.key}.${key}`,spent]));
+  if (cost.length) await pool.owner.update(actionChanges(true));
+  try {
+    await item.update(plan.updates);
+  } catch (error) {
+    if (cost.length) await pool.owner.update(actionChanges(false));
+    throw error;
+  }
+  return {cost};
+}
+
+async function useMove(actor, item, pool = null) {
+  if (item?.type !== "move") return;
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
   if (move.category === "Status" && afflicted(actor,"enraged")) return ui.notifications.warn("Enraged combatants cannot use status attacks.");
@@ -166,21 +198,53 @@ async function useMove(actor, item) {
   const damage = move.category === "Status" || move.db === 0 ? null :
     await new Roll(damageFormula(db, critical, combatStat(actor,special ? "spa" : "atk"), move.damage)).evaluate();
   const targets = [...game.user.targets].filter(token => token.actor);
-  const lines = targets.map(token => {
+  const results = targets.map(token => {
     const target = token.actor;
     const defense = move.category === "Status" ? 0 : combatStat(target,special ? "spd" : "def");
     const targetEvasion = attackEvasion(target,defense);
     const needed = move.ac + targetEvasion;
     const factor = damage ? effectiveness(move.element,elements(target)) : 1;
-    const result = !factor ? "Immune" : needsAccuracy && roll.total < needed ? "Miss" : !damage ? "Hit" :
-      `Hit · ${Math.floor(Math.max(0, damage.total - defense - target.system.reduction) * factor)} damage (×${factor})`;
-    return `<li>${escape(token.name)} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}</li>`;
+    const hit = factor && (!needsAccuracy || roll.total >= needed);
+    const amount = hit && damage ? Math.floor(Math.max(0,damage.total-defense-target.system.reduction)*factor) : 0;
+    const result = !factor ? "Immune" : !hit ? "Miss" : !damage ? "Hit" : `Hit · ${amount} damage (×${factor})`;
+    return {token,target,amount,line:`<li>${escape(token.name)} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}</li>`};
   });
+  let tracked = "";
+  if (pool) {
+    const outcome = await spendMove(actor,item,pool);
+    if (outcome.error) return ui.notifications.warn(outcome.error);
+    tracked = outcome.cost.length ? ` · Spent ${outcome.cost.map(titleCase).join(" + ")}` : " · Free action tracked";
+  }
+  const lines = results.map(result=>result.line);
   const range = [move.element,move.category,move.range,move.frequency,move.action].map(escape).join(" · ");
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:
-    `<strong>${escape(item.name)}</strong><br>${range}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
+    `<strong>${escape(item.name)}</strong><br>${range}${tracked}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
       ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : ""}
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
+  if (pool) await applyMoveDamage(results);
+}
+
+async function applyMoveDamage(results) {
+  const writable = new Map();
+  for (const hit of results) {
+    if (!hit.amount || !hit.target.isOwner) continue;
+    const prior = writable.get(hit.target.uuid);
+    if (!prior || hit.amount > prior.amount) writable.set(hit.target.uuid,hit);
+  }
+  const eligible = [...writable.values()];
+  if (!eligible.length) return;
+  const form = await DialogV2.prompt({
+    window:{title:"Apply Rolled Damage"},
+    content:`<p>Apply to selected targets you can edit. Identical linked actors are listed once. Resolve special defenses at the table.</p>
+      ${eligible.map((hit,index)=>`<label><input type="checkbox" name="target" value="${index}"> ${escape(hit.token.name)} · ${hit.amount} damage</label>`).join("")}`,
+    ok:{label:"Apply Selected",callback:(event,button)=>new FormData(button.form)},
+    rejectClose:false
+  });
+  if (!form) return;
+  const selected = new Set(form.getAll("target"));
+  const changes = await Promise.allSettled(eligible.filter((hit,index)=>selected.has(String(index)) && hit.target.isOwner)
+    .map(hit=>hit.target.update(combatDamageUpdate(hit.target.system,hit.amount))));
+  if (changes.some(change=>change.status === "rejected")) ui.notifications.warn("Some target damage could not be applied. Check the target sheets.");
 }
 
 const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
@@ -364,12 +428,13 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           content:active.wounded ? '<label><input type="checkbox" name="moved"> Shifted more than half of movement</label>' : '<p>Apply active Burned and Poisoned HP loss.</p>',
           ok:{label:"Apply",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
         if (!form) return;
-        const {max,temp,value} = actor.system.health;
-        const loss = afflictionTickDamage(max,active,form.has("moved"));
-        return actor.update({"system.health.temp":Math.max(0,temp-loss),
-          "system.health.value":Math.max(0,value-Math.max(0,loss-temp))});
+        const loss = afflictionTickDamage(actor.system.health.max,active,form.has("moved"));
+        return actor.update(combatDamageUpdate(actor.system,loss));
       },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
+      advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
+      resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },
+      trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },
       move(event,target) { return useMove(this.document,this.document.items.get(target.dataset.id)); },
       open(event,target) { return this.document.items.get(target.dataset.id)?.sheet.render({force:true}); },
       async add(event,target) {
@@ -405,13 +470,26 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const {stages,defaultStages} = this.document.system;
         return this.document.update(Object.fromEntries(Object.keys(stages).map(key => [`system.stages.${key}`,defaultStages[key]])));
       },
-      heal() { return this.document.update({"system.health.value":this.document.system.health.max,"system.health.temp":0}); },
+      async rest() {
+        const actor = this.document;
+        if (!this.isEditable) return;
+        const mode = await DialogV2.prompt({window:{title:"Rest & Recovery"},
+          content:`<label>Recovery <select name="mode">
+            <option value="half">Scene break, nap, or interrupted sleep · half max HP</option>
+            <option value="full">Full night's rest or medical treatment · full HP</option>
+            <option value="revive">GM-approved fainting recovery · 1 HP</option>
+          </select></label><p>Confirm the required time or assistance at the table. See Rule Book p. 184.</p>`,
+          ok:{label:"Recover",callback:(event,button)=>new FormData(button.form).get("mode")},rejectClose:false});
+        if (!mode) return;
+        const plan = restPlan(actor.system,mode);
+        if (plan.error) return ui.notifications.warn(plan.error);
+        return actor.update({"system.health.value":plan.value});
+      },
       async damage() {
         const amount = await DialogV2.prompt({window:{title:"Apply Final Damage"},content:'<label>Damage <input name="amount" type="number" min="0" required></label>',
           ok:{label:"Apply",callback:(event,button) => Number(new FormData(button.form).get("amount"))},rejectClose:false});
         if (!(amount > 0)) return;
-        const {temp,value} = this.document.system.health;
-        return this.document.update({"system.health.temp":Math.max(0,temp-amount),"system.health.value":Math.max(0,value-Math.max(0,amount-temp))});
+        return this.document.update(combatDamageUpdate(this.document.system,amount));
       },
       books() { return showBooks(); },
       profile() { return showProfile(this.document.system.dexPage); },
@@ -445,7 +523,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }

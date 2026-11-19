@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.13 adds Standard action tracking for Malady Potion throws.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.14 adds attack tracking, target damage, and Rest & Recovery.
 
 ## Install from Foundry
 
@@ -40,9 +40,13 @@ Choose a variant on a Strength or Vitality potion’s item sheet, then use it fr
 
 Choose a Malady Potion variant, target a token, and record the Throw result from the Bag. Both hits and misses spend the item. A hit applies the affliction unless the target is immune, fainted, or already affected. Choose the automatic Accuracy roll, adjacent Sureshot, or a manual hit or miss. Confirm range and adjacency at the table. The throw spends the actor’s Standard action or the linked Trainer’s shared Pokémon Standard action. Use **Action handled manually** for an action already accounted for at the table.
 
+Use **Roll & Track** to spend the configured attack action and track At-Will, EOT, and Scene uses. Advance the actor’s attack turn at the start of its next turn and reset attack tracking when a new scene starts. After a tracked roll you can apply the calculated damage to selected targets you can edit. **Roll Only** supports manual adjudication.
+
+**Rest & Recovery** handles half-HP recovery, full recovery, and GM-approved recovery from fainting to 1 HP. Applied damage uses temporary HP first. When a conscious actor reaches zero HP, tracked afflictions clear and stages return to their defaults.
+
 ## Coverage
 
-The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Frequency limits, ranges, and conditional effects are handled at the table.
+The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
 
 ### Source books
 
@@ -54,7 +58,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.13`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.14`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

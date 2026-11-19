@@ -123,3 +123,47 @@ export function maladyPlan(system, gear, variant, types, hit) {
   if (system.afflictions[variant]) return {message:`is already ${afflictions[variant]}`};
   return {updates:{[`system.afflictions.${variant}`]:true},message:`became ${afflictions[variant]}`};
 }
+
+export function moveActionCost(action) {
+  const key = action.trim().toLowerCase().replace(/ action$/,"");
+  if (key === "free") return [];
+  if (key === "full") return ["standard","swift"];
+  return ["standard","swift","movement","reaction"].includes(key) ? [key] : null;
+}
+
+export function moveUsePlan({frequency,useScene,lastUseTurn,sceneUses}, turn, scene) {
+  const match = /^scene(?:\s*[x×]\s*(\d+))?$/i.exec(frequency.trim());
+  const sameScene = useScene === scene;
+  const uses = sameScene ? sceneUses : 0;
+  const previous = sameScene ? lastUseTurn : -2;
+  const cooldown = match || /^eot$/i.test(frequency.trim()) ? 2 : 1;
+  if (match && uses >= Number(match[1] || 1)) return {error:"This attack has reached its scene limit."};
+  if (turn - previous < cooldown) return {error:"This attack is on cooldown. Advance the actor’s attack turn when its next turn begins."};
+  return {updates:{"system.useScene":scene,"system.lastUseTurn":turn,"system.sceneUses":uses + 1}};
+}
+
+export function damageUpdate(health, damage) {
+  return {"system.health.temp":Math.max(0,health.temp-damage),
+    "system.health.value":Math.max(0,health.value-Math.max(0,damage-health.temp))};
+}
+
+export function combatDamageUpdate(system, damage) {
+  const update = damageUpdate(system.health,damage);
+  if (system.health.value > 0 && update["system.health.value"] === 0) {
+    for (const key of Object.keys(afflictions)) update[`system.afflictions.${key}`] = false;
+    for (const [key,value] of Object.entries(system.defaultStages || {})) update[`system.stages.${key}`] = value;
+  }
+  return update;
+}
+
+export function restPlan(system, mode) {
+  const {value,max} = system.health;
+  if (!["half","full","revive"].includes(mode)) return {error:"Choose a recovery option."};
+  if (mode === "revive") {
+    if (value !== 0) return {error:"Only a fainted combatant can use fainting recovery."};
+    return {value:1};
+  }
+  if (value === 0) return {error:"Resolve the combatant’s fainting recovery first."};
+  if (system.afflictions.wounded) return {error:"A Wounded combatant cannot recover HP."};
+  return {value:mode === "full" ? max : Math.min(max,value + Math.floor(max / 2))};
+}

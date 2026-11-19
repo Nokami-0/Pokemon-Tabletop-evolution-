@@ -9,7 +9,7 @@ const actionFields = () => new SchemaField(keyset(["standard","swift","movement"
 class CreatureData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
-      level:count(1,1),
+      level:count(1,1),attackTurn:count(),attackScene:count(),
       stats:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count(5))),
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
       afflictions:new SchemaField(keyset(Object.keys(afflictions),() => new BooleanField({initial:false}))),
@@ -40,6 +40,7 @@ class ItemData extends foundry.abstract.TypeDataModel {
 export class MoveData extends ItemData {
   static defineSchema() {
     return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),
+      useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count(),
       crit:count(20,1,20),damage:count(0,-100),range:text("Melee"),frequency:text("At-Will"),action:text("Standard")};
   }
 }

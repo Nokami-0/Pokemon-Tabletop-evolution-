@@ -41,7 +41,7 @@
     <div class="pte-buttons">
       <button type="button" data-action="luck">Luck Check</button>
       <button type="button" data-action="save">Affliction Save</button>
-      {{#if editable}}<button type="button" data-action="damage">Apply Damage</button><button type="button" data-action="heal">Restore HP</button>{{/if}}
+      {{#if editable}}<button type="button" data-action="damage">Apply Damage</button><button type="button" data-action="rest">Rest &amp; Recovery</button>{{/if}}
     </div>
   </section>
   <section>
@@ -82,13 +82,18 @@
     {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}<p>Assign a Trainer on a Pokémon sheet to link it here.</p>{{/each}}
   </div></section>
   {{/unless}}
+  {{#if editable}}<section>
+    <h2>Attack Tracking · Turn {{system.attackTurn}}</h2>
+    <div class="pte-buttons"><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>
+    <button type="button" data-action="resetAttackScene">Reset Attack Scene</button></div>
+  </section>{{/if}}
   {{#each groups}}
   <section>
     <div class="pte-row"><h2>{{label}}</h2>{{#if ../editable}}<button type="button" data-action="add" data-type="{{type}}">Add {{type}}</button>{{/if}}</div>
     {{#each items}}
     <div class="pte-row pte-itemrow">
       <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
-      {{#if move}}<span class="pte-type" data-element="{{system.element}}">{{system.element}}</span><small>{{system.category}} · {{system.frequency}} · {{system.range}}</small><button type="button" data-action="move" data-id="{{id}}">Roll</button>{{/if}}
+      {{#if move}}<span class="pte-type" data-element="{{system.element}}">{{system.element}}</span><small>{{system.category}} · {{system.frequency}} · {{system.range}}{{#if sceneUses}} · {{sceneUses}} used this scene{{/if}}</small><button type="button" data-action="move" data-id="{{id}}">Roll Only</button>{{#if ../../editable}}<button type="button" data-action="trackedMove" data-id="{{id}}">Roll &amp; Track</button>{{/if}}{{/if}}
       {{#if gear}}<small>Qty {{system.quantity}}{{#if price}} · {{price}}{{/if}}</small>{{#if ../../editable}}{{#if usable}}<button type="button" data-action="useGear" data-id="{{id}}">Use</button>{{/if}}<button type="button" data-action="equip" data-id="{{id}}">{{#if system.equipped}}Unequip{{else}}Equip{{/if}}</button>{{/if}}{{/if}}
       {{#if ../../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>

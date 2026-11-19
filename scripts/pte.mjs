@@ -144,7 +144,7 @@ class PTEActor extends Actor {
   async _preCreate(data, options, user) {
     if (await super._preCreate(data, options, user) === false) return false;
     if (data.system?.health?.value == null) {
-      const {level = 1, stats: scores = {hp: 5}} = this.system;
+      const {level = 1, stats: scores = {hp: pokemon(this) ? 5 : 10}} = this.system;
       this.updateSource({"system.health.value":maxHP(level, scores.hp, pokemon(this))});
     }
     if (data.prototypeToken?.bar1?.attribute == null) {
@@ -256,13 +256,24 @@ async function useMove(actor, item, pool = null) {
   if (move.category === "Status" && afflicted(actor,"enraged")) return ui.notifications.warn("Enraged combatants cannot use status attacks.");
   if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
   if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
+  const variableDb = move.variableDb || catalogListing(item)?.stats?.variableDb;
+  let baseDb = move.db;
+  if (variableDb) {
+    const result = await DialogV2.prompt({window:{title:`${item.name} · Variable Damage Base`},
+      content:`<label>Base Damage (DB) · ${escape(variableDb)} <input name="db" type="number" min="1" max="28" step="1"></label>
+        <p>Enter the Damage Base specified by the effect before STAB. Leave blank to roll accuracy and resolve damage or HP loss manually.</p>`,
+      ok:{label:"Roll",callback:(event,button)=>new FormData(button.form).get("db")},rejectClose:false});
+    if (result == null) return;
+    baseDb = result === "" ? 0 : Number(result);
+    if (result !== "" && (!Number.isInteger(baseDb) || baseDb < 1 || baseDb > 28)) return ui.notifications.warn("Enter a Damage Base from 1 to 28.");
+  }
   const needsAccuracy = move.accuracyRequired !== false;
   const roll = await new Roll("1d20 + @accuracy", {accuracy:accuracyModifier(actor)}).evaluate();
   const natural = roll.dice[0].values[0];
   const critical = move.category !== "Status" && natural >= Math.max(1,move.crit - capCombatModifier(potionBonus(actor,"crit")));
   const special = move.category === "Special";
-  const db = move.db + (elements(actor).includes(move.element) ? 2 : 0);
-  const damage = move.category === "Status" || move.db === 0 ? null :
+  const db = baseDb + (elements(actor).includes(move.element) ? 2 : 0);
+  const damage = move.category === "Status" || baseDb === 0 ? null :
     await new Roll(damageFormula(db, critical, combatStat(actor,special ? "spa" : "atk"), move.damage)).evaluate();
   const targets = [...game.user.targets].filter(token => token.actor);
   const results = targets.map(token => {
@@ -286,7 +297,7 @@ async function useMove(actor, item, pool = null) {
   const range = [move.element,move.category,move.range,move.frequency,move.action].map(escape).join(" · ");
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:
     `<strong>${escape(item.name)}</strong><br>${range}${tracked}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
-      ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : ""}
+      ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : variableDb ? " · Resolve damage or HP loss from the effect" : ""}
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
   if (pool) await applyMoveDamage(results);
 }
@@ -870,7 +881,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
-      sourceLink,description,variants,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
+      sourceLink,description,variants,variableDb:item.system.variableDb || listing?.stats?.variableDb,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status","WT"],item.system.category),

@@ -7,11 +7,11 @@ const keyset = (keys, field) => Object.fromEntries(keys.map(key => [key,field()]
 const actionFields = () => new SchemaField(keyset(["standard","swift","movement","reaction"], () => new BooleanField({initial:false})));
 
 class CreatureData extends foundry.abstract.TypeDataModel {
-  static defineSchema() {
+  static defineSchema(baseHp = 5) {
     return {
       level:count(1,1),attackTurn:count(),attackScene:count(),
       basicAttack:new SchemaField({useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count()}),
-      stats:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count(5))),
+      stats:new SchemaField({hp:count(baseHp),...keyset(["atk","def","spa","spd","spe"],() => count(5))}),
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
       afflictions:new SchemaField(keyset(Object.keys(afflictions),() => new BooleanField({initial:false}))),
       afflictionNotes:text(),
@@ -27,7 +27,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
 }
 export class TrainerData extends CreatureData {
   static defineSchema() {
-    return {...super.defineSchema(),money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields()};
+    return {...super.defineSchema(10),money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields()};
   }
 }
 export class PokemonData extends CreatureData {
@@ -41,7 +41,7 @@ class ItemData extends foundry.abstract.TypeDataModel {
 }
 export class MoveData extends ItemData {
   static defineSchema() {
-    return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),
+    return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),variableDb:text(),
       knownOnly:new BooleanField({initial:false}),slotExempt:new BooleanField({initial:false}),
       useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count(),
       crit:count(20,1,20),damage:count(0,-100),range:text("Melee"),frequency:text("At-Will"),action:text("Standard")};

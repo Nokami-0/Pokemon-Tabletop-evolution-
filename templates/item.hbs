@@ -7,7 +7,8 @@
       <label>Category <select name="system.category">{{#each categories}}<option {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
       <label class="pte-check"><input type="checkbox" name="system.accuracyRequired" {{#if system.accuracyRequired}}checked{{/if}}> Requires accuracy check</label>
       <label>AC <input type="number" name="system.ac" value="{{system.ac}}"></label>
-      <label>Damage Base <input type="number" min="0" max="28" name="system.db" value="{{system.db}}"></label>
+      {{#if variableDb}}<p>Damage Base · {{variableDb}}. Set the value when rolling.</p>
+      {{else}}<label>Damage Base <input type="number" min="0" max="28" name="system.db" value="{{system.db}}"></label>{{/if}}
       <label>Crit Range <input type="number" min="1" max="20" name="system.crit" value="{{system.crit}}"></label>
       <label>Damage Modifier <input type="number" name="system.damage" value="{{system.damage}}"></label>
       <label>Range <input name="system.range" value="{{system.range}}"></label>

@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.21 adds Pokémon token art support and species move learning.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.22 cross-checks attacks and Trainer defaults against PTE Character Sheet v2.1.7.
 
 ## Install from Foundry
 
@@ -60,6 +60,10 @@ Use the Trainer sheet’s **Wallet** to add or spend money. It keeps your existi
 
 Extract the companion PNG pack so Foundry has **Data/pte-tokens/**. The Pokédex uses the matching PNG for an actor’s portrait and prototype token. On existing Pokémon sheets use **Set Species PNG** without resetting stats. New Pokédex actors learn matched starting moves automatically. On a Pokémon sheet use **Learn Species Move** for currently eligible starting and level-up moves. Tutor moves and special grants use GM review.
 
+New Trainers start with a base HP stat of 10. Existing actors retain saved stats. Moves with a variable Damage Base show the workbook’s DB notation and prompt for the effect’s resolved value at roll time. Leave it empty for effects resolved manually.
+
+The [PTE Character Sheet v2.1.7](https://docs.google.com/spreadsheets/d/1Sss1M3oeYxhsCDPecHq8bWY5LlgYsbqqbGu0-ZjYlGs/edit?gid=121154238) was used to cross-check attack base fields and the type chart. Species discrepancies retain the supplied Pokédex values.
+
 ## Coverage
 
 The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
@@ -74,7 +78,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.21`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.22`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

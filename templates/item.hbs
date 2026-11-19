@@ -12,6 +12,7 @@
       <label>Range <input name="system.range" value="{{system.range}}"></label>
       {{/if}}
       {{#if gear}}
+      <label>Unit Price <input name="system.price" value="{{price}}"></label>
       <label>Quantity <input type="number" min="0" name="system.quantity" value="{{system.quantity}}"></label>
       <label class="pte-check">Equipped <input type="checkbox" name="system.equipped" {{#if system.equipped}}checked{{/if}}></label>
       {{else}}
@@ -20,6 +21,7 @@
       {{/if}}
       <label>Source / Page <input name="system.source" value="{{system.source}}"></label>
     </div>
+    {{#if pricePage}}<p>Price reference · PTE Rule Book p. {{pricePage}}{{#if priceNote}} · {{priceNote}}{{/if}}</p>{{/if}}
     <label>Effects and rules <textarea name="system.description" rows="6">{{system.description}}</textarea></label>
   </fieldset>
 </div>

@@ -65,7 +65,7 @@
     <div class="pte-row pte-itemrow">
       <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
       {{#if move}}<span class="pte-type" data-element="{{system.element}}">{{system.element}}</span><small>{{system.category}} · {{system.frequency}} · {{system.range}}</small><button type="button" data-action="move" data-id="{{id}}">Roll</button>{{/if}}
-      {{#if gear}}<small>Qty {{system.quantity}}</small>{{#if ../../editable}}<button type="button" data-action="equip" data-id="{{id}}">{{#if system.equipped}}Unequip{{else}}Equip{{/if}}</button>{{/if}}{{/if}}
+      {{#if gear}}<small>Qty {{system.quantity}}{{#if price}} · {{price}}{{/if}}</small>{{#if ../../editable}}<button type="button" data-action="equip" data-id="{{id}}">{{#if system.equipped}}Unequip{{else}}Equip{{/if}}</button>{{/if}}{{/if}}
       {{#if ../../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>
     {{/each}}

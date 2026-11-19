@@ -37,7 +37,7 @@ export class MoveData extends ItemData {
 }
 export class GearData extends ItemData {
   static defineSchema() {
-    return {...super.defineSchema(),quantity:count(1),equipped:new BooleanField({initial:false})};
+    return {...super.defineSchema(),quantity:count(1),price:text(),equipped:new BooleanField({initial:false})};
   }
 }
 export class FeatureData extends ItemData {

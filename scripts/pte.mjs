@@ -90,12 +90,17 @@ async function useMove(actor, item) {
 
 const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
 
+const gearCatalog = new Map(catalog.filter(entry => entry.kind === "gear")
+  .map(entry => [`${entry.book}, p. ${entry.page}|${entry.name}`, entry]));
+const catalogGear = item => item.type === "gear" ? gearCatalog.get(`${item.system.source}|${item.name}`) : undefined;
+const gearPrice = item => item.system.price || catalogGear(item)?.price || "";
+
 async function pickCatalogEntry(type) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
     .filter(entry => entry.kind === type), entry => entry.category);
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
-      `<option value="${entry.index}">${escape(entry.name)} · p. ${entry.page}</option>`
+      `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} · p. ${entry.page}</option>`
     ).join("")}</optgroup>`
   ).join("");
   const selection = await DialogV2.prompt({
@@ -109,6 +114,7 @@ async function pickCatalogEntry(type) {
   const entry = catalog[Number(selection)];
   if (entry?.kind !== type) return null;
   return {name:entry.name,type,system:{source:`${entry.book}, p. ${entry.page}`,
+    ...(entry.price ? {price:entry.price} : {}),
     description:`${entry.category}. See the cited page for prerequisites and effects.`}};
 }
 
@@ -188,7 +194,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       pools,
       groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type).map(i => ({
-        id:i.id,name:i.name,move:type === "move",gear:type === "gear",system:i.system
+        id:i.id,name:i.name,move:type === "move",gear:type === "gear",price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}))
     };
   }
@@ -200,7 +206,9 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const item = this.document;
-    return {...context,item,system:item.system,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
+    const listing = catalogGear(item);
+    return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
+      priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",
       categories:choices(["Physical","Special","Status"],item.system.category),
       elements:choices(["",...types],item.system.element)};
   }

@@ -56,6 +56,15 @@
     </fieldset>
     {{#if editable}}<button type="button" data-action="resetStages">Reset to Scene Defaults</button>{{/if}}
   </section>
+  <section>
+    <h2>Afflictions</h2>
+    <div class="pte-buttons">
+      {{#each afflictions}}<button type="button" data-action="toggleAffliction" data-key="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}" {{#unless ../editable}}disabled{{/unless}}>{{label}}</button>{{/each}}
+    </div>
+    <label>Affliction details <textarea name="system.afflictionNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.afflictionNotes}}</textarea></label>
+    {{#if editable}}<div class="pte-buttons"><button type="button" data-action="endTurnTicks">Apply End-Turn HP Loss</button>
+    <button type="button" data-action="clearAfflictions">Clear at Scene End</button></div>{{/if}}
+  </section>
   {{#each pools}}
   <section>
     <h2>{{label}}</h2>

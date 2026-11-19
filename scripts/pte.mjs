@@ -3,7 +3,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -16,7 +16,18 @@ const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp
 const choices = (options, selected) => options.map(value => ({value, selected:value === selected}));
 const actions = ["standard","swift","movement","reaction"];
 const titleCase = str => str[0].toUpperCase() + str.slice(1);
-const combatStat = (actor,key) => stagedStat(actor.system.stats[key],actor.system.stages?.[key]);
+const afflicted = (actor,key) => Boolean(actor.system.afflictions?.[key]);
+function combatStat(actor,key) {
+  const stage = actor.system.stages?.[key] ?? 0;
+  const penalty = (key === "def" && afflicted(actor,"burned")) || (key === "spd" && afflicted(actor,"poisoned"));
+  return stagedStat(actor.system.stats[key],stage - (penalty ? 2 : 0));
+}
+const vulnerable = actor => afflicted(actor,"chilled") || afflicted(actor,"paralyzed");
+function attackEvasion(actor, defense) {
+  if (vulnerable(actor)) return 0;
+  return Math.max(evasion(defense),afflicted(actor,"slowed") ? 0 : evasion(combatStat(actor,"spe"))) +
+    actor.system.evasion - (afflicted(actor,"cursed") ? 3 : 0);
+}
 const pokemon = actor => actor.type === "pokemon";
 const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
 const elements = actor => pokemon(actor) ? [...new Set([actor.system.type1,actor.system.type2].filter(Boolean))] : [];
@@ -136,10 +147,11 @@ async function skill(actor, index) {
 async function useMove(actor, item) {
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
+  if (move.category === "Status" && afflicted(actor,"enraged")) return ui.notifications.warn("Enraged combatants cannot use status attacks.");
   if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
   if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
   const needsAccuracy = move.accuracyRequired !== false;
-  const roll = await new Roll("1d20 + @accuracy", {accuracy:actor.system.accuracy}).evaluate();
+  const roll = await new Roll("1d20 + @accuracy", {accuracy:actor.system.accuracy - (afflicted(actor,"cursed") ? 3 : 0)}).evaluate();
   const natural = roll.dice[0].values[0];
   const critical = move.category !== "Status" && natural >= move.crit;
   const special = move.category === "Special";
@@ -150,7 +162,7 @@ async function useMove(actor, item) {
   const lines = targets.map(token => {
     const target = token.actor;
     const defense = move.category === "Status" ? 0 : combatStat(target,special ? "spd" : "def");
-    const targetEvasion = Math.max(evasion(defense),evasion(combatStat(target,"spe"))) + target.system.evasion;
+    const targetEvasion = attackEvasion(target,defense);
     const needed = move.ac + targetEvasion;
     const factor = damage ? effectiveness(move.element,elements(target)) : 1;
     const result = !factor ? "Immune" : needsAccuracy && roll.total < needed ? "Miss" : !damage ? "Hit" :
@@ -206,7 +218,43 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
-      save() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Affliction Save · 15+"}); },
+      async save() {
+        const actor = this.document;
+        const penalty = afflicted(actor,"cursed") ? -3 : 0;
+        const roll = await new Roll("1d20 + @penalty",{penalty}).evaluate();
+        await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:"Affliction Save · 15+"});
+        if (roll.total < 15 || !this.isEditable) return;
+        const active = Object.entries(afflictions).filter(([key])=>afflicted(actor,key));
+        if (!active.length) return;
+        const condition = await DialogV2.prompt({window:{title:"Cure One Affliction"},
+          content:`<label>Affliction <select name="affliction">${active.map(([key,label])=>`<option value="${key}">${label}</option>`).join("")}</select></label>`,
+          ok:{label:"Cure",callback:(event,button)=>new FormData(button.form).get("affliction")},rejectClose:false});
+        if (Object.hasOwn(afflictions,condition)) return actor.update({[`system.afflictions.${condition}`]:false});
+      },
+      async toggleAffliction(event,target) {
+        const actor = this.document;
+        const key = target.dataset.key;
+        if (!this.isEditable || !Object.hasOwn(afflictions,key)) return;
+        const immune = (afflictionImmunities[key] || []).some(type=>elements(actor).includes(type));
+        if (immune && !afflicted(actor,key)) return ui.notifications.warn("This Pokémon’s type is immune to that affliction.");
+        return actor.update({[`system.afflictions.${key}`]:!afflicted(actor,key)});
+      },
+      clearAfflictions() {
+        return this.document.update(Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false])));
+      },
+      async endTurnTicks() {
+        const actor = this.document;
+        const active = actor.system.afflictions;
+        if (!active.burned && !active.poisoned && !active.wounded) return;
+        const form = await DialogV2.prompt({window:{title:"End-Turn Affliction Damage"},
+          content:active.wounded ? '<label><input type="checkbox" name="moved"> Shifted more than half of movement</label>' : '<p>Apply active Burned and Poisoned HP loss.</p>',
+          ok:{label:"Apply",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+        if (!form) return;
+        const {max,temp,value} = actor.system.health;
+        const loss = afflictionTickDamage(max,active,form.has("moved"));
+        return actor.update({"system.health.temp":Math.max(0,temp-loss),
+          "system.health.value":Math.max(0,value-Math.max(0,loss-temp))});
+      },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
       move(event,target) { return useMove(this.document,this.document.items.get(target.dataset.id)); },
       open(event,target) { return this.document.items.get(target.dataset.id)?.sheet.render({force:true}); },
@@ -279,7 +327,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       stages:Object.entries(stats).filter(([key])=>key!=="hp").map(([key,label])=>({
         key,label,current:system.stages[key],defaultStage:system.defaultStages[key],effective:combatStat(actor,key)
       })),
-      effectiveMovement:Math.max(0,system.movement + Math.trunc(system.stages.spe / 2)),
+      effectiveMovement:Math.max(0,Math.floor((system.movement + Math.trunc(system.stages.spe / 2)) / (afflicted(actor,"slowed") ? 2 : 1))),
+      afflictions:Object.entries(afflictions).map(([key,label])=>({key,label,active:afflicted(actor,key)})),
       evasion:["def","spd","spe"].map(key => evasion(combatStat(actor,key))).join(" / "),
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),

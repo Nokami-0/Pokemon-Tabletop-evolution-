@@ -35,3 +35,17 @@ export function stagedStat(base, stage = 0) {
   const clamped = Math.max(-6,Math.min(6,stage));
   return Math.floor(base * (10 + clamped * (clamped > 0 ? 2 : 1)) / 10);
 }
+
+
+export const afflictions = {
+  burned:"Burned", chilled:"Chilled", paralyzed:"Paralyzed", poisoned:"Poisoned", slowed:"Slowed", wounded:"Wounded",
+  cursed:"Cursed", dazed:"Dazed", disabled:"Disabled", drowsy:"Drowsy", enraged:"Enraged",
+  entranced:"Entranced", suppressed:"Suppressed"
+};
+
+export const afflictionImmunities = {burned:["Fire"],chilled:["Ice"],paralyzed:["Electric"],poisoned:["Poison","Steel"]};
+
+export function afflictionTickDamage(maxHP, active, movedFar) {
+  const ticks = Number(Boolean(active.burned)) + Number(Boolean(active.poisoned)) + (active.wounded ? (movedFar ? 2 : 1) : 0);
+  return Math.floor(maxHP / 10) * ticks;
+}

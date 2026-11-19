@@ -25,7 +25,6 @@
       <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
       {{else}}
       {{#if system.trainerClass}}<label>Class notes <input name="system.trainerClass" value="{{system.trainerClass}}"></label>{{/if}}
-      <label>Money <input name="system.money" type="number" min="0" value="{{system.money}}"></label>
       {{/if}}
     </div>
   </fieldset>
@@ -104,6 +103,16 @@
       {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>{{/each}}
   </section>{{/if}}
+  {{#unless pokemon}}<section>
+    <div class="pte-row"><h2>Wallet</h2><strong>{{walletBalance}}</strong></div>
+    {{#if editable}}<div class="pte-buttons">
+      <button type="button" data-action="wallet" data-mode="credit">Add Money</button>
+      <button type="button" data-action="wallet" data-mode="debit">Spend Money</button>
+    </div>{{/if}}
+    {{#if walletHistory}}<details><summary>Recent transactions</summary>
+      <ul>{{#each walletHistory}}<li>{{this}}</li>{{/each}}</ul>
+    </details>{{/if}}
+  </section>{{/unless}}
   {{#each groups}}
   <section>
     <div class="pte-row"><h2>{{label}}</h2>{{#if ../editable}}<button type="button" data-action="add" data-type="{{type}}">Add {{type}}</button>{{/if}}</div>

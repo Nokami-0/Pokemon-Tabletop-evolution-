@@ -4,7 +4,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -597,11 +597,38 @@ async function allocatePokemon(actor) {
   return actor.update(plan.updates);
 }
 
+const walletLocks = new Set();
+const formatMoney = value => `$${new Intl.NumberFormat().format(value)}`;
+
+async function changeWallet(actor,mode) {
+  if (!actor.isOwner || actor.type !== "trainer" || !["credit","debit"].includes(mode) || walletLocks.has(actor.uuid)) return;
+  walletLocks.add(actor.uuid);
+  const label = mode === "credit" ? "Add Money" : "Spend Money";
+  try {
+    const form = await DialogV2.prompt({window:{title:label},
+      content:`<p>Balance · ${formatMoney(actor.system.money)}</p>
+        <label>Amount <input name="amount" type="number" min="1" step="1" required></label>
+        <label>Note (optional) <input name="note" maxlength="100"></label>`,
+      ok:{label,callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!form || !actor.isOwner) return;
+    const amount = Number(form.get("amount"));
+    const result = walletBalance(actor.system.money,amount,mode);
+    if (result.error) return ui.notifications.warn(result.error);
+    const note = String(form.get("note") || "").replace(/\s+/g," ").trim().slice(0,100);
+    const line = `${mode === "credit" ? "+" : "−"}${formatMoney(amount)}${note ? ` · ${note}` : ""} · Balance ${formatMoney(result.balance)}`;
+    const history = [line,...(actor.system.walletHistory || "").split("\n").filter(Boolean)].slice(0,10);
+    return await actor.update({"system.money":result.balance,"system.walletHistory":history.join("\n")});
+  } finally {
+    walletLocks.delete(actor.uuid);
+  }
+}
+
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
+      wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
       levelPokemon() { return levelPokemon(this.document); },
       allocatePokemon() { return allocatePokemon(this.document); },
       opposedSkill() { return multiSkillCheck(this.document,true); },
@@ -749,6 +776,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
+      walletBalance:actor.type === "trainer" ? formatMoney(system.money) : null,
+      walletHistory:(system.walletHistory || "").split("\n").filter(Boolean),
       roles:pokemon(actor) ? actor.items.filter(isRoleItem).map(item=>({
         id:item.id,name:item.name,startingStats:catalogListing(item).startingStats
       })) : [],

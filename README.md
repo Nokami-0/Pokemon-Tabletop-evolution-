@@ -1,6 +1,6 @@
 # Pokémon Tabletop Evolution for Foundry VTT
 
-Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.19 adds a dedicated Pokémon Roles section.
+Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.20 adds Trainer Wallets.
 
 ## Install from Foundry
 
@@ -56,6 +56,8 @@ Catalog acquisition checks supported level, skill rank, ownership, and class fea
 
 Use **Pokémon Roles → Add Role** on the Pokémon sheet to assign a Rule Book role. The section shows starting stat options and the level 10 Rank 1 milestone. A second role requires level 30 and shares the progression choice with a second ability. Apply primary-role stats and effects at the table.
 
+Use the Trainer sheet’s **Wallet** to add or spend money. It keeps your existing balance, rejects overspending, and shows the most recent ten transactions. Adding items to the Bag does not automatically spend money.
+
 ## Coverage
 
 The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
@@ -70,7 +72,7 @@ The system calculates HP, tiers, basic evasion, skill successes, STAB, critical 
 
 ## GitHub releases
 
-Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.19`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
+Push the source to its own GitHub repository with Actions enabled. Tag the manifest version (for example, `v0.1.20`) and push the tag. The included workflow uploads a ZIP and a versioned Foundry manifest. For URL installs, the release assets must be accessible without GitHub login. Paste the release asset URL ending in `/releases/latest/download/system.json` into Foundry's Install System window.
 
 ## Credits
 

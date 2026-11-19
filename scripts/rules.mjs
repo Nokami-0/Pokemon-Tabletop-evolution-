@@ -224,3 +224,14 @@ export function allocateLevelPoints(system, allocation, override = false) {
   if (system.health.value > 0 && allocation.hp) updates["system.health.value"] = system.health.value + 3 * allocation.hp;
   return {updates};
 }
+
+export function walletBalance(balance, amount, mode) {
+  if (!Number.isSafeInteger(balance) || balance < 0 ||
+      !Number.isSafeInteger(amount) || amount < 1 || !["credit","debit"].includes(mode)) {
+    return {error:"Enter a positive whole-number amount."};
+  }
+  const next = mode === "credit" ? balance + amount : balance - amount;
+  if (next < 0) return {error:"The Wallet does not have enough money."};
+  if (!Number.isSafeInteger(next)) return {error:"The resulting balance is too large."};
+  return {balance:next};
+}

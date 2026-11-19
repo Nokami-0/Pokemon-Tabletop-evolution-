@@ -27,7 +27,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
 }
 export class TrainerData extends CreatureData {
   static defineSchema() {
-    return {...super.defineSchema(),money:count(),trainerClass:text(),partnerActions:actionFields()};
+    return {...super.defineSchema(),money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields()};
   }
 }
 export class PokemonData extends CreatureData {

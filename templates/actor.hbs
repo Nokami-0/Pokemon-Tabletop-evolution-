@@ -14,7 +14,7 @@
   {{/each}}
 {{/inline}}
 <div class="pte-body">
-  <div class="pte-card" {{#unless pokemon}}role="region" aria-label="Trainer Card"{{/unless}}>
+  <div class="pte-card">
   <header class="pte-banner">
     <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
     <div>
@@ -25,8 +25,23 @@
     {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
     {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}{{/if}}
   </header>
-    {{#unless pokemon}}
-      {{> itemGroups trainerCardGroups}}
+  </div>
+  <nav class="pte-buttons" aria-label="Actor sheet sections">
+    {{#each panels}}<button type="button" data-action="sheetPanel" data-panel="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>{{/each}}
+  </nav>
+  <div class="pte-sheet-panel" data-sheet-panel="profile" {{#unless profileActive}}hidden{{/unless}}>
+    <div class="pte-card" role="region" aria-label="{{#if pokemon}}Pokémon Profile{{else}}Trainer Card{{/if}}">
+  {{#if pokemon}}<section>
+    <div class="pte-row"><h2>Pokémon Roles</h2>{{#if editable}}<button type="button" data-action="add" data-type="feature" data-roles="true">Add Role</button>{{/if}}</div>
+    <p>Rank 1 effect {{#if rankOneUnlocked}}unlocked{{else}}unlocks at level 10{{/if}} · Second role option at level 30</p>
+    {{#each roles}}<div class="pte-row pte-itemrow">
+      <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+      <small>Primary role stat options · {{startingStats}}</small>
+      {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
+    </div>{{/each}}
+  </section>{{/if}}
+      {{> itemGroups profileGroups}}
+      {{#unless pokemon}}
       <section>
         <div class="pte-row"><h2>Wallet</h2><strong>{{walletBalance}}</strong></div>
         {{#if editable}}<div class="pte-buttons">
@@ -52,7 +67,6 @@
       <label>Secondary Type <select name="system.type2" data-element="{{system.type2}}">{{#each type2}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
       <label>Role <input name="system.role" value="{{system.role}}"></label>
       {{#if system.xp}}<label>Legacy XP <input name="system.xp" type="number" min="0" value="{{system.xp}}"></label>{{/if}}
-      <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
       {{else}}
       {{#if system.trainerClass}}<label>Class notes <input name="system.trainerClass" value="{{system.trainerClass}}"></label>{{/if}}
       {{/if}}
@@ -184,11 +198,7 @@
     </div>
   </section>
   {{/each}}
-  {{#unless pokemon}}
-  <section><h2>Team</h2><div class="pte-buttons">
-    {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}<p>Assign a Trainer on a Pokémon sheet to link it here.</p>{{/each}}
-  </div></section>
-  {{/unless}}
+
   <section>
     <details>
       <summary>Combat Maneuvers</summary>
@@ -252,16 +262,28 @@
     <div class="pte-buttons"><button type="button" data-action="basicAttack">Basic Attack</button><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>
     <button type="button" data-action="resetAttackScene">Reset Attack Scene</button></div>
   </section>{{/if}}
-  {{#if pokemon}}<section>
-    <div class="pte-row"><h2>Pokémon Roles</h2>{{#if editable}}<button type="button" data-action="add" data-type="feature" data-roles="true">Add Role</button>{{/if}}</div>
-    <p>Rank 1 effect {{#if rankOneUnlocked}}unlocked{{else}}unlocks at level 10{{/if}} · Second role option at level 30</p>
-    {{#each roles}}<div class="pte-row pte-itemrow">
-      <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
-      <small>Primary role stat options · {{startingStats}}</small>
-      {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
-    </div>{{/each}}
-  </section>{{/if}}
-  {{> itemGroups groups}}
+  {{> itemGroups moveGroups}}
+  <section><h2>Notes</h2><textarea aria-label="Notes" name="system.biography" rows="4" {{#unless editable}}readonly{{/unless}}>{{system.biography}}</textarea></section>
+  </div>
+  <div class="pte-sheet-panel" data-sheet-panel="bag" {{#unless bagActive}}hidden{{/unless}}>
+    {{> itemGroups bagGroups}}
+  </div>
+  <div class="pte-sheet-panel" data-sheet-panel="team" {{#unless teamActive}}hidden{{/unless}}>
+    <section>
+      <h2>Team</h2>
+      {{#if pokemon}}
+        <fieldset {{#unless editable}}disabled{{/unless}}>
+          <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+        </fieldset>
+      {{/if}}
+      <div class="pte-buttons">
+        {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}
+          <p>{{#if pokemon}}No other visible Pokémon share this Trainer.{{else}}Assign a Trainer on a Pokémon sheet to link it here.{{/if}}</p>
+        {{/each}}
+      </div>
+    </section>
+  </div>
+  <div class="pte-sheet-panel" data-sheet-panel="skills" {{#unless skillsActive}}hidden{{/unless}}>
   <section>
     <h2>Skills</h2>
     {{#if speciesProfile.skillRanks}}
@@ -289,5 +311,5 @@
       {{/each}}
     </div>
   </section>
-  <section><h2>Notes</h2><textarea aria-label="Notes" name="system.biography" rows="4" {{#unless editable}}readonly{{/unless}}>{{system.biography}}</textarea></section>
+  </div>
 </div>

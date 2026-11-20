@@ -705,10 +705,23 @@ async function changeWallet(actor,mode) {
 }
 
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+  activePanel = "profile";
+
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
+      sheetPanel(event,target) {
+        this.activePanel = target.dataset.panel;
+        const body = target.closest(".pte-body");
+        for (const button of body.querySelectorAll("[data-action=sheetPanel]")) {
+          button.setAttribute("aria-pressed",String(button.dataset.panel === this.activePanel));
+        }
+        for (const panel of body.querySelectorAll("[data-sheet-panel]")) {
+          panel.hidden = panel.dataset.sheetPanel !== this.activePanel;
+        }
+        body.scrollTop = 0;
+      },
       wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
       levelPokemon() { return levelPokemon(this.document); },
       allocatePokemon() { return allocatePokemon(this.document); },
@@ -868,7 +881,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || !isRoleItem(i))).map(i => ({
         id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
-    const onTrainerCard = group => !pokemon(actor) && (group.type === "class" || group.type === "feature");
+    const onProfile = group => group.type === "class" || group.type === "feature";
+    const teamTrainer = pokemon(actor) ? trainer : actor;
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
@@ -892,7 +906,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return factor === 1 ? [] : [{type,label:matchupLabel(factor)}];
       }),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
-      partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
+      partners:teamTrainer ? game.actors.filter(a => pokemon(a) && a.visible && a.id !== actor.id && a.system.trainerId === teamTrainer.id) : [],
       walletBalance:actor.type === "trainer" ? formatMoney(system.money) : null,
       walletHistory:(system.walletHistory || "").split("\n").filter(Boolean),
       roles:pokemon(actor) ? actor.items.filter(isRoleItem).map(item=>({
@@ -900,8 +914,12 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      trainerCardGroups:groups.filter(onTrainerCard),
-      groups:groups.filter(group=>!onTrainerCard(group))
+      panels:[["profile","Profile"],["bag","Bag"],["team","Team"],["skills","Skills"]]
+        .map(([key,label])=>({key,label,active:key === this.activePanel})),
+      profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
+      teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
+      profileGroups:groups.filter(onProfile),bagGroups:groups.filter(group=>group.type === "gear"),
+      moveGroups:groups.filter(group=>group.type === "move")
     };
   }
 }

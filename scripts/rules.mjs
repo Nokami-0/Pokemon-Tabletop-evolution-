@@ -210,6 +210,45 @@ export function opposedResult(left, right) {
   return Math.sign(left.successes - right.successes || left.total - right.total);
 }
 
+export const trainerMeritGoal = level => level <= 5 ? 3 : level <= 10 ? 5 : level <= 15 ? 7 : 10;
+
+export function trainerLevelPlan(system, {skill, milestoneSkills}) {
+  if (system.level >= 20) return {error:"Trainers reach their maximum level at 20."};
+  if (system.merits < (system.meritGoal || trainerMeritGoal(system.level))) return {error:"The Trainer has not reached the Merit goal."};
+  const level = system.level + 1;
+  const milestone = [5,10,15].includes(level);
+  const skillRanks = {...system.skills};
+  const updates = {"system.level":level,"system.merits":0,
+    "system.levelPoints":system.levelPoints + (level === 5 || level === 15 ? 15 : 5)};
+  const rewards = ["Choose one Class or General Feature."];
+  if (milestone && milestoneSkills.length) {
+    const rankLimit = level === 5 ? 3 : 4;
+    if (milestoneSkills.length !== 2 || new Set(milestoneSkills).size !== 2 ||
+      milestoneSkills.some(key=>!Object.hasOwn(skillRanks,key) || skillRanks[key] > rankLimit)) {
+      return {error:"Choose two different skills within the milestone rank limit."};
+    }
+    for (const key of milestoneSkills) updates[`system.skills.${key}`] = ++skillRanks[key];
+    rewards.push("Raised " + milestoneSkills.map(key=>skills[Number(key.slice(1))]).join(" and ") + " for the milestone.");
+  } else if (milestone) {
+    rewards.push("Add Skill Specialty for the milestone.");
+  }
+  if (skill === "talent") {
+    rewards.push("Choose one Talent.");
+  } else {
+    const rank = skillRanks[skill];
+    const minimumLevel = {4:5,5:10,6:15}[rank] ?? 1;
+    if (!Object.hasOwn(skillRanks,skill) || level < minimumLevel || (rank === 6 && system.virtuosoSkill)) {
+      return {error:"Choose an eligible skill or take a Talent."};
+    }
+    if (rank === 6) updates["system.virtuosoSkill"] = skill;
+    else updates[`system.skills.${skill}`] = rank + 1;
+    rewards.push(rank === 6 ? `Raised ${skills[Number(skill.slice(1))]} to Virtuoso.` : `Raised ${skills[Number(skill.slice(1))]} by one rank.`);
+  }
+  if (system.health.value > 0) updates["system.health.value"] = system.health.value + 5;
+  updates["system.progressionHistory"] = [`Level ${level} · ${rewards.join(" ")}`, ...system.progressionHistory.split("\n").filter(Boolean)].slice(0,20).join("\n");
+  return {updates};
+}
+
 export function pokemonLevelCap(trainerLevel) {
   return Math.min(100,trainerLevel * 5);
 }

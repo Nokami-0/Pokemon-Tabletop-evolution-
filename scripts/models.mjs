@@ -29,7 +29,10 @@ class CreatureData extends foundry.abstract.TypeDataModel {
 }
 export class TrainerData extends CreatureData {
   static defineSchema() {
-    return {...super.defineSchema(10),money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields()};
+    return {...super.defineSchema(10),money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields(),
+      merits:count(),meritGoal:count(),levelPoints:count(),progressionHistory:text(),virtuosoSkill:text(),
+      startingProgression:new BooleanField({initial:false}),
+      levelAllocation:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count()))};
   }
 }
 export class PokemonData extends CreatureData {

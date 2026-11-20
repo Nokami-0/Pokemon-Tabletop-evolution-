@@ -6,7 +6,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, trainerMeritGoal, trainerLevelPlan, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -157,6 +157,10 @@ class PTEActor extends Actor {
   }
 }
 
+const skillThreshold = (actor,index,threshold) =>
+  actor.type === "trainer" && actor.system.skills[`s${index}`] === 6 &&
+  actor.system.virtuosoSkill === `s${index}` ? Math.max(3,threshold - 1) : threshold;
+
 async function skill(actor, index) {
   const rank = actor.system.skills[`s${index}`];
   const args = await DialogV2.prompt({classes:["pte-dialog"],
@@ -172,7 +176,7 @@ async function skill(actor, index) {
   const cr = Math.max(0, Math.trunc(Number(args.get("cr")) || 0));
   if (sp) await actor.update({"system.spirit":actor.system.spirit - sp});
   const roll = await new Roll(`${rank + sp}d6`).evaluate();
-  const count = successes(roll.dice[0].values, Number(args.get("mode")));
+  const count = successes(roll.dice[0].values, skillThreshold(actor,index,Number(args.get("mode"))));
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}`});
 }
 
@@ -202,7 +206,7 @@ async function multiSkillCheck(actor, opposed) {
   const results = await Promise.all(choices.map(async ({participant,index,threshold})=>{
     const roll = await new Roll(`${participant.system.skills[`s${index}`]}d6`).evaluate();
     const dice = roll.dice[0].values;
-    return {name:participant.name,skill:skills[index],roll,dice,successes:successes(dice,threshold),total:dice.reduce((sum,value)=>sum+value,0)};
+    return {name:participant.name,skill:skills[index],roll,dice,successes:successes(dice,skillThreshold(participant,index,threshold)),total:dice.reduce((sum,value)=>sum+value,0)};
   }));
   let outcome;
   if (opposed) {
@@ -688,6 +692,70 @@ async function useGear(actor,id) {
   }
 }
 
+const trainerProgressionLocks = new Set();
+
+async function advanceTrainer(actor) {
+  if (!actor.isOwner || actor.type !== "trainer" || trainerProgressionLocks.has(actor.uuid)) return;
+  trainerProgressionLocks.add(actor.uuid);
+  try {
+    const {system} = actor;
+    const next = system.level + 1;
+    if (next > 20) return ui.notifications.warn("This Trainer is already at level 20.");
+    const goal = system.meritGoal || trainerMeritGoal(system.level);
+    if (system.merits < goal) return ui.notifications.warn("Reach the Merit goal before leveling up.");
+    const milestone = [5,10,15].includes(next);
+    const skillOptions = skills.map((name,index)=>{
+      const key = `s${index}`;
+      return `<option value="${key}">${escape(name)} · ${system.skills[key]}d6</option>`;
+    });
+    const milestoneOptions = skillOptions.filter((option,index)=>system.skills[`s${index}`] <= (next === 5 ? 3 : 4));
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:`Trainer Level ${next}`},
+      content:`<p>Gain ${next === 5 || next === 15 ? 15 : 5} stat points and increase the Pokémon level cap to ${pokemonLevelCap(next)}. Choose one Class or General Feature from your Profile after leveling.</p>
+        <label>Rank up a skill or gain a Talent <select name="skill"><option value="talent">Choose a Talent after leveling</option>${skillOptions.join("")}</select></label>
+        ${milestone ? `<p>Choose Skill Specialty, or select two different eligible skills below.</p>
+          <label>First milestone skill <select name="first"><option value="">Skill Specialty</option>${milestoneOptions.join("")}</select></label>
+          <label>Second milestone skill <select name="second"><option value="">Skill Specialty</option>${milestoneOptions.join("")}</select></label>` : ""}`,
+      ok:{label:"Level Up",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!form || actor.system.level !== next - 1) return;
+    const plan = trainerLevelPlan(actor.system,{skill:form.get("skill"),
+      milestoneSkills:[form.get("first"),form.get("second")].filter(Boolean)});
+    if (plan.error) return ui.notifications.warn(plan.error);
+    return actor.update(plan.updates);
+  } finally {
+    trainerProgressionLocks.delete(actor.uuid);
+  }
+}
+
+async function startTrainerProgression(actor) {
+  if (!actor.isOwner || actor.type !== "trainer" || actor.system.level !== 1 ||
+    actor.system.startingProgression || trainerProgressionLocks.has(actor.uuid)) return;
+  trainerProgressionLocks.add(actor.uuid);
+  try {
+    const options = skills.map((name,index)=>`<option value="s${index}">${escape(name)}</option>`).join("");
+    const startingRanks = [4,3,3,3,1,1,1];
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Level 1 Trainer Setup"},
+      content:`<p>Choose seven different skills. This sets the starting skill ranks and adds 10 stat points. Use it before assigning starting ranks or spending points manually.</p>
+        <div style="max-height:55vh;overflow:auto">${startingRanks.map((rank,index)=>
+          `<label>${ranks[rank-1]} <select name="skill${index}" required><option value="">Select skill</option>${options}</select></label>`).join("")}</div>`,
+      ok:{label:"Apply Starting Benefits",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!form || actor.system.level !== 1 || actor.system.startingProgression) return;
+    const system = actor.system;
+    if (Object.values(system.skills).some(rank=>rank !== 2) ||
+      Object.entries(system.stats).some(([key,value])=>value !== (key === "hp" ? 10 : 5))) {
+      return ui.notifications.warn("This Trainer already has customized starting stats or skills. Use the existing sheet controls to finish setup.");
+    }
+    const selected = startingRanks.map((_,index)=>form.get(`skill${index}`));
+    if (new Set(selected).size !== startingRanks.length || selected.some(key=>!Object.hasOwn(system.skills,key))) {
+      return ui.notifications.warn("Choose seven different skills.");
+    }
+    return actor.update({"system.startingProgression":true,"system.levelPoints":system.levelPoints + 10,
+      "system.progressionHistory":"Level 1 · Choose four Features and two Talents.",
+      ...Object.fromEntries(selected.map((key,index)=>[`system.skills.${key}`,startingRanks[index]]))});
+  } finally {
+    trainerProgressionLocks.delete(actor.uuid);
+  }
+}
+
 async function levelPokemon(actor) {
   if (!actor.isOwner || !pokemon(actor)) return;
   const trainer = linkedTrainer(actor);
@@ -708,8 +776,8 @@ async function levelPokemon(actor) {
   return actor.update(updates);
 }
 
-async function allocatePokemon(actor) {
-  if (!actor.isOwner || !pokemon(actor) || !actor.system.levelPoints) return;
+async function allocateStatPoints(actor) {
+  if (!actor.isOwner || !actor.system.levelPoints) return;
   const fields = Object.entries(stats).map(([key,label])=>
     `<label>${label} <input name="${key}" type="number" min="0" value="0"></label>`).join("");
   const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Allocate Level-Up Stat Points"},
@@ -769,7 +837,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
       levelPokemon() { return levelPokemon(this.document); },
-      allocatePokemon() { return allocatePokemon(this.document); },
+      allocateStatPoints() { return allocateStatPoints(this.document); },
+      advanceTrainer() { return advanceTrainer(this.document); },
+      startTrainerProgression() { return startTrainerProgression(this.document); },
       opposedSkill() { return multiSkillCheck(this.document,true); },
       groupSkill() { return multiSkillCheck(this.document,false); },
       skill(event, target) { return skill(this.document, Number(target.dataset.index)); },
@@ -957,6 +1027,13 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:teamTrainer ? game.actors.filter(a => pokemon(a) && a.visible && a.id !== actor.id && a.system.trainerId === teamTrainer.id) : [],
+      trainerProgression:!pokemon(actor) ? {
+        meritGoal:system.meritGoal || trainerMeritGoal(system.level),
+        cap:pokemonLevelCap(system.level),canLevel:system.level < 20,
+        canStart:system.level === 1 && !system.startingProgression,
+        virtuoso:system.virtuosoSkill ? skills[Number(system.virtuosoSkill.slice(1))] : "",
+        history:system.progressionHistory.split("\n").filter(Boolean)
+      } : null,
       walletBalance:actor.type === "trainer" ? formatMoney(system.money) : null,
       walletHistory:(system.walletHistory || "").split("\n").filter(Boolean),
       roles:pokemon(actor) ? actor.items.filter(isRoleItem).map(item=>({

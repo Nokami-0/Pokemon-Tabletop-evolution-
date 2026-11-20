@@ -66,7 +66,7 @@
   </div>
   <fieldset {{#unless editable}}disabled{{/unless}}>
     <div class="pte-grid">
-      <label>Level <input name="system.level" type="number" min="1" value="{{system.level}}"></label>
+      <label>Level <input name="system.level" type="number" min="1" {{#unless pokemon}}max="20"{{/unless}} value="{{system.level}}"></label>
       <label>HP (max {{system.health.max}}) <input name="system.health.value" type="number" min="0" max="{{system.health.max}}" value="{{system.health.value}}"></label>
       <label>Temp HP <input name="system.health.temp" type="number" min="0" value="{{system.health.temp}}"></label>
       <label>Spirit Points <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
@@ -82,6 +82,30 @@
       {{/if}}
     </div>
   </fieldset>
+  {{#if trainerProgression}}
+  <section>
+    <h2>Trainer Progression</h2>
+    <p>Level {{system.level}} of 20 · Pokémon level cap {{trainerProgression.cap}} · {{system.levelPoints}} unspent stat points</p>
+    <fieldset {{#unless editable}}disabled{{/unless}} class="pte-grid">
+      <label>Merits (goal {{trainerProgression.meritGoal}}) <input type="number" name="system.merits" min="0" value="{{system.merits}}"></label>
+      <label>Custom Merit goal (0 uses the rulebook) <input type="number" name="system.meritGoal" min="0" value="{{system.meritGoal}}"></label>
+    </fieldset>
+    {{#if editable}}<div class="pte-buttons">
+      {{#if trainerProgression.canStart}}<button type="button" data-action="startTrainerProgression">Level 1 Setup</button>{{/if}}
+      {{#if trainerProgression.canLevel}}<button type="button" data-action="advanceTrainer">Level Up</button>{{/if}}
+      {{#if system.levelPoints}}<button type="button" data-action="allocateStatPoints">Allocate Points</button>{{/if}}
+    </div>{{/if}}
+    {{#if trainerProgression.virtuoso}}<p>Virtuoso · {{trainerProgression.virtuoso}}</p>{{/if}}
+    <details><summary>Advancement rules</summary>
+      <p>At Level 1, choose four Features and two Talents. Each later level grants one Class or General Feature, plus a Talent or skill rank. Add chosen Features and Talents from the Trainer Card.</p>
+      <p>At Levels 5, 10, and 15, choose Skill Specialty or raise two qualifying skills. Levels 5 and 15 also grant ten extra stat points. Apply up to five levels to each eligible Pokémon using its own progression controls.</p>
+      <small>PTE Rule Book, p. 25</small>
+    </details>
+    {{#if trainerProgression.history}}<details><summary>Advancement history</summary>
+      <ul>{{#each trainerProgression.history}}<li>{{this}}</li>{{/each}}</ul>
+    </details>{{/if}}
+  </section>
+  {{/if}}
   <section>
     <h2>Battle Stats</h2>
     {{#if defensiveMatchups}}<details>
@@ -142,7 +166,7 @@
     <label>Battle attack limit <input type="number" min="0" name="system.battleMoveLimit" value="{{system.battleMoveLimit}}" {{#unless editable}}disabled{{/unless}}></label>
     <p>{{#if trainerCap}}Trainer level cap · {{trainerCap}} · {{/if}}Unspent level-up stat points · {{system.levelPoints}}</p>
     {{#if editable}}<div class="pte-buttons">{{#if trainerCap}}<button type="button" data-action="levelPokemon">Apply Level Gain</button>{{/if}}
-      {{#if system.levelPoints}}<button type="button" data-action="allocatePokemon">Allocate Points</button>{{/if}}</div>{{/if}}
+      {{#if system.levelPoints}}<button type="button" data-action="allocateStatPoints">Allocate Points</button>{{/if}}</div>{{/if}}
   </section>{{/if}}
   {{#if pokemon}}<section>
     <h2>Species Profile</h2>

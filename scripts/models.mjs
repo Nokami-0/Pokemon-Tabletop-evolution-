@@ -9,7 +9,7 @@ const actionFields = () => new SchemaField(keyset(["standard","swift","movement"
 class CreatureData extends foundry.abstract.TypeDataModel {
   static defineSchema(baseHp = 5) {
     return {
-      level:count(1,1),attackTurn:count(),attackScene:count(),
+      level:count(1,1),attackTurn:count(),attackScene:count(),riposteScene:count(-1,-1),
       basicAttack:new SchemaField({useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count()}),
       stats:new SchemaField({hp:count(baseHp),...keyset(["atk","def","spa","spd","spe"],() => count(5))}),
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),

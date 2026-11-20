@@ -1,3 +1,4 @@
+import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
 import {capabilityGroups} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, evolutionOptions, normalizeMoveName} from "./prerequisites.mjs";
@@ -242,12 +243,12 @@ async function trackedMove(actor,item) {
   }
 }
 
-async function spendMove(actor,item,pool) {
-  const cost = moveActionCost(item.system.action);
+async function spendMove(actor,item,pool,cost = moveActionCost(item.system.action)) {
   if (!cost) return {error:"This action cost requires manual resolution. Use Roll Only."};
   const plan = moveUsePlan(item.system,actor.system.attackTurn,actor.system.attackScene);
   if (plan.error) return plan;
-  if (cost.some(key=>pool.owner.system[pool.key][key])) return {error:"A required action is already spent."};
+  const error = maneuverCostError(pool,cost);
+  if (error) return {error};
   const actionChanges = spent => Object.fromEntries(cost.map(key=>[`system.${pool.key}.${key}`,spent]));
   if (cost.length) await pool.owner.update(actionChanges(true));
   try {
@@ -318,30 +319,156 @@ async function useMove(actor, item, pool = null) {
   if (pool) await applyMoveDamage(results);
 }
 
-async function rollRiposte(actor) {
-  if (!actor.isOwner) return;
-  if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
-  const targets = [...game.user.targets].filter(token=>token.actor);
-  if (targets.length !== 1) return ui.notifications.warn("Target the triggering attacker before rolling Riposte.");
-  const [attacker] = targets;
-  const speedEvasion = attackEvasion(attacker.actor,0);
-  const targetNumber = 4 + speedEvasion;
-  const roll = await new Roll("1d20 + @accuracy",{accuracy:accuracyModifier(actor)}).evaluate();
-  const hit = roll.total >= targetNumber;
-  const natural20 = roll.dice[0].values[0] === 20;
-  const reminder = hit
-    ? `Roll the chosen attack’s raw damage and subtract it from the incoming roll.${natural20 ? " Natural 20 · Multiply the Riposte damage roll by ×1.5." : ""}`
-    : "Resolve the incoming attack normally.";
-  return roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),
-    flavor:`<strong>Riposte Accuracy</strong> · ${escape(attacker.name)} · ${hit ? "Hit" : "Miss"}<br>
-      TN ${targetNumber} (AC 4 + Speed Evasion ${speedEvasion})<br>${reminder}`});
+const maneuverCostLabel = cost => cost.length ? cost.map(titleCase).join(" + ") : "Free";
+const maneuverAccuracy = actor => new Roll("1d20 + @accuracy",{accuracy:accuracyModifier(actor)}).evaluate();
+
+async function maneuverSkill(actor, name, mode) {
+  const index = skills.indexOf(name);
+  const key = `s${index}`;
+  const trained = pokemon(actor) ? pokemonSkillTrainingDice(actor.system,key) : 0;
+  const roll = await new Roll(`${actor.system.skills[key] + trained}d6`).evaluate();
+  const dice = roll.dice[0].values;
+  return {roll,successes:successes(dice,skillThreshold(actor,index,Number(mode))),
+    total:dice.reduce((sum,value)=>sum+value,0)};
 }
 
-async function rollBasicAttack(actor) {
+function maneuverSkillField(label, side, options) {
+  return `<label>${label} <select name="${side}">${options.map(name=>`<option>${name}</option>`).join("")}</select></label>
+    <label>Check modifier <select name="${side}Mode"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label>`;
+}
+
+async function useManeuver(actor,key,rules) {
+  if (!actor.isOwner || !Object.hasOwn(maneuvers,key)) return;
+  if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
+  const maneuver = maneuvers[key];
+  const targets = [...game.user.targets].filter(token=>token.actor);
+  if (maneuver.target && targets.length !== 1) return ui.notifications.warn("Target one token for this maneuver.");
+  if (key === "opportunity") return rollBasicAttack(actor,{opportunity:true});
+  const target = maneuver.target ? targets[0].actor : null;
+  const targetName = maneuver.target ? targets[0].name : "";
+  const pool = actionPool(actor);
+  const locks = new Set([actor.uuid,pool.owner.uuid]);
+  if ([...locks].some(id=>pendingGear.has(id))) return;
+  locks.forEach(id=>pendingGear.add(id));
+  try {
+    if (key === "riposte") return await useRiposte(actor,maneuver,target,targetName,pool);
+    const opposed = maneuver.opposed;
+    const defenderCheck = (opposed || key === "provoke") && target.isOwner;
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:maneuver.name},
+      content:`<p>${escape(rules)}</p>
+        ${targetName ? `<p>Target · ${escape(targetName)}</p>` : ""}
+        <label>Action cost <select name="cost">${maneuver.cost.map((cost,index)=>
+          `<option value="${index}">${maneuverCostLabel(cost)}</option>`).join("")}</select></label>
+        ${opposed ? maneuverSkillField("Your skill","acting",opposed.acting) : ""}
+        ${defenderCheck ? maneuverSkillField("Target skill","defending",opposed?.defending || ["Focus"]) : ""}
+        ${key === "provoke" ? '<label><input type="checkbox" name="retry"> Previously failed against this target this scene (CR 2)</label>' : ""}
+        ${key === "throw" ? '<label><input type="checkbox" name="adjacent"> Adjacent target (Sureshot)</label>' : ""}
+        <label><input type="checkbox" name="manual"> Handle action cost manually</label>`,
+      ok:{label:"Use Maneuver",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!form || actor.system.health.value <= 0) return;
+    const cost = maneuver.cost[Number(form.get("cost"))];
+    if (!cost) return;
+    const accuracy = maneuver.ac && !(key === "throw" && form.has("adjacent")) ? await maneuverAccuracy(actor) : null;
+    const tn = accuracy ? maneuver.ac + attackEvasion(target,0) : null;
+    const hit = !accuracy || accuracy.total >= tn;
+    const rolls = accuracy ? [accuracy] : [];
+    const outcomes = accuracy ? [`Accuracy ${accuracy.total} vs TN ${tn} · ${hit ? "Hit" : "Miss"}`] : [];
+    if (hit && opposed) {
+      const acting = await maneuverSkill(actor,form.get("acting"),form.get("actingMode"));
+      rolls.push(acting.roll);
+      outcomes.push(`${form.get("acting")} · ${acting.successes} successes (dice total ${acting.total})`);
+      if (defenderCheck && target.isOwner) {
+        const defender = await maneuverSkill(target,form.get("defending"),form.get("defendingMode"));
+        rolls.push(defender.roll);
+        const result = opposedResult(acting,defender);
+        outcomes.push(`${form.get("defending")} · ${defender.successes} successes (dice total ${defender.total}) · ${result > 0 ? "User wins" : result < 0 ? "Defender wins" : "Tie"}`);
+      } else outcomes.push("Have the target’s owner roll the defending skill check.");
+    }
+    if (hit && key === "provoke") {
+      const cr = form.has("retry") ? 2 : 3;
+      if (defenderCheck && target.isOwner) {
+        const defender = await maneuverSkill(target,"Focus",form.get("defendingMode"));
+        rolls.push(defender.roll);
+        outcomes.push(`Focus · ${defender.successes} successes vs CR ${cr} · ${defender.successes < cr ? "Provoked" : "Resisted"}`);
+      } else outcomes.push(`Target’s owner rolls Focus against CR ${cr}.`);
+    }
+    if (hit && key === "sprint") outcomes.push(cost[0] === "standard" ? "Double Movement this turn." : "+2 Movement this turn.");
+    if (hit && key === "throw") outcomes.push(`Throw range · ${4 + actor.system.skills[`s${skills.indexOf("Athletics")}`]}m.`);
+    if (!form.has("manual")) {
+      const error = maneuverCostError(pool,cost);
+      if (error) return ui.notifications.warn(error);
+      if (cost.length) await pool.owner.update(maneuverActionUpdates(pool,cost,true));
+    }
+    return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls,content:
+      `<strong>${maneuver.name}</strong>${targetName ? ` · ${escape(targetName)}` : ""}<br>
+        ${maneuverCostLabel(cost)}${form.has("manual") ? " · Track manually" : cost.length ? " · Spent" : ""}
+        ${outcomes.map(outcome=>`<br>${escape(outcome)}`).join("")}${hit ? `<p>${escape(rules)}</p>` : ""}`});
+  } finally {
+    locks.forEach(id=>pendingGear.delete(id));
+  }
+}
+
+function maneuverCostError(pool,cost) {
+  if (!cost.length) return;
+  if (!pool.owner.isOwner) return "Only a Trainer owner or the GM can spend these actions.";
+  if (cost.some(key=>pool.owner.system[pool.key][key])) return "A required action is already spent.";
+}
+
+const maneuverActionUpdates = (pool,cost,spent) =>
+  Object.fromEntries(cost.map(key=>[`system.${pool.key}.${key}`,spent]));
+
+async function useRiposte(actor,maneuver,attacker,targetName,pool) {
+  const scene = actor.system.attackScene;
+  if (actor.system.riposteScene === scene) return ui.notifications.warn("Riposte already succeeded this scene.");
+  const damaging = item=>item?.type === "move" && ["Physical","Special"].includes(item.system.category) &&
+    !item.system.knownOnly && item.system.frequency !== "Static" && (item.system.db > 0 || item.system.variableDb);
+  const moves = actor.items.filter(damaging);
+  const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Riposte"},
+    content:`<p>Target · ${escape(targetName)}. Verify the trigger, positioning, and matchup against the incoming attack’s type.</p>
+      <label>Attack <select name="move" required><option value="">Choose a damaging attack</option>${moves.map(item=>
+        `<option value="${escape(item.id)}">${escape(item.name)}</option>`).join("")}</select></label>
+      <label>Incoming raw damage <input name="incoming" type="number" min="0" step="1" required></label>
+      <label>Damage Base override <input name="db" type="number" min="1" max="28" step="1" placeholder="Required for variable DB"></label>
+      <label><input type="checkbox" name="boosted"> Chosen attack is super effective against the incoming attack’s type</label>
+      <label><input type="checkbox" name="manual"> Handle action cost and attack use manually</label>`,
+    ok:{label:"Roll Riposte",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+  if (!form || actor.system.health.value <= 0 || actor.system.attackScene !== scene) return;
+  const item = actor.items.get(form.get("move"));
+  if (!damaging(item)) return ui.notifications.warn("Choose a usable damaging attack.");
+  const db = Number(form.get("db") || (item.system.variableDb ? 0 : item.system.db));
+  const incoming = Number(form.get("incoming"));
+  if (!Number.isInteger(db) || db < 1 || db > 28 || form.get("incoming") === "" ||
+    !Number.isSafeInteger(incoming) || incoming < 0) return ui.notifications.warn("Enter incoming damage and a valid Damage Base.");
+  const cost = maneuver.cost[0];
+  const manual = form.has("manual");
+  const accuracy = await maneuverAccuracy(actor);
+  const tn = maneuver.ac + attackEvasion(attacker,0);
+  const hit = accuracy.total >= tn;
+  const boosted = accuracy.dice[0].values[0] === 20 || form.has("boosted");
+  const base = db + (elements(actor).includes(item.system.element) ? 2 : 0);
+  const damage = hit ? await new Roll(damageFormula(base,false,
+    combatStat(actor,item.system.category === "Special" ? "spa" : "atk"),item.system.damage)).evaluate() : null;
+  if (actor.system.attackScene !== scene || actor.system.riposteScene === scene || !damaging(actor.items.get(item.id))) return;
+  if (!manual) {
+    const outcome = await spendMove(actor,item,pool,cost);
+    if (outcome.error) return ui.notifications.warn(outcome.error);
+  }
+  if (hit) await actor.update({"system.riposteScene":scene});
+  const result = damage ? riposteDamageResult(incoming,damage.total,boosted,attacker.system.health.max) : null;
+  return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls:damage ? [accuracy,damage] : [accuracy],content:
+    `<strong>Riposte</strong> · ${escape(targetName)} · ${escape(item.name)}<br>
+      Accuracy ${accuracy.total} vs TN ${tn} · ${hit ? "Hit" : "Miss"}<br>
+      ${manual ? "Track Standard, Reaction, and the move use manually." : "Spent Standard + Reaction and one attack use."}<br>
+      ${result ? `Riposte damage ${result.counter}${boosted ? " (×1.5)" : ""} vs incoming raw damage ${incoming} ·
+        ${result.remaining ? `${result.remaining} raw damage remains` : "Incoming attack misses all targets"}.
+        ${result.hpLoss ? `Attacker loses ${result.hpLoss} HP.` : ""}` : "Resolve the incoming attack normally."}`});
+}
+
+async function rollBasicAttack(actor,{opportunity = false} = {}) {
   if (!actor.isOwner) return;
   const types = elements(actor);
   const form = await DialogV2.prompt({classes:["pte-dialog"],
-    window:{title:"Basic Attack"},
+    window:{title:opportunity ? "Attack of Opportunity" : "Basic Attack"},
     content:`<label>Category <select name="category"><option>Physical</option><option>Special</option></select></label>
       <label>Type <select name="element">${[...new Set(["Normal",...types])].map(type=>`<option>${escape(type)}</option>`).join("")}</select></label>
       <label>Profile <select name="profile">${Object.entries(basicAttackProfiles).map(([key,entry])=>`<option value="${key}">${entry.label}</option>`).join("")}</select></label>
@@ -352,8 +479,8 @@ async function rollBasicAttack(actor) {
   if (!form) return;
   const data = basicAttackData(form.get("category"),form.get("element"),form.get("profile"),elements(actor));
   if (!data) return;
-  const item = {name:"Basic Attack",type:"move",basic:true,uuid:`${actor.uuid}.BasicAttack`,
-    system:{...actor.system.basicAttack,...data},
+  const item = {name:opportunity ? "Attack of Opportunity" : "Basic Attack",type:"move",basic:true,uuid:`${actor.uuid}.BasicAttack`,
+    system:{...actor.system.basicAttack,...data,...(opportunity ? {action:"Reaction"} : {})},
     update:changes=>actor.update(Object.fromEntries(Object.entries(changes).map(([path,value])=>
       [path.replace("system.","system.basicAttack."),value])))};
   if (form.has("manual")) return useMove(actor,item);
@@ -1024,7 +1151,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
-      riposte() { return rollRiposte(this.document); },
+      maneuver(event,target) {
+        const rules = target.closest("dt")?.nextElementSibling?.textContent.trim() || "";
+        return useManeuver(this.document,target.dataset.maneuver,rules);
+      },
       basicAttack() { return rollBasicAttack(this.document); },
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },

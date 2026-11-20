@@ -119,7 +119,7 @@ function describeProfile(entry) {
     `<p><strong>${label}</strong> · ${escape(value)}</p>`).join("");
   const list = (label,values) => values.length ? `<h3>${label}</h3><ul>${values.map(value=>`<li>${escape(value)}</li>`).join("")}</ul>` : "";
   const url = bookLink("dex",entry.page);
-  return `<div style="max-height:62vh;overflow:auto">${text}${list("Level-up attacks",entry.levelUp)}${list("Tutor attacks",entry.tutor)}
+  return `<div class="pte-species-dialog">${text}${list("Level-up attacks",entry.levelUp)}${list("Tutor attacks",entry.tutor)}
     <p>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">Pokédex p. ${entry.page}</a>` : `Pokédex p. ${entry.page}`}</p></div>`;
 }
 

@@ -85,7 +85,7 @@
     <h2>Species Profile</h2>
     {{#if speciesProfile}}
       {{#if speciesProfile.profile}}<p>{{speciesProfile.profile}}</p>{{/if}}
-      {{#if speciesProfile.evolution}}<p><strong>Evolution</strong> · {{speciesProfile.evolution}}</p>{{/if}}
+      {{#if speciesProfile.evolution}}<p class="pte-evolution"><strong>Evolution</strong><br>{{speciesProfile.evolution}}</p>{{/if}}
       {{#if speciesProfile.abilities}}<p><strong>Species abilities</strong> · {{speciesProfile.abilities}}</p>{{/if}}
       {{#if speciesProfile.starting}}<details><summary>Starting attacks</summary>
         <ul>{{#each speciesProfile.starting}}<li>{{this}}</li>{{/each}}</ul>

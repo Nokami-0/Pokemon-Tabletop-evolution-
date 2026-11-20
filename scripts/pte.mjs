@@ -1,3 +1,4 @@
+import {referenceEffects} from "../data/effects.mjs";
 import {capabilityGroups} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
@@ -306,7 +307,7 @@ async function useMove(actor, item, pool = null) {
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:
     `<strong>${escape(item.name)}</strong><br>${range}${tracked}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
       ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : variableDb ? " · Resolve damage or HP loss from the effect" : ""}
-      ${lines.length ? `<ul>${lines.join("")}</ul>` : damage ? "<p>Target a token to calculate defenses and type effectiveness.</p>" : ""}<p>${escape(move.description)}</p>`});
+      ${lines.length ? `<ul>${lines.join("")}</ul>` : damage ? "<p>Target a token to calculate defenses and type effectiveness.</p>" : ""}<p>${escape(itemDescription(item)).replace(/\n/g,"<br>")}</p>`});
   if (pool) await applyMoveDamage(results);
 }
 
@@ -524,13 +525,24 @@ async function chooseSpeciesAbility(actor) {
   }
 }
 
+const linkedEffectPlaceholder = "See the linked reference for this entry’s effects.";
+const catalogEffect = entry => referenceEffects[entrySource(entry)] || entry.rules;
+const categoryEffectPlaceholder = entry => `${entry.category}. See the cited page for prerequisites and effects.`;
+
+function itemDescription(item, listing = catalogListing(item)) {
+  const description = item.system.description;
+  if (!listing || (description?.trim() && description !== linkedEffectPlaceholder &&
+    description !== categoryEffectPlaceholder(listing))) return description;
+  return catalogEffect(listing) || description;
+}
+
 function catalogItemData(entry) {
   return {name:entry.name,type:entry.kind,system:{source:entrySource(entry),
     ...entry.stats,
     ...(entry.price ? {price:entry.price} : {}),
     ...(entry.frequency ? {frequency:entry.frequency} : {}),
     ...(entry.action ? {action:entry.action} : {}),
-    description:entry.rules || (entry.source ? "See the linked reference for this entry’s effects." : `${entry.category}. See the cited page for prerequisites and effects.`)}};
+    description:catalogEffect(entry) || (entry.source ? linkedEffectPlaceholder : categoryEffectPlaceholder(entry))}};
 }
 
 const speciesMoves = new Map(attackCatalog.filter(entry=>entry.kind === "move" && entry.category === "Moves")
@@ -970,9 +982,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const item = this.document;
     const listing = catalogListing(item);
     const variants = Object.keys(boostListing(item) || maladyListing(item) || {}).map(value=>({value,label:potionVariants[value] || afflictions[value],selected:item.system.variant===value}));
-    const defaultDescription = listing && `${listing.category}. See the cited page for prerequisites and effects.`;
-    const description = listing?.rules && (!item.system.description || item.system.description === defaultDescription)
-      ? listing.rules : item.system.description;
+    const description = itemDescription(item,listing);
     const [sourceName,pageNumber] = item.system.source.split(", p. ");
     const sourceKey = Object.keys(books).find(key => books[key] === sourceName ||
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));

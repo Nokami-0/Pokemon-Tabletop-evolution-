@@ -70,7 +70,7 @@ The [PTE Character Sheet v2.1.7](https://docs.google.com/spreadsheets/d/1Sss1M3o
 
 ## Coverage
 
-The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability effect text is available in the linked PTE Attacks & Ability Reference. Daily limits, ranges, and conditional effects are handled at the table.
+The system calculates HP, tiers, basic evasion, skill successes, STAB, critical damage dice, damage reduction, and type matchups from the supplied PTE rules. It supports manual party initiative, move frequency, range and keywords, combat stages, capture and evolution, and optional module effects. Class and technique compendiums, automatic status effects, species learnset automation, attack templates, and party turn sequencing are outside this build. Pokédex profiles include extracted reference data. Attack and ability rules from the supplied character workbook appear in Effects and Rules. The linked reference remains available from the item sheet. Daily limits, ranges, and conditional effects are handled at the table.
 
 ### Source books
 

@@ -81,6 +81,59 @@
     {{#if editable}}<div class="pte-buttons">{{#if trainerCap}}<button type="button" data-action="levelPokemon">Apply Level Gain</button>{{/if}}
       {{#if system.levelPoints}}<button type="button" data-action="allocatePokemon">Allocate Points</button>{{/if}}</div>{{/if}}
   </section>{{/if}}
+  {{#if pokemon}}<section>
+    <h2>Species Profile</h2>
+    {{#if speciesProfile}}
+      {{#if speciesProfile.profile}}<p>{{speciesProfile.profile}}</p>{{/if}}
+      {{#if speciesProfile.evolution}}<p><strong>Evolution</strong> · {{speciesProfile.evolution}}</p>{{/if}}
+      {{#if speciesProfile.abilities}}<p><strong>Species abilities</strong> · {{speciesProfile.abilities}}</p>{{/if}}
+      {{#if speciesProfile.starting}}<details><summary>Starting attacks</summary>
+        <ul>{{#each speciesProfile.starting}}<li>{{this}}</li>{{/each}}</ul>
+      </details>{{/if}}
+      {{#if speciesProfile.levelUp}}<details><summary>Level-up attacks</summary>
+        <ul>{{#each speciesProfile.levelUp}}<li>{{this}}</li>{{/each}}</ul>
+      </details>{{/if}}
+      {{#if speciesProfile.tutor}}<details><summary>Tutor attacks</summary>
+        <ul>{{#each speciesProfile.tutor}}<li>{{this}}</li>{{/each}}</ul>
+      </details>{{/if}}
+      <small>PTE Pokédex, p. {{speciesProfile.page}}</small>
+    {{else}}
+      <p>{{#if speciesProfileUnavailable}}Species details are unavailable for the current Pokédex selection.{{else}}Select a species from the Pokédex to show its profile.{{/if}}</p>
+    {{/if}}
+  </section>{{/if}}
+  <section>
+    <h2>Capabilities</h2>
+    {{#each speciesCapabilities}}<p>{{this}}</p>{{/each}}
+    <label>Gained or modified capabilities
+      <textarea name="system.capabilityNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.capabilityNotes}}</textarea>
+    </label>
+    <details><summary>Capability rules</summary>
+      {{#each capabilityGroups}}
+        <h3>{{name}}</h3>
+        <dl>{{#each entries}}
+          <dt><strong>{{name}}</strong></dt><dd>{{summary}} <small>PTE Rule Book, p. {{page}}</small></dd>
+        {{/each}}</dl>
+      {{/each}}
+    </details>
+  </section>
+  {{#unless pokemon}}<section>
+    <details><summary>Basic Orders</summary>
+      <p>Each order uses your Reaction at the listed trigger. Your Pokémon must be able to hear you, usually within 10m. Orders do not stack on the same target at the same time, and repeated copies of an order do not stack.</p>
+      <dl>
+        <dt><strong>Defensive Order</strong></dt><dd>When your Pokémon is hit by a damaging attack, give it {{orderTierValue}} damage reduction against that attack.</dd>
+        <dt><strong>Energetic Order</strong></dt><dd>When your Pokémon hits with a damaging attack, add {{orderTierValue}} to its damage roll.</dd>
+        <dt><strong>Inspiring Order</strong></dt><dd>When your Pokémon would attack or make a save, give the triggering accuracy or save check +{{tier}}.</dd>
+        <dt><strong>Reactive Order</strong></dt><dd>When your Pokémon is targeted by an attack or maneuver, give it +{{tier}} evasion against that action before its accuracy check.</dd>
+        <dt><strong>Tactical Order</strong></dt><dd>When your Pokémon uses an attack, give its effect range or critical hit range a modifier of {{tier}}.</dd>
+      </dl>
+      <small>PTE Rule Book, p. 174</small>
+    </details>
+    <details><summary>Improvised Orders</summary>
+      <p>Describe what you tell your Pokémon to do. The GM sets the effect, action cost, and skill check. The Trainer, recipient, or enemy may roll depending on the command. A trigger is optional. Use a Swift action as the baseline or a Standard action for a stronger effect. On a failed check the action is still spent, and the order has no effect.</p>
+      <p>Example. Ask your Pokémon to pin an enemy with vines. The GM might call for the enemy to make an Acrobatics check or become Trapped.</p>
+      <small>PTE Rule Book, p. 175</small>
+    </details>
+  </section>{{/unless}}
   {{#each pools}}
   <section>
     <h2>{{label}}</h2>
@@ -194,6 +247,21 @@
   {{/each}}
   <section>
     <h2>Skills</h2>
+    {{#if speciesProfile.skillRanks}}
+      <p><strong>Species skill ranks</strong> · {{speciesProfile.skillRanks}}</p>
+      <details><summary>Pokémon skill dice by evolution stage</summary>
+        <table>
+          <thead><tr><th>Rank</th><th>First of three</th><th>Middle of three or first of two</th><th>Final or single stage</th></tr></thead>
+          <tbody>
+            <tr><th>Inept</th><td>1d6</td><td>1d6</td><td>2d6</td></tr>
+            <tr><th>Untrained</th><td>2d6</td><td>2d6</td><td>3d6</td></tr>
+            <tr><th>Proficient</th><td>3d6</td><td>4d6</td><td>5d6</td></tr>
+            <tr><th>Mastered</th><td>4d6</td><td>5d6</td><td>6d6</td></tr>
+          </tbody>
+        </table>
+        <p>Set the editable skill ranks below to the dice pools your Pokémon uses, including any training.</p>
+      </details>
+    {{/if}}
     {{#if editable}}<div class="pte-buttons"><button type="button" data-action="opposedSkill">Opposed Check</button>
       <button type="button" data-action="groupSkill">Group Check</button></div>{{/if}}
     <div class="pte-grid pte-skills">

@@ -1,3 +1,4 @@
+import {capabilityGroups} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
@@ -841,11 +842,26 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const pool = (label, key, owner) => ({label,key,editable:owner.isOwner,
       actions:actions.map(name => ({key:name,label:titleCase(name),spent:owner.system[key === "team" ? "partnerActions" : "actions"][name]}))
     });
+    let speciesProfile;
+    let speciesProfileUnavailable = false;
+    if (pokemon(actor) && system.dexPage) {
+      try {
+        const entry = (await dexProfiles()).get(system.dexPage);
+        if (entry && normalizeRequirement(entry.name) === normalizeRequirement(system.species)) speciesProfile = entry;
+        else speciesProfileUnavailable = true;
+      } catch (error) {
+        console.error("PTE could not load species details",error);
+        speciesProfileUnavailable = true;
+      }
+    }
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
+      speciesProfile,speciesProfileUnavailable,capabilityGroups,
+      speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
+      orderTierValue:[5,10,20][tier(system.level,false) - 1],
       stats:Object.entries(stats).map(([key,label]) => ({key,label,value:system.stats[key]})),
-      skills:skills.map((label,index) => ({index,label,rank:ranks.map((label,i) => ({label,value:i+1,selected:system.skills[`s${index}`] === i+1}))})),
+      skills:skills.map((label,index) => ({index,label,rank:ranks.map((label,i) => ({label:pokemon(actor) ? `${i+1}d6` : label,value:i+1,selected:system.skills[`s${index}`] === i+1}))})),
       stages:Object.entries(stats).filter(([key])=>key!=="hp").map(([key,label])=>({
         key,label,current:system.stages[key],defaultStage:system.defaultStages[key],effective:combatStat(actor,key)
       })),

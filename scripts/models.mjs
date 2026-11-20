@@ -21,7 +21,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
       defaultStages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),
       health:new SchemaField({value:count(),temp:count(),max:count()}),
       spirit:count(0,0,6),accuracy:count(0,-100),evasion:count(0,-100),reduction:count(),
-      movement:count(6),biography:text(),actions:actionFields()
+      movement:count(6),capabilityNotes:text(),biography:text(),actions:actionFields()
     };
   }
 }

@@ -56,6 +56,12 @@
   color:var(--pte-navy);
   text-shadow:none;
 }
+/* Keep the rules readable when Foundry applies dark-theme text to lists. */
+.pte .pte-body section details :is(h3, summary, p, dt, dd, strong, small, li) {
+  color:#172b44 !important;
+  text-shadow:none !important;
+}
+
 .pte .pte-body details h3 {
   font-size:16px;
   margin:12px 0 6px;

@@ -8,7 +8,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, initiativeSpeedModifier, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -343,6 +343,39 @@ async function maneuverSkill(actor, name, mode) {
 function maneuverSkillField(label, side, options) {
   return `<label>${label} <select name="${side}">${options.map(name=>`<option>${name}</option>`).join("")}</select></label>
     <label>Check modifier <select name="${side}Mode"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label>`;
+}
+
+async function rollInitiative(actor, party) {
+  const participants = party ? [...new Map([actor,...[...game.user.targets].map(token=>token.actor)]
+    .filter(Boolean).map(member=>[member.uuid,member])).values()] : [actor];
+  if (participants.some(member=>!member.isOwner || !["trainer","pokemon"].includes(member.type))) {
+    return ui.notifications.warn("Choose combatants you own, or have the GM roll for this party.");
+  }
+  if (participants.some(member=>member.system.health.value <= 0)) {
+    return ui.notifications.warn("Remove fainted combatants before rolling initiative.");
+  }
+  const fields = participants.map((member,index)=>
+    `<fieldset><legend>${escape(member.name)}</legend>${maneuverSkillField("Initiative skill",`skill${index}`,skills)}
+      <p>Speed modifier +${initiativeSpeedModifier(combatStat(member,"spe"))}</p></fieldset>`).join("");
+  const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:party ? "Party Initiative" : "Initiative"},
+    content:`<p>${party ? "This sheet and targeted tokens are one party. Roll for each opposing party separately." : "Choose the skill that reflects how you enter the encounter."}</p>
+      <div style="max-height:60vh;overflow:auto">${fields}</div>`,
+    ok:{label:"Roll Initiative",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+  if (!form || participants.some(member=>!member.isOwner || member.system.health.value <= 0)) return;
+  const choices = participants.map((member,index)=>({member,skill:form.get(`skill${index}`),mode:Number(form.get(`skill${index}Mode`))}));
+  if (choices.some(choice=>!skills.includes(choice.skill) || ![3,4,5].includes(choice.mode))) return;
+  const results = await Promise.all(choices.map(async ({member,skill,mode})=>{
+    const check = await maneuverSkill(member,skill,mode);
+    const modifier = initiativeSpeedModifier(combatStat(member,"spe"));
+    return {...check,name:member.name,skill,modifier,initiative:check.successes + modifier};
+  }));
+  const total = results.reduce((sum,result)=>sum + result.initiative,0);
+  const highest = Math.max(...results.map(result=>result.initiative));
+  const details = results.map(result=>`<li>${escape(result.name)} · ${escape(result.skill)} · ${result.successes} successes
+    + ${result.modifier} Speed = <strong>${result.initiative}</strong></li>`).join("");
+  return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls:results.map(result=>result.roll),
+    content:`<strong>${party ? `Party Initiative · Total ${total} · Highest ${highest}` : `Initiative · ${total}`}</strong>
+      <ul>${details}</ul><p>Compare parties using the total or highest result according to your table’s initiative rule.</p>`});
 }
 
 async function useManeuver(actor,key,rules) {
@@ -1313,6 +1346,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const loss = afflictionTickDamage(actor.system.health.max,active,form.has("moved"));
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
+      initiative(event,target) { return rollInitiative(this.document,target.dataset.party === "true"); },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
       maneuver(event,target) {
         const rules = target.closest("dt")?.nextElementSibling?.textContent.trim() || "";

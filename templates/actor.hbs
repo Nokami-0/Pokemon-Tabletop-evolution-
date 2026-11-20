@@ -120,6 +120,10 @@
     </fieldset>
     <p>Physical / Special / Speed Evasion · {{evasion}}</p>
     <div class="pte-buttons">
+      {{#if editable}}
+        <button type="button" data-action="initiative">Roll Initiative</button>
+        <button type="button" data-action="initiative" data-party="true">Roll Party Initiative</button>
+      {{/if}}
       <button type="button" data-action="luck">Luck Check</button>
       <button type="button" data-action="save">Affliction Save</button>
       {{#if editable}}<button type="button" data-action="damage">Apply Damage</button><button type="button" data-action="rest">Rest &amp; Recovery</button>{{/if}}

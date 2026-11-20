@@ -206,6 +206,8 @@ export function basicAttackData(category, element, profile, actorTypes) {
     description:"Confirm range, weapon or role, and any effect that specifically applies to Basic Attacks."};
 }
 
+export const initiativeSpeedModifier = speed => Math.max(0,Math.floor(speed / 5));
+
 export function opposedResult(left, right) {
   return Math.sign(left.successes - right.successes || left.total - right.total);
 }

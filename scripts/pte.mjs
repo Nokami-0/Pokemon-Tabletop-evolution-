@@ -318,6 +318,25 @@ async function useMove(actor, item, pool = null) {
   if (pool) await applyMoveDamage(results);
 }
 
+async function rollRiposte(actor) {
+  if (!actor.isOwner) return;
+  if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
+  const targets = [...game.user.targets].filter(token=>token.actor);
+  if (targets.length !== 1) return ui.notifications.warn("Target the triggering attacker before rolling Riposte.");
+  const [attacker] = targets;
+  const speedEvasion = attackEvasion(attacker.actor,0);
+  const targetNumber = 4 + speedEvasion;
+  const roll = await new Roll("1d20 + @accuracy",{accuracy:accuracyModifier(actor)}).evaluate();
+  const hit = roll.total >= targetNumber;
+  const natural20 = roll.dice[0].values[0] === 20;
+  const reminder = hit
+    ? `Roll the chosen attack’s raw damage and subtract it from the incoming roll.${natural20 ? " Natural 20 · Multiply the Riposte damage roll by ×1.5." : ""}`
+    : "Resolve the incoming attack normally.";
+  return roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),
+    flavor:`<strong>Riposte Accuracy</strong> · ${escape(attacker.name)} · ${hit ? "Hit" : "Miss"}<br>
+      TN ${targetNumber} (AC 4 + Speed Evasion ${speedEvasion})<br>${reminder}`});
+}
+
 async function rollBasicAttack(actor) {
   if (!actor.isOwner) return;
   const types = elements(actor);
@@ -1005,6 +1024,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
+      riposte() { return rollRiposte(this.document); },
       basicAttack() { return rollBasicAttack(this.document); },
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },

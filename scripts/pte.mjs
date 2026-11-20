@@ -1,3 +1,4 @@
+import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
 import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
 import {capabilityGroups} from "../data/capabilities.mjs";
@@ -265,6 +266,13 @@ async function useMove(actor, item, pool = null) {
   if (pokemon(actor) && item.system.knownOnly) return ui.notifications.warn("Move this attack to the Battle list first.");
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
+  if (move.weaponId) {
+    const weapon = actor.items.get(move.weaponId);
+    if (!weapon?.system.equipped) return ui.notifications.warn("Equip the weapon that grants this attack.");
+    if (weapon.system.weaponRank > (actor.system.skills[weapon.system.weaponSkill] ?? 0)) {
+      return ui.notifications.warn("The holder does not meet this weapon’s qualifying skill rank.");
+    }
+  }
   if (move.category === "Status" && afflicted(actor,"enraged")) return ui.notifications.warn("Enraged combatants cannot use status attacks.");
   if (move.category === "WT") return ui.notifications.warn("Set this weapon attack to Physical or Special before rolling.");
   if (move.frequency === "Static") return ui.notifications.info("This attack has a static effect.");
@@ -516,7 +524,8 @@ const listingKey = (type, source, name) => `${type}|${source}|${name}`;
 const catalogListings = new Map(catalog.map(entry => [
   listingKey(entry.kind, entrySource(entry), entry.name),entry
 ]));
-const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
+const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name)) ||
+  (item.system.weaponId ? weaponAttackEntries.find(entry=>entry.source === item.system.source) : null);
 const roleCategory = "Pokémon Roles";
 const isRoleItem = item => catalogListing(item)?.category === roleCategory;
 const abilityCategory = "Pokémon Abilities";
@@ -744,17 +753,171 @@ function maladyListing(item) {
   return Object.hasOwn(maladyGear,name) ? maladyGear[name] : null;
 }
 
+const pokeballListing = item => item?.type === "gear" && catalogListing(item)?.name === "Pokeball";
+
+async function capturePokemon(actor,item) {
+  const trainer = pokemon(actor) ? linkedTrainer(actor) : actor;
+  const targets = [...game.user.targets].filter(token=>token.actor);
+  if (!trainer?.isOwner) return ui.notifications.warn("An owner of the receiving Trainer or the GM must handle the capture.");
+  if (targets.length !== 1 || !pokemon(targets[0].actor)) return ui.notifications.warn("Target one wild Pokémon token.");
+  const target = targets[0].actor;
+  // Importing a successful capture into the team requires edit access to its Actor.
+  if (!target.isOwner) return ui.notifications.warn("Ask the GM to resolve the capture on this target.");
+  if (target.system.trainerId) return ui.notifications.warn("This Pokémon already belongs to a Trainer.");
+  if (target.isToken && !game.user.can("ACTOR_CREATE")) {
+    return ui.notifications.warn("Ask the GM to add this wild token to the Trainer’s team.");
+  }
+  const locks = [item.uuid,target.uuid];
+  if (locks.some(id=>pendingGear.has(id))) return;
+  locks.forEach(id=>pendingGear.add(id));
+  try {
+    const fainted = target.system.health.value <= 0;
+    const accepted = await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Use Poké Ball"},
+      content:`<p>Spend one Poké Ball to capture ${escape(target.name)} for ${escape(trainer.name)} as an Extended action at the conclusion of the scene.</p>
+      <p>${fainted ? "Confirm the battle has ended and the target is unconscious." : "Confirm the scene is resolved and this wild Pokémon willingly joins."}</p>`,
+      yes:{label:"Confirm Capture"},rejectClose:false});
+    if (!accepted || !actor.items.has(item.id) || item.system.quantity < 1 || target.system.trainerId ||
+      !target.isOwner || !trainer.isOwner || (target.system.health.value <= 0) !== fainted) return;
+    const quantity = item.system.quantity;
+    await item.update({"system.quantity":quantity - 1});
+    let capturedActor;
+    try {
+      if (target.isToken) {
+        const data = target.toObject();
+        delete data._id;
+        delete data.folder;
+        data.system.trainerId = trainer.id;
+        data.ownership = foundry.utils.deepClone(trainer.ownership);
+        data.prototypeToken = {...data.prototypeToken,actorLink:true};
+        capturedActor = await Actor.create(data);
+        if (!capturedActor) throw new Error("Could not create the captured Pokémon actor.");
+      }
+      const updates = {"system.trainerId":trainer.id};
+      if (!target.isToken && game.user.isGM) {
+        const ownership = {...target.ownership};
+        for (const [user,level] of Object.entries(trainer.ownership)) {
+          if (user !== "default" && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) ownership[user] = level;
+        }
+        updates.ownership = ownership;
+      }
+      await target.update(updates);
+    } catch (error) {
+      const rollback = [];
+      if (capturedActor) rollback.push(capturedActor.delete());
+      if (item.system.quantity === quantity - 1) rollback.push(item.update({"system.quantity":quantity}));
+      await Promise.allSettled(rollback);
+      throw error;
+    }
+    return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
+      content:`<p><strong>Capture</strong> · ${escape(target.name)} joins ${escape(trainer.name)}. One Poké Ball spent. Set starting Bond and active party placement at the table.</p>`});
+  } finally {
+    locks.forEach(id=>pendingGear.delete(id));
+  }
+}
+
+function teamItemRecipients(actor, selected) {
+  const trainer = pokemon(actor) ? linkedTrainer(actor) : actor;
+  const team = trainer ? [trainer,...game.actors.filter(other=>pokemon(other) && other.system.trainerId === trainer.id)] : [];
+  return [...new Map([actor,...team,...selected].filter(recipient=>recipient.isOwner)
+    .map(recipient=>[recipient.uuid,recipient])).values()];
+}
+
+async function selectItemRecipient(actor,item,selected) {
+  const recipients = teamItemRecipients(actor,selected);
+  const preferred = selected[0]?.isOwner ? selected[0] : actor;
+  const id = await DialogV2.prompt({classes:["pte-dialog"],window:{title:`Use ${item.name} On…`},
+    content:`<label>Recipient <select name="target">${recipients.map((recipient,index)=>
+      `<option value="${index}" ${recipient === preferred ? "selected" : ""}>${escape(recipient.name)}${recipient === actor ? " (self)" : ""}</option>`).join("")}</select></label>`,
+    ok:{label:"Continue",callback:(event,button)=>new FormData(button.form).get("target")},rejectClose:false});
+  return id == null ? null : recipients[Number(id)];
+}
+
+const weaponAttackEntries = attackCatalog.filter(entry=>entry.category === "Weapon Attacks");
+
+async function createWeapon(actor) {
+  if (!actor.isOwner || pendingGear.has(actor.uuid)) return;
+  pendingGear.add(actor.uuid);
+  try {
+    const options = values=>values.map(value=>`<option>${escape(value)}</option>`).join("");
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Create Weapon"},
+      content:`<label>Name <input name="name" required maxlength="100"></label>
+        <label>Quality <select name="quality">${options(Object.keys(weaponQualities))}</select></label>
+        <label>Type <select name="type">${options(["Martial","Arcane"])}</select></label>
+        <label>Range <select name="range">${options(["Melee","Short Ranged","Long Ranged"])}</select></label>
+        <label>Size <select name="size">${options(["Medium","Large"])}</select></label>
+        <label>Qualifying skill <select name="skill"><option value="">Default for weapon type</option>${options(skills)}</select></label>
+        <p>PTE Rule Book, pp. 220–223. Confirm how the weapon was acquired with your GM.</p>`,
+      ok:{label:"Choose Keywords",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!form) return;
+    const name = String(form.get("name") || "").trim();
+    const qualityName = form.get("quality");
+    const quality = weaponQualities[qualityName];
+    const weapon = {type:form.get("type"),range:form.get("range"),size:form.get("size"),keywords:[]};
+    const skill = form.get("skill") || (weapon.type === "Martial" ? "Combat" : "Occult Education");
+    const skillIndex = skills.indexOf(skill);
+    if (!name || !quality || !Object.hasOwn(quality,weapon.size) || skillIndex < 0) return;
+    const allowed = Object.keys(weaponKeywords).filter(key=>weaponKeywords[key](weapon));
+    const selections = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Weapon Keywords"},
+      content:`<p>Choose up to ${quality.keywords} keywords. Cursed does not count toward the limit.</p>
+        <div style="max-height:40vh;overflow:auto">${allowed.map(key=>`<label><input type="checkbox" name="keyword" value="${key}"> ${key}</label>`).join("")}</div>
+        <label>Blessed or Elemental type choices, Defensive mode, curse, and other keyword details <textarea name="notes"></textarea></label>`,
+      ok:{label:"Choose Attacks",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+    if (!selections) return;
+    weapon.keywords = [...new Set(selections.getAll("keyword"))];
+    const notes = String(selections.get("notes") || "").trim();
+    if (weapon.keywords.some(key=>!allowed.includes(key)) || weapon.keywords.filter(key=>key !== "Cursed").length > quality.keywords) {
+      return ui.notifications.warn("Choose keywords within the weapon’s limits.");
+    }
+    if (!notes && weapon.keywords.some(key=>["Blessed","Elemental","Defensive","Cursed"].includes(key))) {
+      return ui.notifications.warn("Record the keyword’s required choices or details.");
+    }
+    const limits = quality[weapon.size];
+    const attacks = weaponAttackEntries.filter(entry=>limits[weaponTiers.indexOf(entry.tier)] && eligibleWeaponAttack(weapon,entry));
+    const picked = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Weapon Attacks"},
+      content:`<p>Choose up to ${limits[0]} Novice, ${limits[1]} Advanced, and ${limits[2]} Master attacks.</p>
+        <div style="max-height:54vh;overflow:auto">${attacks.map((entry,index)=>
+          `<label><input type="checkbox" name="attack" value="${index}"> ${escape(entry.name)} · ${entry.tier === "Basic Weapon" ? "Novice" : escape(entry.tier)}</label>`).join("")}</div>`,
+      ok:{label:"Create Weapon",callback:(event,button)=>new FormData(button.form).getAll("attack")},rejectClose:false});
+    if (!picked) return;
+    const selected = [...new Set(picked)].map(index=>attacks[Number(index)]);
+    if (selected.some(entry=>!entry) || weaponTiers.some((tier,index)=>selected.filter(entry=>entry.tier === tier).length > limits[index])) {
+      return ui.notifications.warn("The selected attacks exceed this weapon’s limits.");
+    }
+    const id = foundry.utils.randomID();
+    const price = formatMoney(quality.price / (weapon.size === "Medium" ? 2 : 1));
+    const description = [`${qualityName} · ${weapon.type} · ${weapon.range} · ${weapon.size}`,
+      quality.rank ? `Qualifying skill: ${skill}, ${ranks[quality.rank-1]} or higher.` : "No qualifying rank required.",
+      weapon.keywords.length ? `Keywords: ${weapon.keywords.join(", ")}` : "",notes,
+      selected.length ? `Grants: ${selected.map(entry=>entry.name).join(", ")}` : "",
+      weapon.range === "Long Ranged" ? "Cannot target adjacent enemies." : "",
+      "Resolve keyword options and special effects at the table. PTE Rule Book, pp. 220–223."].filter(Boolean).join("\n");
+    await actor.createEmbeddedDocuments("Item",[{_id:id,name,type:"gear",system:{price,description,
+      source:"PTE Rule Book, p. 220",weaponSkill:`s${skillIndex}`,weaponRank:quality.rank,weaponRange:weapon.range}},
+      ...selected.map(entry=>{
+        const data = catalogItemData(entry);
+        data.system = {...data.system,...weaponAttackStats(weapon,data.system),weaponId:id,slotExempt:true};
+        data.name = `${entry.name} (${name})`;
+        return data;
+      })],{keepId:true});
+  } finally {
+    pendingGear.delete(actor.uuid);
+  }
+}
+
 async function useGear(actor,id) {
   const item = actor.items.get(id);
   const gear = recoveryListing(item);
   const boost = boostListing(item);
   const malady = maladyListing(item);
-  if (!actor.isOwner || (!gear && !boost && !malady) || item.system.quantity < 1) return;
+  if (!actor.isOwner || item?.type !== "gear" || item.system.quantity < 1) return;
+  if (pokeballListing(item)) return capturePokemon(actor,item);
+  if (!gear && !boost && !malady) return;
   if ((boost || malady) && !Object.hasOwn(boost || malady,item.system.variant)) return ui.notifications.warn("Choose a variant on the potion’s item sheet first.");
   const selected = [...game.user.targets].map(token => token.actor).filter(Boolean);
-  if (selected.length > 1) return ui.notifications.warn("Select one target, or clear targets to use this on yourself.");
+  if (malady && selected.length > 1) return ui.notifications.warn("Select one target to throw the potion.");
   if (malady && !selected.length) return ui.notifications.warn("Target a token to throw a Malady Potion.");
-  const target = selected[0] ?? actor;
+  const target = malady ? selected[0] : await selectItemRecipient(actor,item,selected);
+  if (!target) return;
   if (!target.isOwner) return ui.notifications.warn("The GM or an owner of both actors must apply this item.");
   const pool = malady ? actionPool(actor) : null;
   const lock = [item.uuid,target.uuid,...(pool ? [pool.owner.uuid] : [])];
@@ -783,7 +946,7 @@ async function useGear(actor,id) {
       ok:{label:"Use One",callback:(event,button)=>new FormData(button.form)},
       rejectClose:false
     });
-    if (!form || !actor.items.has(id) || item.system.quantity < 1) return;
+    if (!form || !actor.items.has(id) || item.system.quantity < 1 || !target.isOwner) return;
     if ((boost || malady) && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
     const result = malady ? form.get("result") : null;
     if (malady && !["roll","adjacent","hit","miss"].includes(result)) return;
@@ -1191,10 +1354,15 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const item = this.document.items.get(target.dataset.id);
         if (item && await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
       },
+      createWeapon() { return createWeapon(this.document); },
       useGear(event,target) { return useGear(this.document,target.dataset.id); },
       equip(event,target) {
         const item = this.document.items.get(target.dataset.id);
-        return item?.update({"system.equipped":!item.system.equipped});
+        if (!item || !this.isEditable) return;
+        if (!item.system.equipped && item.system.weaponRank > (this.document.system.skills[item.system.weaponSkill] ?? 0)) {
+          return ui.notifications.warn("The holder does not meet this weapon’s qualifying skill rank.");
+        }
+        return item.update({"system.equipped":!item.system.equipped});
       },
       async spendAction(event,target) {
         const {owner:pool,key:name} = actionPool(this.document,target.dataset.pool);
@@ -1279,7 +1447,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
     const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
-        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
     const onProfile = group => group.type === "class" || group.type === "feature";
     const teamTrainer = pokemon(actor) ? trainer : actor;

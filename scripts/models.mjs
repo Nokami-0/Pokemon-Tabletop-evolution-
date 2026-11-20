@@ -50,14 +50,14 @@ class ItemData extends foundry.abstract.TypeDataModel {
 export class MoveData extends ItemData {
   static defineSchema() {
     return {...super.defineSchema(),category:text("Physical"),element:text("Normal"),ac:count(2),accuracyRequired:new BooleanField({initial:true}),db:count(4,0,28),variableDb:text(),
-      knownOnly:new BooleanField({initial:false}),slotExempt:new BooleanField({initial:false}),
+      weaponId:text(),knownOnly:new BooleanField({initial:false}),slotExempt:new BooleanField({initial:false}),
       useScene:count(),lastUseTurn:count(-2,-2),sceneUses:count(),
       crit:count(20,1,20),damage:count(0,-100),range:text("Melee"),frequency:text("At-Will"),action:text("Standard")};
   }
 }
 export class GearData extends ItemData {
   static defineSchema() {
-    return {...super.defineSchema(),quantity:count(1),price:text(),variant:text(),equipped:new BooleanField({initial:false})};
+    return {...super.defineSchema(),quantity:count(1),price:text(),variant:text(),weaponSkill:text(),weaponRank:count(0,0,6),weaponRange:text(),equipped:new BooleanField({initial:false})};
   }
 }
 export class FeatureData extends ItemData {

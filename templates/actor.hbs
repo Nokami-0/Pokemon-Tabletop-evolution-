@@ -312,6 +312,7 @@
   <section><h2>Notes</h2><textarea aria-label="Notes" name="system.biography" rows="4" {{#unless editable}}readonly{{/unless}}>{{system.biography}}</textarea></section>
   </div>
   <div class="pte-sheet-panel" data-sheet-panel="bag" {{#unless bagActive}}hidden{{/unless}}>
+    {{#if editable}}<div class="pte-buttons"><button type="button" data-action="createWeapon">Create Weapon</button></div>{{/if}}
     {{> itemGroups bagGroups}}
   </div>
   <div class="pte-sheet-panel" data-sheet-panel="team" {{#unless teamActive}}hidden{{/unless}}>

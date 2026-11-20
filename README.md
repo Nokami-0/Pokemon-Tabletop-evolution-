@@ -24,6 +24,10 @@ Open **Game Systems → Install System** and paste this manifest URL.
 
 Open **Compendium Packs** to browse the PTE catalog in four Item packs. Drag gear, attacks, features, or classes onto an actor sheet. Existing eligibility checks apply to non-gear items, and adding gear does not spend money. To rebuild the packs, install the Foundry CLI and run `node tools/build-packs.mjs /absolute/path/to/@foundryvtt/foundryvtt-cli/index.mjs`.
 
+Use recovery and boost gear from a Trainer or Pokémon Bag and choose a recipient. A Trainer, their linked Pokémon, and other editable targeted allies can receive an item. Malady Potions use a targeted Throw. To capture, target a wild Pokémon and use a regular Poké Ball after the scene. A confirmed capture spends one ball and adds the Pokémon to the Trainer's Team. Captures from unlinked tokens create a separate team actor.
+
+Use **Bag → Create Weapon** to build equipment from the Rule Book’s weapon qualities, sizes, ranges, keywords, and attack allowances. Generated attacks require their weapon to be equipped. The builder lists a price and leaves payment, weapon acquisition, and situational effects to the table.
+
 Gear prices appear in the dropdown, Bag, and gear sheet. The editable unit price supports fixed prices, variable listings, and free items. Adding gear does not spend money.
 
 ## Rule Library

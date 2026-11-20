@@ -46,6 +46,18 @@ export function stagedStat(base, stage = 0) {
 }
 
 
+export const conditions = {
+  blinded:"Blinded", marked:"Marked", vulnerable:"Vulnerable", provoked:"Provoked",
+  trapped:"Trapped", tripped:"Tripped", untargetable:"Untargetable", weakened:"Weakened"
+};
+
+export function grantedCondition(system, key) {
+  if (system.health.value <= 0) return false;
+  if (key === "vulnerable") return Boolean(system.afflictions.chilled || system.afflictions.paralyzed ||
+    system.conditions?.blinded || system.conditions?.tripped);
+  return key === "weakened" && Boolean(system.afflictions.chilled);
+}
+
 export const afflictions = {
   burned:"Burned", chilled:"Chilled", paralyzed:"Paralyzed", poisoned:"Poisoned", slowed:"Slowed", wounded:"Wounded",
   cursed:"Cursed", dazed:"Dazed", disabled:"Disabled", drowsy:"Drowsy", enraged:"Enraged",
@@ -159,6 +171,7 @@ export function damageUpdate(health, damage) {
 export function combatDamageUpdate(system, damage) {
   const update = damageUpdate(system.health,damage);
   if (system.health.value > 0 && update["system.health.value"] === 0) {
+    for (const key of Object.keys(conditions)) update[`system.conditions.${key}`] = false;
     for (const key of Object.keys(afflictions)) update[`system.afflictions.${key}`] = false;
     for (const [key,value] of Object.entries(system.defaultStages || {})) update[`system.stages.${key}`] = value;
   }

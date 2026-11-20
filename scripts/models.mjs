@@ -1,4 +1,4 @@
-import {afflictions} from "./rules.mjs";
+import {afflictions, conditions} from "./rules.mjs";
 
 const {NumberField, StringField, BooleanField, SchemaField} = foundry.data.fields;
 const count = (initial = 0, min = 0, max) => new NumberField({required:true, nullable:false, integer:true, initial, min, max});
@@ -15,6 +15,8 @@ class CreatureData extends foundry.abstract.TypeDataModel {
       skills:new SchemaField(keyset(Array.from({length:17},(_,i) => `s${i}`),() => count(2,1,6))),
       afflictions:new SchemaField(keyset(Object.keys(afflictions),() => new BooleanField({initial:false}))),
       afflictionNotes:text(),
+      conditions:new SchemaField(keyset(Object.keys(conditions),() => new BooleanField({initial:false}))),
+      conditionNotes:text(),
       potionBonuses:new SchemaField(keyset(["crit","accuracy","evasion","save"],() => count())),
       healingPotionUsed:new BooleanField({initial:false}),
       stages:new SchemaField(keyset(["atk","def","spa","spd","spe"],() => count(0,-6,6))),

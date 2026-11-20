@@ -5,7 +5,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -24,12 +24,14 @@ function combatStat(actor,key) {
   const penalty = (key === "def" && afflicted(actor,"burned")) || (key === "spd" && afflicted(actor,"poisoned"));
   return stagedStat(actor.system.stats[key],stage - (penalty ? 2 : 0));
 }
-const vulnerable = actor => afflicted(actor,"chilled") || afflicted(actor,"paralyzed");
+const hasCondition = (actor,key) => actor.system.health.value > 0 &&
+  (Boolean(actor.system.conditions[key]) || grantedCondition(actor.system,key));
 const potionBonus = (actor,key) => actor.system.potionBonuses?.[key] ?? 0;
 const accuracyModifier = actor => capCombatModifier(actor.system.accuracy +
-  potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0));
+  potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0)) -
+  (hasCondition(actor,"blinded") || hasCondition(actor,"tripped") ? 6 : 0);
 function attackEvasion(actor, defense) {
-  if (vulnerable(actor)) return 0;
+  if (hasCondition(actor,"vulnerable")) return 0;
   return capCombatModifier(Math.max(evasion(defense),afflicted(actor,"slowed") ? 0 : evasion(combatStat(actor,"spe"))) +
     actor.system.evasion + potionBonus(actor,"evasion") - (afflicted(actor,"cursed") ? 3 : 0));
 }
@@ -734,6 +736,13 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (immune && !afflicted(actor,key)) return ui.notifications.warn("This Pokémon’s type is immune to that affliction.");
         return actor.update({[`system.afflictions.${key}`]:!afflicted(actor,key)});
       },
+      toggleCondition(event,target) {
+        const actor = this.document;
+        const key = target.dataset.key;
+        if (!this.isEditable || !Object.hasOwn(conditions,key) || actor.system.health.value <= 0) return;
+        if (grantedCondition(actor.system,key)) return;
+        return actor.update({[`system.conditions.${key}`]:!actor.system.conditions[key]});
+      },
       clearAfflictions() {
         const updates = Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false]));
         for (const key of Object.keys(this.document.system.potionBonuses)) updates[`system.potionBonuses.${key}`] = 0;
@@ -867,6 +876,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })),
       effectiveMovement:Math.max(0,Math.floor((system.movement + Math.trunc(system.stages.spe / 2)) / (afflicted(actor,"slowed") ? 2 : 1))),
       potionEffects:Object.entries(system.potionBonuses).filter(([,value])=>value).map(([key,value])=>({label:potionVariants[key],value})),
+      fainted:system.health.value <= 0,
+      conditions:Object.entries(conditions).map(([key,label])=>({
+        key,label,active:hasCondition(actor,key),granted:grantedCondition(system,key)
+      })),
       afflictions:Object.entries(afflictions).map(([key,label])=>({key,label,active:afflicted(actor,key)})),
       evasion:["def","spd","spe"].map(key => evasion(combatStat(actor,key))).join(" / "),
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),

@@ -52,14 +52,30 @@
 .pte button:disabled {opacity:.7; cursor:default}
 
 .pte .pte-body :is(p, li, dd, summary, th, td) {line-height:1.5}
-.pte .pte-body section :is(h2, h3, strong, summary, small, dt, dd, li, th, td) {
-  color:var(--pte-navy);
-  text-shadow:none;
+/* These surfaces stay light even when Foundry uses its dark theme. */
+.pte .pte-body,
+.pte-dialog .window-content {
+  color:#172b44 !important;
+  color-scheme:light;
 }
-/* Keep the rules readable when Foundry applies dark-theme text to lists. */
-.pte .pte-body section details :is(h3, summary, p, dt, dd, strong, small, li) {
+
+.pte-dialog .window-content {background:#f4f8fc}
+.pte-dialog .window-content :is(button, input:not([type=checkbox], [type=radio]), select, option, textarea) {
+  background:#fff;
+  border-color:#cbd9e6;
+}
+
+.pte .pte-body :is(div, h1, h2, h3, h4, h5, h6, p, span, strong, b, em, small, label, legend, summary, dt, dd, li, th, td, button, input, select, option, textarea),
+.pte-dialog .window-content :is(div, h1, h2, h3, h4, h5, h6, p, span, strong, b, em, small, label, legend, summary, dt, dd, li, th, td, button, input, select, option, textarea) {
   color:#172b44 !important;
   text-shadow:none !important;
+}
+
+.pte .pte-body .pte-banner :is(h1, h2, h3, span) {color:#fff !important}
+.pte .pte-body a, .pte-dialog .window-content a {color:#174b85 !important; text-shadow:none !important}
+.pte .pte-body input::placeholder, .pte-dialog .window-content :is(input, textarea)::placeholder {
+  color:#45617b !important;
+  opacity:1;
 }
 
 .pte .pte-body details h3 {

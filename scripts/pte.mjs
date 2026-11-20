@@ -74,7 +74,7 @@ function showBooks() {
     return url ? `<li><a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(title)}</a></li>`
       : `<li>${escape(title)} · PDF path needed</li>`;
   }).join("");
-  return DialogV2.prompt({window:{title:"PTE Rule Library"},
+  return DialogV2.prompt({classes:["pte-dialog"],window:{title:"PTE Rule Library"},
     content:`<ul>${content}<li><a href="${attackReference}" target="_blank" rel="noopener noreferrer">Attacks &amp; Ability Reference</a></li></ul><p>GMs can link PDFs in Configure Settings under Pokémon Tabletop Evolution.</p>`,
     ok:{label:"Close"},rejectClose:false});
 }
@@ -127,7 +127,7 @@ async function showProfile(page) {
   try {
     const entry = (await dexProfiles()).get(page);
     if (!entry) return ui.notifications.warn("Choose a Pokémon from the Pokédex first.");
-    return DialogV2.prompt({window:{title:entry.name},content:describeProfile(entry),ok:{label:"Close"},rejectClose:false});
+    return DialogV2.prompt({classes:["pte-dialog"],window:{title:entry.name},content:describeProfile(entry),ok:{label:"Close"},rejectClose:false});
   } catch (error) {
     console.error(error);
     ui.notifications.error("Could not open this Pokédex profile.");
@@ -156,7 +156,7 @@ class PTEActor extends Actor {
 
 async function skill(actor, index) {
   const rank = actor.system.skills[`s${index}`];
-  const args = await DialogV2.prompt({
+  const args = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:skills[index]},
     content:`<label>Challenge Rating <input name="cr" type="number" min="0" value="2"></label>
       <label>Modifier <select name="mode"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label>
@@ -186,7 +186,7 @@ async function multiSkillCheck(actor, opposed) {
   const fields = participants.map((participant,index)=>`<fieldset><legend>${escape(participant.name)}</legend>
     <label>Skill <select name="skill${index}">${skills.map((skill,id)=>`<option value="${id}">${escape(skill)}</option>`).join("")}</select></label>
     <label>Modifier <select name="mode${index}"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label></fieldset>`).join("");
-  const form = await DialogV2.prompt({
+  const form = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:opposed ? "Opposed Skill Check" : "Group Skill Check"},
     content:`<div style="max-height:62vh;overflow:auto">${opposed ? "" : '<label>Base Challenge Rating <input name="cr" type="number" min="0" value="2"></label>'}${fields}</div>`,
     ok:{label:"Roll",callback:(event,button)=>new FormData(button.form)},rejectClose:false
@@ -260,7 +260,7 @@ async function useMove(actor, item, pool = null) {
   const variableDb = move.variableDb || catalogListing(item)?.stats?.variableDb;
   let baseDb = move.db;
   if (variableDb) {
-    const result = await DialogV2.prompt({window:{title:`${item.name} · Variable Damage Base`},
+    const result = await DialogV2.prompt({classes:["pte-dialog"],window:{title:`${item.name} · Variable Damage Base`},
       content:`<label>Base Damage (DB) · ${escape(variableDb)} <input name="db" type="number" min="1" max="28" step="1"></label>
         <p>Enter the Damage Base specified by the effect before STAB. Leave blank to roll accuracy and resolve damage or HP loss manually.</p>`,
       ok:{label:"Roll",callback:(event,button)=>new FormData(button.form).get("db")},rejectClose:false});
@@ -311,7 +311,7 @@ async function useMove(actor, item, pool = null) {
 async function rollBasicAttack(actor) {
   if (!actor.isOwner) return;
   const types = elements(actor);
-  const form = await DialogV2.prompt({
+  const form = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:"Basic Attack"},
     content:`<label>Category <select name="category"><option>Physical</option><option>Special</option></select></label>
       <label>Type <select name="element">${[...new Set(["Normal",...types])].map(type=>`<option>${escape(type)}</option>`).join("")}</select></label>
@@ -340,7 +340,7 @@ async function applyMoveDamage(results) {
   }
   const eligible = [...writable.values()];
   if (!eligible.length) return;
-  const form = await DialogV2.prompt({
+  const form = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:"Apply Rolled Damage"},
     content:`<p>Apply to selected targets you can edit. Identical linked actors are listed once. Resolve special defenses at the table.</p>
       ${eligible.map((hit,index)=>`<label><input type="checkbox" name="target" value="${index}"> ${escape(hit.token.name)} · ${hit.amount} damage</label>`).join("")}`,
@@ -463,7 +463,7 @@ async function allowCatalogAcquisition(actor,data) {
     ui.notifications.warn(`${outcome.review} Ask your GM to add the entry after checking.`);
     return false;
   }
-  return DialogV2.confirm({window:{title:"Verify Prerequisite"},
+  return DialogV2.confirm({classes:["pte-dialog"],window:{title:"Verify Prerequisite"},
     content:`<p>${escape(data.name)} · ${escape(outcome.review)}</p>`,
     yes:{label:"Grant Entry"},rejectClose:false});
 }
@@ -476,7 +476,7 @@ async function pickCatalogEntry(type, rolesOnly = false) {
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
     ).join("")}</optgroup>`
   ).join("");
-  const selection = await DialogV2.prompt({
+  const selection = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:rolesOnly ? "Add Pokémon Role" : `Add ${titleCase(type)}`},
     content:`<label>Catalog <select name="entry">${rolesOnly ? "" : `<option value="custom">Custom ${escape(type)}</option>`}${options}</select></label>`,
     ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
@@ -523,7 +523,7 @@ async function learnSpeciesMove(actor) {
     return !requirement.error && !requirement.review;
   });
   if (!eligible.length) return ui.notifications.info("There are no new starting or level-up moves available.");
-  const choice = await DialogV2.prompt({window:{title:"Learn Species Move"},
+  const choice = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Learn Species Move"},
     content:`<label>Eligible move <select name="move">${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)} · ${escape(move.stats.element)}</option>`).join("")}</select></label>`,
     ok:{label:"Learn",callback:(event,button)=>new FormData(button.form).get("move")},rejectClose:false});
   if (choice == null) return;
@@ -576,16 +576,16 @@ async function useGear(actor,id) {
     const afflictionOptions = Object.entries(afflictions).filter(([key])=>afflicted(target,key))
       .map(([key,label])=>`<label><input type="checkbox" name="cure" value="${key}"> ${label}</label>`).join("");
     const variant = item.system.variant;
-    const form = malady ? await DialogV2.prompt({
+    const form = malady ? await DialogV2.prompt({classes:["pte-dialog"],
       window:{title:`Throw ${item.name}`},
       content:`<p>${escape(target.name)} · ${afflictions[variant]}. Standard action, AC 4, range ${4 + actor.system.skills.s1} m. Confirm the target is in range.</p>
         <label><input type="checkbox" name="manualAction"> Action handled manually</label>
         <label>Throw result <select name="result" required><option value="roll">Roll against Speed Evasion</option><option value="adjacent">Adjacent · Sureshot</option><option value="hit">Manual Hit</option><option value="miss">Manual Miss</option></select></label>
         ${variant === "entranced" ? "<p>Record the fixation in the target’s affliction notes.</p>" : ""}`,
       ok:{label:"Throw",callback:(event,button)=>new FormData(button.form)},rejectClose:false
-    }) : boost ? await DialogV2.confirm({window:{title:`Use ${item.name}`},
+    }) : boost ? await DialogV2.confirm({classes:["pte-dialog"],window:{title:`Use ${item.name}`},
       content:`<p>${escape(target.name)} · ${escape(potionVariants[variant])}. Confirm the action cost and legal range at the table.</p>`,
-      yes:{label:"Use One"},rejectClose:false}) : await DialogV2.prompt({
+      yes:{label:"Use One"},rejectClose:false}) : await DialogV2.prompt({classes:["pte-dialog"],
       window:{title:`Use ${item.name}`},
       content:`<p>Target · ${escape(target.name)}. Confirm the action cost and legal range at the table.${gear.revive ? "" : " Poultices require an adjacent target."}</p>
         <label>Effect <select name="mode"><option value="heal">Restore HP</option>
@@ -645,7 +645,7 @@ async function levelPokemon(actor) {
   if (!actor.isOwner || !pokemon(actor)) return;
   const trainer = linkedTrainer(actor);
   if (!trainer) return ui.notifications.warn("Assign a Trainer before using guided progression.");
-  const form = await DialogV2.prompt({window:{title:"Pokémon Progression"},
+  const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Pokémon Progression"},
     content:`<p>Current level ${actor.system.level} · Trainer cap ${pokemonLevelCap(trainer.system.level)}</p>
       <label>Method <select name="method"><option value="milestone">Trainer leveled up · up to 5</option>
       <option value="training">Downtime Training · up to 20</option></select></label>
@@ -665,7 +665,7 @@ async function allocatePokemon(actor) {
   if (!actor.isOwner || !pokemon(actor) || !actor.system.levelPoints) return;
   const fields = Object.entries(stats).map(([key,label])=>
     `<label>${label} <input name="${key}" type="number" min="0" value="0"></label>`).join("");
-  const form = await DialogV2.prompt({window:{title:"Allocate Level-Up Stat Points"},
+  const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Allocate Level-Up Stat Points"},
     content:`<p>${actor.system.levelPoints} unspent points. The limit uses allocations recorded by this tracker.</p>${fields}
       ${game.user.isGM ? '<label><input type="checkbox" name="override"> Allow a Glass Cannon exception</label>' : ""}`,
     ok:{label:"Allocate",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
@@ -684,7 +684,7 @@ async function changeWallet(actor,mode) {
   walletLocks.add(actor.uuid);
   const label = mode === "credit" ? "Add Money" : "Spend Money";
   try {
-    const form = await DialogV2.prompt({window:{title:label},
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:label},
       content:`<p>Balance · ${formatMoney(actor.system.money)}</p>
         <label>Amount <input name="amount" type="number" min="1" step="1" required></label>
         <label>Note (optional) <input name="note" maxlength="100"></label>`,
@@ -721,7 +721,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (roll.total < 15 || !this.isEditable) return;
         const active = Object.entries(afflictions).filter(([key])=>afflicted(actor,key));
         if (!active.length) return;
-        const condition = await DialogV2.prompt({window:{title:"Cure One Affliction"},
+        const condition = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Cure One Affliction"},
           content:`<label>Affliction <select name="affliction">${active.map(([key,label])=>`<option value="${key}">${label}</option>`).join("")}</select></label>`,
           ok:{label:"Cure",callback:(event,button)=>new FormData(button.form).get("affliction")},rejectClose:false});
         if (Object.hasOwn(afflictions,condition)) return actor.update({[`system.afflictions.${condition}`]:false});
@@ -743,7 +743,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const actor = this.document;
         const active = actor.system.afflictions;
         if (!active.burned && !active.poisoned && !active.wounded) return;
-        const form = await DialogV2.prompt({window:{title:"End-Turn Affliction Damage"},
+        const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"End-Turn Affliction Damage"},
           content:active.wounded ? '<label><input type="checkbox" name="moved"> Shifted more than half of movement</label>' : '<p>Apply active Burned and Poisoned HP loss.</p>',
           ok:{label:"Apply",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
         if (!form) return;
@@ -782,7 +782,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       async remove(event,target) {
         const item = this.document.items.get(target.dataset.id);
-        if (item && await DialogV2.confirm({window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
+        if (item && await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
       },
       useGear(event,target) { return useGear(this.document,target.dataset.id); },
       equip(event,target) {
@@ -807,7 +807,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       async rest() {
         const actor = this.document;
         if (!this.isEditable) return;
-        const mode = await DialogV2.prompt({window:{title:"Rest & Recovery"},
+        const mode = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Rest & Recovery"},
           content:`<label>Recovery <select name="mode">
             <option value="half">Scene break, nap, or interrupted sleep · half max HP</option>
             <option value="full">Full night's rest or medical treatment · full HP</option>
@@ -820,7 +820,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return actor.update({"system.health.value":plan.value});
       },
       async damage() {
-        const amount = await DialogV2.prompt({window:{title:"Apply Final Damage"},content:'<label>Damage <input name="amount" type="number" min="0" required></label>',
+        const amount = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Apply Final Damage"},content:'<label>Damage <input name="amount" type="number" min="0" required></label>',
           ok:{label:"Apply",callback:(event,button) => Number(new FormData(button.form).get("amount"))},rejectClose:false});
         if (!(amount > 0)) return;
         return this.document.update(combatDamageUpdate(this.document.system,amount));

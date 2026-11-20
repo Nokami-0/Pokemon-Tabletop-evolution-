@@ -8,6 +8,7 @@
 }
 .pte .window-content {padding:0; background:var(--pte-light); color:var(--pte-navy); overflow:hidden}
 .pte .pte-body {padding:16px; display:flex; flex-direction:column; gap:12px; overflow:auto; min-height:0; color-scheme:light}
+.pte .pte-card {display:grid; gap:8px}
 .pte .pte-banner {
   padding:14px 16px; border-radius:16px; border-bottom:5px solid #801623;
   background:linear-gradient(120deg,#ae1f33,#c72b40); color:white;

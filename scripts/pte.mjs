@@ -865,6 +865,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
+    const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || !isRoleItem(i))).map(i => ({
+        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+      }))}));
+    const onTrainerCard = group => !pokemon(actor) && (group.type === "class" || group.type === "feature");
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
@@ -896,9 +900,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      groups:Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || !isRoleItem(i))).map(i => ({
-        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
-      }))}))
+      trainerCardGroups:groups.filter(onTrainerCard),
+      groups:groups.filter(group=>!onTrainerCard(group))
     };
   }
 }

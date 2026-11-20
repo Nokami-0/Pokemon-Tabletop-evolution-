@@ -52,7 +52,20 @@
 .pte button:disabled {opacity:.7; cursor:default}
 
 .pte .pte-body :is(p, li, dd, summary, th, td) {line-height:1.5}
-.pte .pte-body :is(strong, summary, small, dt, th, td) {color:var(--pte-navy)}
+.pte .pte-body section :is(h2, h3, strong, summary, small, dt, dd, li, th, td) {
+  color:var(--pte-navy);
+  text-shadow:none;
+}
+.pte .pte-body details h3 {
+  font-size:16px;
+  margin:12px 0 6px;
+}
+.pte .pte-body details dt {margin-top:8px}
+.pte .pte-body details dd {
+  margin:2px 0 8px 12px;
+  font-size:14px;
+  font-weight:400;
+}
 .pte .pte-body :is(summary, th, td) {font-size:14px}
 .pte .pte-body small {font-size:12px}
 .pte .pte-body table {background:#fff}
@@ -80,5 +93,5 @@
   line-height:1.5;
   overflow-wrap:anywhere;
 }
-.pte-species-dialog :is(p, strong, h3, li) {color:inherit}
+.pte-species-dialog :is(p, strong, h3, li) {color:inherit; text-shadow:none}
 .pte-species-dialog a {color:#174b85; text-decoration:underline}

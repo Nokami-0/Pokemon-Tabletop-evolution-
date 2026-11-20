@@ -22,6 +22,8 @@ Open **Game Systems → Install System** and paste this manifest URL.
 - Click a skill name for a PTE dice pool, Boon or Bane, and optional Spirit Point spend. The result includes success count and CR outcome. Use party skill totals to determine initiative per the Rule Book.
 - Use **Add Gear**, **Add Feature**, or **Add Class** under **Bag**, **Features**, or **Classes**. The dropdowns include core and optional source entries with page references, and a custom option for homebrew. You can add multiple classes to a trainer. Class prerequisites, feature effects, and gear rules are handled at the table.
 
+Open **Compendium Packs** to browse the PTE catalog in four Item packs. Drag gear, attacks, features, or classes onto an actor sheet. Existing eligibility checks apply to non-gear items, and adding gear does not spend money. To rebuild the packs, install the Foundry CLI and run `node tools/build-packs.mjs /absolute/path/to/@foundryvtt/foundryvtt-cli/index.mjs`.
+
 Gear prices appear in the dropdown, Bag, and gear sheet. The editable unit price supports fixed prices, variable listings, and free items. Adding gear does not spend money.
 
 ## Rule Library

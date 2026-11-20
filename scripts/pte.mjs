@@ -1,4 +1,4 @@
-import {referenceEffects} from "../data/effects.mjs";
+import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
 import {capabilityGroups} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
@@ -363,7 +363,6 @@ async function applyMoveDamage(results) {
 
 const itemTypes = {move:"Moves",gear:"Bag",feature:"Features",class:"Classes"};
 
-const entrySource = entry => entry.source || `${entry.book}, p. ${entry.page}`;
 const listingKey = (type, source, name) => `${type}|${source}|${name}`;
 const catalogListings = new Map(catalog.map(entry => [
   listingKey(entry.kind, entrySource(entry), entry.name),entry
@@ -529,9 +528,6 @@ async function chooseSpeciesAbility(actor) {
   }
 }
 
-const linkedEffectPlaceholder = "See the linked reference for this entry’s effects.";
-const catalogEffect = entry => referenceEffects[entrySource(entry)] || entry.rules;
-const categoryEffectPlaceholder = entry => `${entry.category}. See the cited page for prerequisites and effects.`;
 
 function itemDescription(item, listing = catalogListing(item)) {
   const description = item.system.description;
@@ -540,14 +536,6 @@ function itemDescription(item, listing = catalogListing(item)) {
   return catalogEffect(listing) || description;
 }
 
-function catalogItemData(entry) {
-  return {name:entry.name,type:entry.kind,system:{source:entrySource(entry),
-    ...entry.stats,
-    ...(entry.price ? {price:entry.price} : {}),
-    ...(entry.frequency ? {frequency:entry.frequency} : {}),
-    ...(entry.action ? {action:entry.action} : {}),
-    description:catalogEffect(entry) || (entry.source ? linkedEffectPlaceholder : categoryEffectPlaceholder(entry))}};
-}
 
 const speciesMoves = new Map(attackCatalog.filter(entry=>entry.kind === "move" && entry.category === "Moves")
   .map(entry=>[normalizeRequirement(entry.name),entry]));
@@ -974,6 +962,21 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
   };
   static PARTS = {body:{template:`${root}/templates/actor.hbs`,scrollable:[".pte-body"]}};
+  async _onDropItem(event, item) {
+    if (!item.pack?.startsWith(`${ID}.`) || item.type === "gear") return super._onDropItem(event,item);
+    const actor = this.document;
+    if (!this.isEditable || (pokemon(actor) && item.type === "class")) return null;
+    const data = item.toObject();
+    if (!await allowCatalogAcquisition(actor,data)) return null;
+    if (pokemon(actor) && item.type === "move" && battleSlotsUsed(actor) >= actor.system.battleMoveLimit) {
+      data.system.knownOnly = true;
+    }
+    delete data._id;
+    delete data.folder;
+    const [created] = await actor.createEmbeddedDocuments("Item",[data]);
+    return created ?? null;
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const actor = this.document;

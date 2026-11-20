@@ -21,6 +21,13 @@ export function effectiveness(type, defenders, {basic = false} = {}) {
     Number(has(weak,defender) || ghostException(defender)),0);
   return [0.25, 0.5, 1, 1.5, 2][2 + Math.max(-2, Math.min(2, steps))];
 }
+const matchupLabels = {
+  0:"Immune", 0.25:"Doubly resisted", 0.5:"Resisted",
+  1:"Neutral", 1.5:"Super effective", 2:"Doubly super effective"
+};
+
+export const matchupLabel = factor => `${matchupLabels[factor]} (×${factor})`;
+
 export const tier = (level, pokemon) => level >= (pokemon ? 50 : 10) ? 3 : level >= (pokemon ? 21 : 5) ? 2 : 1;
 export const maxHP = (level, hp, pokemon) => level * (pokemon ? 1 : 5) + hp * 3 + 10;
 export const evasion = value => Math.max(0, Math.min(6, Math.floor(value / 5)));

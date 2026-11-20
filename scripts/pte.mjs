@@ -4,7 +4,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -281,11 +281,16 @@ async function useMove(actor, item, pool = null) {
     const defense = move.category === "Status" ? 0 : combatStat(target,special ? "spd" : "def");
     const targetEvasion = attackEvasion(target,defense);
     const needed = move.ac + targetEvasion;
-    const factor = damage ? effectiveness(move.element,elements(target),{basic:item.basic}) : 1;
-    const hit = factor && (!needsAccuracy || roll.total >= needed);
+    const targetTypes = elements(target);
+    const factor = effectiveness(move.element,targetTypes,{basic:item.basic});
+    const manualDamage = !damage && ["Counter","Sonic Boom"].includes(catalogListing(item)?.name);
+    const immune = factor === 0 && (damage || manualDamage);
+    const hit = !immune && (!needsAccuracy || roll.total >= needed);
     const amount = hit && damage ? Math.floor(Math.max(0,damage.total-defense-target.system.reduction)*factor) : 0;
-    const result = !factor ? "Immune" : !hit ? "Miss" : !damage ? "Hit" : `Hit · ${amount} damage (×${factor})`;
-    return {token,target,amount,line:`<li>${escape(token.name)} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}</li>`};
+    const result = immune ? matchupLabel(0) : !hit ? "Miss" : !damage ? "Hit" : `Hit · ${amount} damage`;
+    const typing = targetTypes.length ? ` (${targetTypes.map(escape).join(" / ")})` : "";
+    const matchup = damage && !immune ? ` · ${matchupLabel(factor)}` : "";
+    return {token,target,amount,line:`<li>${escape(token.name)}${typing} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}${matchup}</li>`};
   });
   let tracked = "";
   if (pool) {
@@ -298,7 +303,7 @@ async function useMove(actor, item, pool = null) {
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:
     `<strong>${escape(item.name)}</strong><br>${range}${tracked}<br>${needsAccuracy ? `AC ${move.ac}` : "No AC · d20 for critical or effect ranges"}${critical ? " · Critical" : ""}
       ${damage ? ` · DB ${db} · Raw damage ${damage.total} (${escape(damage.formula)})` : variableDb ? " · Resolve damage or HP loss from the effect" : ""}
-      ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}<p>${escape(move.description)}</p>`});
+      ${lines.length ? `<ul>${lines.join("")}</ul>` : damage ? "<p>Target a token to calculate defenses and type effectiveness.</p>" : ""}<p>${escape(move.description)}</p>`});
   if (pool) await applyMoveDamage(results);
 }
 
@@ -518,7 +523,7 @@ async function learnSpeciesMove(actor) {
   });
   if (!eligible.length) return ui.notifications.info("There are no new starting or level-up moves available.");
   const choice = await DialogV2.prompt({window:{title:"Learn Species Move"},
-    content:`<label>Eligible move <select name="move">${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)}</option>`).join("")}</select></label>`,
+    content:`<label>Eligible move <select name="move">${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)} · ${escape(move.stats.element)}</option>`).join("")}</select></label>`,
     ok:{label:"Learn",callback:(event,button)=>new FormData(button.form).get("move")},rejectClose:false});
   if (choice == null) return;
   const move = eligible[Number(choice)];
@@ -849,6 +854,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       afflictions:Object.entries(afflictions).map(([key,label])=>({key,label,active:afflicted(actor,key)})),
       evasion:["def","spd","spe"].map(key => evasion(combatStat(actor,key))).join(" / "),
       type1:choices(["",...types],system.type1),type2:choices(["",...types],system.type2),
+      defensiveMatchups:types.flatMap(type=>{
+        const factor = effectiveness(type,elements(actor));
+        return factor === 1 ? [] : [{type,label:matchupLabel(factor)}];
+      }),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:game.actors.filter(a => pokemon(a) && a.visible && a.system.trainerId === actor.id),
       walletBalance:actor.type === "trainer" ? formatMoney(system.money) : null,

@@ -30,6 +30,10 @@
   </fieldset>
   <section>
     <h2>Battle Stats</h2>
+    {{#if defensiveMatchups}}<details>
+      <summary>Incoming attack type matchups</summary>
+      <ul>{{#each defensiveMatchups}}<li><span class="pte-type" data-element="{{type}}">{{type}}</span> · {{label}}</li>{{/each}}</ul>
+    </details>{{/if}}
     <fieldset class="pte-grid" {{#unless editable}}disabled{{/unless}}>
       {{#each stats}}<label>{{label}} <input name="system.stats.{{key}}" type="number" min="0" value="{{value}}"></label>{{/each}}
       <label>Accuracy Mod <input name="system.accuracy" type="number" value="{{system.accuracy}}"></label>

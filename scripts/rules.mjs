@@ -249,6 +249,27 @@ export function trainerLevelPlan(system, {skill, milestoneSkills}) {
   return {updates};
 }
 
+export const pokemonTutorTiers = {10:[1],20:[1,2],30:[1,2],40:[2,3],50:[2,3]};
+
+export function pokemonSkillTrainingDice(system,key) {
+  return 2 * (Number(system.trainedSkill1 === key) + Number(system.trainedSkill20 === key));
+}
+
+export function pokemonStatReward(system, keys) {
+  if (keys.length !== 2 || keys[0] === keys[1] || keys.some(key=>!Object.hasOwn(stats,key))) return null;
+  const updates = Object.fromEntries(keys.map(key=>[`system.stats.${key}`,system.stats[key] + 5]));
+  if (keys.includes("hp") && system.health.value > 0) updates["system.health.value"] = system.health.value + 15;
+  return updates;
+}
+
+export function pokemonEvolutionStats(system, previous, next) {
+  const scores = Object.fromEntries(Object.keys(stats).map(key=>
+    [key,Math.max(0,system.stats[key] - previous.stats[key] + next.stats[key])]));
+  const hpDelta = 3 * (scores.hp - system.stats.hp);
+  const hp = system.health.value > 0 ? Math.max(1,system.health.value + hpDelta) : 0;
+  return {stats:scores,hp};
+}
+
 export function pokemonLevelCap(trainerLevel) {
   return Math.min(100,trainerLevel * 5);
 }

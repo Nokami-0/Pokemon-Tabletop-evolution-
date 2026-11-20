@@ -101,3 +101,18 @@ export function speciesRequirement(entry, profile, level) {
   if (levels.length) return {error:`Requires Pokémon level ${Math.min(...levels)} for this learnset move.`};
   return {review:"This move is outside the recorded starting and level-up list. A GM must verify its source."};
 }
+
+
+export function evolutionOptions(source, profiles) {
+  const byName = new Map(Array.from(profiles,profile=>[normalizeRequirement(profile.name),profile]));
+  const links = [...(source.evolution || "").matchAll(/([^()>]+?)\s*\(([^()]*)\)(\s*>\s*)?/g)];
+  const options = new Map();
+  for (const [index,link] of links.entries()) {
+    if (!link[3] || normalizeRequirement(link[1]) !== normalizeRequirement(source.name)) continue;
+    const next = links[index+1];
+    if (!next || !/^\d+$/.test(next[2].trim())) continue;
+    const profile = byName.get(normalizeRequirement(next[1]));
+    if (profile && profile.page !== source.page) options.set(profile.page,{profile,level:Number(next[2])});
+  }
+  return [...options.values()];
+}

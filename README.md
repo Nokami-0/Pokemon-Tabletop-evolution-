@@ -64,6 +64,8 @@ Use **Pokémon Roles → Add Role** on the Pokémon sheet to assign a Rule Book 
 
 Use the Trainer sheet’s **Wallet** to add or spend money. It keeps your existing balance, rejects overspending, and shows the most recent ten transactions. Adding items to the Bag does not automatically spend money.
 
+Use **Pokémon Progression** on the Profile to apply level gains, allocate points, and claim trained skills, Role and milestone stat bonuses, and eligible Tutor Attacks. **Evolve Pokémon** handles named evolutions with a numeric level in the Pokédex and preserves stat investment. Review conditional evolutions, changes to skills and abilities, Evolution attacks, and optional custom upgrades with the GM. If you already applied an older reward manually, leave its claim unused to avoid doubling it.
+
 Extract the companion PNG pack so Foundry has **Data/pte-tokens/**. The Pokédex uses the matching PNG for an actor’s portrait and prototype token. On existing Pokémon sheets use **Set Species PNG** without resetting stats. New Pokédex actors learn matched starting moves automatically. On a Pokémon sheet use **Learn Species Move** for currently eligible starting and level-up moves. Tutor moves and special grants use GM review.
 
 New Trainers start with a base HP stat of 10. Existing actors retain saved stats. Moves with a variable Damage Base show the workbook’s DB notation and prompt for the effect’s resolved value at roll time. Leave it empty for effects resolved manually.

@@ -161,12 +161,25 @@
     {{#if editable}}{{#if system.dexPage}}<div class="pte-buttons">
       <button type="button" data-action="speciesArtwork">Set Species PNG</button>
       <button type="button" data-action="learnSpeciesMove">Learn Species Move</button>
+      <button type="button" data-action="evolvePokemon">Evolve Pokémon</button>
     </div>{{/if}}{{/if}}
     <p>Battle attack slots · {{battleSlots}} / {{system.battleMoveLimit}}</p>
     <label>Battle attack limit <input type="number" min="0" name="system.battleMoveLimit" value="{{system.battleMoveLimit}}" {{#unless editable}}disabled{{/unless}}></label>
     <p>{{#if trainerCap}}Trainer level cap · {{trainerCap}} · {{/if}}Unspent level-up stat points · {{system.levelPoints}}</p>
     {{#if editable}}<div class="pte-buttons">{{#if trainerCap}}<button type="button" data-action="levelPokemon">Apply Level Gain</button>{{/if}}
       {{#if system.levelPoints}}<button type="button" data-action="allocateStatPoints">Allocate Points</button>{{/if}}</div>{{/if}}
+    {{#if pokemonProgression.trained}}<p>Trained skills (+2d6 per training) · {{#each pokemonProgression.trained}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
+    <details><summary>Progression rewards</summary>
+      <p>At level 1, select a Pokédex species, choose an Ability and a Primary Role, and learn its starting attacks. At level 10, your Primary Role’s Rank 1 effect unlocks. At level 30, choose a second Role or Ability from the Profile.</p>
+      <p>Review the Species Profile for evolution requirements. At levels 25, 50, 75, and 100, ask the GM about an optional custom upgrade.</p>
+      {{#if editable}}<div class="pte-buttons">
+        {{#each pokemonProgression.rewards}}<button type="button" data-action="pokemonReward" data-reward="{{key}}">Lv {{level}} · {{label}}</button>{{/each}}
+      </div>{{/if}}
+      <small>PTE Rule Book, pp. 189–191</small>
+    </details>
+    {{#if pokemonProgression.history}}<details><summary>Advancement history</summary>
+      <ul>{{#each pokemonProgression.history}}<li>{{this}}</li>{{/each}}</ul>
+    </details>{{/if}}
   </section>{{/if}}
   {{#if pokemon}}<section>
     <h2>Species Profile</h2>

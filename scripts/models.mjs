@@ -38,6 +38,9 @@ export class TrainerData extends CreatureData {
 export class PokemonData extends CreatureData {
   static defineSchema() {
     return {...super.defineSchema(),species:text(),type1:text(),type2:text(),role:text(),trainerId:text(),dexPage:count(),xp:count(),levelPoints:count(),battleMoveLimit:count(6),
+      trainedSkill1:text(),trainedSkill20:text(),progressionHistory:text(),
+      progressionClaims:new SchemaField(keyset(["role","stats40","stats50","tutor10","tutor20","tutor30","tutor40","tutor50"],
+        () => new BooleanField({initial:false}))),
       levelAllocation:new SchemaField(keyset(["hp","atk","def","spa","spd","spe"],() => count()))};
   }
 }

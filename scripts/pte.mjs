@@ -1,12 +1,12 @@
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
 import {capabilityGroups} from "../data/capabilities.mjs";
-import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, normalizeMoveName} from "./prerequisites.mjs";
+import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, evolutionOptions, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, trainerMeritGoal, trainerLevelPlan, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -175,7 +175,8 @@ async function skill(actor, index) {
   const sp = Math.max(0,Math.min(actor.isOwner ? actor.system.spirit : 0, rank - 1, Math.trunc(Number(args.get("sp")) || 0)));
   const cr = Math.max(0, Math.trunc(Number(args.get("cr")) || 0));
   if (sp) await actor.update({"system.spirit":actor.system.spirit - sp});
-  const roll = await new Roll(`${rank + sp}d6`).evaluate();
+  const trained = pokemon(actor) ? pokemonSkillTrainingDice(actor.system,`s${index}`) : 0;
+  const roll = await new Roll(`${rank + sp + trained}d6`).evaluate();
   const count = successes(roll.dice[0].values, skillThreshold(actor,index,Number(args.get("mode"))));
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}`});
 }
@@ -204,7 +205,9 @@ async function multiSkillCheck(actor, opposed) {
   }));
   if (choices.some(choice=>!skills[choice.index] || ![3,4,5].includes(choice.threshold))) return;
   const results = await Promise.all(choices.map(async ({participant,index,threshold})=>{
-    const roll = await new Roll(`${participant.system.skills[`s${index}`]}d6`).evaluate();
+    const key = `s${index}`;
+    const trained = pokemon(participant) ? pokemonSkillTrainingDice(participant.system,key) : 0;
+    const roll = await new Roll(`${participant.system.skills[key] + trained}d6`).evaluate();
     const dice = roll.dice[0].values;
     return {name:participant.name,skill:skills[index],roll,dice,successes:successes(dice,skillThreshold(participant,index,threshold)),total:dice.reduce((sum,value)=>sum+value,0)};
   }));
@@ -448,11 +451,11 @@ async function acquisitionCheck(actor, entry) {
         return {error:"This Pokémon already has that ability."};
       }
       if (abilities.length) {
-        return {review:actor.system.level < 30 ?
-          "The normal second ability is available at level 30. Verify a separate rule if it is being granted earlier." :
-          actor.items.filter(isRoleItem).length >= 2 ?
-            "This Pokémon already has a second role. Verify an alternate rule granting the extra ability." :
-            "Confirm this ability is the chosen level 30 benefit or comes from another grant."};
+        const roles = actor.items.filter(isRoleItem);
+        const legacy = normalizeRequirement(actor.system.role || "");
+        const roleCount = roles.length + Number(Boolean(legacy && !roles.some(item=>normalizeRequirement(item.name) === legacy)));
+        if (actor.system.level < 30) return {review:"The normal second ability unlocks at level 30. Verify a separate grant."};
+        if (roleCount >= 2 || abilities.length >= 2) return {review:"The normal extra Role or Ability has already been taken. Verify a separate grant."};
       }
     }
   }
@@ -744,10 +747,131 @@ async function startTrainerProgression(actor) {
   }
 }
 
+const pokemonProgressionLocks = new Set();
+const pokemonHistory = (actor,line) =>
+  [line,...actor.system.progressionHistory.split("\n").filter(Boolean)].slice(0,25).join("\n");
+
+async function chooseProgressionOptions(title, choices, count) {
+  const options = choices.map(({key,label})=>`<option value="${escape(key)}">${escape(label)}</option>`).join("");
+  return DialogV2.prompt({classes:["pte-dialog"],window:{title},
+    content:Array.from({length:count},(_,index)=>
+      `<label>Choice ${index + 1}<select name="choice" required><option value="">Select</option>${options}</select></label>`).join(""),
+    ok:{label:"Apply",callback:(event,button)=>new FormData(button.form).getAll("choice")},rejectClose:false});
+}
+
+async function pokemonReward(actor, reward) {
+  if (!actor.isOwner || !pokemon(actor) || pokemonProgressionLocks.has(actor.uuid)) return;
+  pokemonProgressionLocks.add(actor.uuid);
+  try {
+    await applyPokemonReward(actor,reward);
+  } finally {
+    pokemonProgressionLocks.delete(actor.uuid);
+  }
+}
+
+async function applyPokemonReward(actor,reward) {
+  const {system} = actor;
+  const profile = system.dexPage ? (await dexProfiles()).get(system.dexPage) : null;
+  if (profile && normalizeRequirement(profile.name) !== normalizeRequirement(system.species || "")) return;
+  const train = reward === "trainedSkill1" || reward === "trainedSkill20";
+  const tutorLevel = /^tutor(10|20|30|40|50)$/.exec(reward)?.[1];
+  const level = train ? Number(reward.slice("trainedSkill".length)) : tutorLevel ? Number(tutorLevel) :
+    ({role:1,stats40:40,stats50:50})[reward];
+  if (!level || system.level < level || (train ? system[reward] : system.progressionClaims[reward])) return;
+  const page = system.dexPage;
+  const stillEligible = () => actor.isOwner && actor.system.level >= level && actor.system.dexPage === page &&
+    !(train ? actor.system[reward] : actor.system.progressionClaims[reward]);
+  if (train) {
+    const highRank = profile?.skillRanks.match(/(?:Mastered|Proficient)\s*[:-]\s*(.*?)(?=\s+(?:Mastered|Proficient|Inept)\s*[:-]|$)/gi) ?? [];
+    const highNames = new Set(highRank.flatMap(text=>text.replace(/^[^:-]+[:-]/,"").split(",").map(normalizeRequirement)));
+    const eligible = skills.map((label,index)=>({label,key:`s${index}`})).filter(({key,label})=>
+      level === 1 || key !== system.trainedSkill1 || (profile && !highNames.has(normalizeRequirement(label))));
+    const picks = await chooseProgressionOptions(`Level ${level} · Train a Skill`,eligible,1);
+    const key = picks?.[0];
+    if (!stillEligible() || !eligible.some(option=>option.key === key)) return;
+    return actor.update({[`system.${reward}`]:key,
+      "system.progressionHistory":pokemonHistory(actor,`Level ${level} · Trained ${skills[Number(key.slice(1))]} (+2d6).`)});
+  }
+  if (tutorLevel) {
+    const tiers = pokemonTutorTiers[level];
+    const rows = profile?.tutor ?? [];
+    if (rows.length !== 6 || !rows.every((row,index)=>(index % 2 ? /^Generic:/i : /^Unique:/i).test(row))) {
+      return ui.notifications.warn("This Pokédex entry has no complete tier breakdown. Have the GM verify the tutor reward.");
+    }
+    const names = new Set(rows.flatMap((row,index)=>tiers.includes(Math.floor(index/2)+1) ?
+      row.replace(/^(?:Unique|Generic):\s*/i,"").split(",").map(normalizeMoveName) : []));
+    const hasMove = name => actor.items.some(item=>item.type === "move" && normalizeMoveName(item.name) === name);
+    const eligible = [...speciesMoves].filter(([name])=>names.has(name) && !hasMove(name));
+    if (!eligible.length) return ui.notifications.warn("No unlearned catalog moves match this tutor reward.");
+    const picks = await chooseProgressionOptions(`Level ${level} · Tutor Attack`,eligible.map(([key,entry])=>({key,label:entry.name})),1);
+    const entry = eligible.find(([name])=>name === picks?.[0] && !hasMove(name))?.[1];
+    if (!entry || !stillEligible()) return;
+    const data = catalogItemData(entry);
+    data.system.knownOnly = battleSlotsUsed(actor) >= actor.system.battleMoveLimit;
+    const [item] = await actor.createEmbeddedDocuments("Item",[data]);
+    if (!item) return;
+    try {
+      await actor.update({[`system.progressionClaims.${reward}`]:true,
+        "system.progressionHistory":pokemonHistory(actor,`Level ${level} · Learned ${entry.name} as a Tutor Attack.`)});
+    } catch (error) {
+      await item.delete();
+      throw error;
+    }
+    return;
+  }
+  const role = reward === "role" ? actor.items.find(isRoleItem) : null;
+  if (reward === "role" && !role) return ui.notifications.warn("Choose a primary Pokémon Role first.");
+  if (level === 50 && (!profile || Object.values(profile.stats).reduce((sum,value)=>sum+value,0) > 45)) {
+    return ui.notifications.warn("The level 50 stat bonus requires a Pokédex base stat total of 45 or less.");
+  }
+  const roleStats = role ? catalogListing(role).startingStats : "";
+  const labels = roleStats && roleStats !== "Any 2 Different Stats" ?
+    roleStats.split(/,\s*|\s+or\s+/) : Object.values(stats);
+  const eligible = Object.entries(stats).filter(([,label])=>labels.includes(label)).map(([key,label])=>({key,label}));
+  const picks = await chooseProgressionOptions(`Level ${level} · Choose Two Stats for +5 Each`,eligible,2);
+  if (!picks || !stillEligible() || (role && actor.items.find(isRoleItem)?.id !== role.id)) return;
+  const validPair = picks.every(key=>eligible.some(option=>option.key === key)) &&
+    (roleStats !== "HP, Special Attack or Special Defense" || picks.includes("hp"));
+  const updates = validPair && pokemonStatReward(actor.system,picks);
+  if (!updates) return ui.notifications.warn("Choose two different eligible stats.");
+  return actor.update({...updates,[`system.progressionClaims.${reward}`]:true,
+    "system.progressionHistory":pokemonHistory(actor,`Level ${level} · +5 ${picks.map(key=>stats[key]).join(" and +5 ")}.`)});
+}
+
+async function evolvePokemon(actor) {
+  if (!actor.isOwner || !pokemon(actor) || pokemonProgressionLocks.has(actor.uuid)) return;
+  pokemonProgressionLocks.add(actor.uuid);
+  try {
+    const profiles = await dexProfiles();
+    const source = profiles.get(actor.system.dexPage);
+    if (!source || normalizeRequirement(source.name) !== normalizeRequirement(actor.system.species || "")) return;
+    const candidates = evolutionOptions(source,profiles.values()).filter(choice=>actor.system.level >= choice.level);
+    if (!candidates.length) return ui.notifications.warn("No level-based evolution is currently available from this profile. Check the Pokédex and consult the GM for other triggers.");
+    const picks = await chooseProgressionOptions("Evolve Pokémon",candidates.map(({profile,level})=>
+      ({key:String(profile.page),label:`${profile.name} · Level ${level}`})),1);
+    const option = candidates.find(choice=>String(choice.profile.page) === picks?.[0]);
+    if (!option || actor.system.dexPage !== source.page || actor.system.level < option.level) return;
+    const next = option.profile;
+    const art = await tokenArtwork(next.page);
+    if (actor.system.dexPage !== source.page || actor.system.level < option.level) return;
+    const evolved = pokemonEvolutionStats(actor.system,source,next);
+    const updates = {
+      "system.species":next.name,"system.dexPage":next.page,"system.type1":next.types[0] || "","system.type2":next.types[1] || "",
+      "system.stats":evolved.stats,"system.health.value":evolved.hp,
+      "system.progressionHistory":pokemonHistory(actor,`Evolved from ${source.name} to ${next.name}. Review skill ranks, abilities, and any Evolution attack with the GM.`),
+      ...(art ? {img:art,"prototypeToken.texture.src":art} : {})
+    };
+    return actor.update(updates);
+  } finally {
+    pokemonProgressionLocks.delete(actor.uuid);
+  }
+}
+
 async function levelPokemon(actor) {
   if (!actor.isOwner || !pokemon(actor)) return;
   const trainer = linkedTrainer(actor);
   if (!trainer) return ui.notifications.warn("Assign a Trainer before using guided progression.");
+  const startingLevel = actor.system.level;
   const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Pokémon Progression"},
     content:`<p>Current level ${actor.system.level} · Trainer cap ${pokemonLevelCap(trainer.system.level)}</p>
       <label>Method <select name="method"><option value="milestone">Trainer leveled up · up to 5</option>
@@ -755,11 +879,14 @@ async function levelPokemon(actor) {
       <label>Levels gained <input type="number" name="gain" min="1" max="20" value="1" required></label>
       <p>Confirm eligibility with the GM. See Rule Book pp. 189–190 for move, role, and evolution milestones.</p>`,
     ok:{label:"Apply Levels",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
-  if (!form) return;
+  if (!form || actor.system.level !== startingLevel) return;
   const currentTrainer = linkedTrainer(actor);
   const plan = pokemonLevelPlan(actor.system.level,currentTrainer?.system.level,form.get("method"),Number(form.get("gain")));
   if (plan.error) return ui.notifications.warn(plan.error);
-  const updates = {"system.level":plan.level,"system.levelPoints":actor.system.levelPoints+plan.points};
+  const previous = actor.system.level;
+  const milestones = [10,20,25,30,40,50,75,100].filter(level=>level > previous && level <= plan.level);
+  const updates = {"system.level":plan.level,"system.levelPoints":actor.system.levelPoints+plan.points,
+    "system.progressionHistory":pokemonHistory(actor,`Level ${previous} → ${plan.level} · +${plan.points} stat points.${milestones.length ? " Milestones reached: " + milestones.join(", ") + "." : ""}`)};
   if (actor.system.health.value > 0) updates["system.health.value"] = actor.system.health.value + plan.points;
   return actor.update(updates);
 }
@@ -824,7 +951,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         body.scrollTop = 0;
       },
       wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
+      evolvePokemon() { return evolvePokemon(this.document); },
       levelPokemon() { return levelPokemon(this.document); },
+      pokemonReward(event,target) { return pokemonReward(this.document,target.dataset.reward); },
       allocateStatPoints() { return allocateStatPoints(this.document); },
       advanceTrainer() { return advanceTrainer(this.document); },
       startTrainerProgression() { return startTrainerProgression(this.document); },
@@ -1030,6 +1159,17 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
       partners:teamTrainer ? game.actors.filter(a => pokemon(a) && a.visible && a.id !== actor.id && a.system.trainerId === teamTrainer.id) : [],
+      pokemonProgression:pokemon(actor) ? {
+        trained:[system.trainedSkill1,system.trainedSkill20].filter(Boolean).map(key=>skills[Number(key.slice(1))]),
+        history:system.progressionHistory.split("\n").filter(Boolean),
+        rewards:[["trainedSkill1",1,"Train a Skill"],["role",1,"Apply Primary Role Stats"],["tutor10",10,"Learn Tier 1 Tutor Attack"],
+          ["trainedSkill20",20,"Train a Second Skill"],["tutor20",20,"Learn Tier 1 or 2 Tutor Attack"],
+          ["tutor30",30,"Learn Tier 1 or 2 Tutor Attack"],["stats40",40,"Apply +5 to Two Stats"],
+          ["tutor40",40,"Learn Tier 2 or 3 Tutor Attack"],["tutor50",50,"Learn Tier 2 or 3 Tutor Attack"],
+          ["stats50",50,"Apply +5 to Two Stats (Base Total ≤ 45)"]]
+          .filter(([key,level])=>system.level >= level && !(key.startsWith("trained") ? system[key] : system.progressionClaims[key]))
+          .map(([key,level,label])=>({key,level,label}))
+      } : null,
       trainerProgression:!pokemon(actor) ? {
         meritGoal:system.meritGoal || trainerMeritGoal(system.level),
         cap:pokemonLevelCap(system.level),canLevel:system.level < 20,

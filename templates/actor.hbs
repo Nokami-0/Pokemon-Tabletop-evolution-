@@ -97,6 +97,64 @@
     {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}<p>Assign a Trainer on a Pokémon sheet to link it here.</p>{{/each}}
   </div></section>
   {{/unless}}
+  <section>
+    <details>
+      <summary>Combat Maneuvers</summary>
+      <p>Trainers and Pokémon can use these maneuvers unless a rule limits their access. Add the target’s Speed Evasion to the AC when applicable.</p>
+      <p><strong>Resistant.</strong> After the maneuver hits, the target gains a Boon on related checks for the rest of the scene. If you fail its skill check, you also take a Bane when repeating it against a previously targeted enemy.</p>
+      <h3>Bolster</h3>
+      <dl>
+        <dt><strong>Defend</strong> · Swift, Reaction, or Movement</dt>
+        <dd>Choose an adjacent ally. Until your next turn starts, redirect single-target attacks from that ally to yourself while you remain adjacent. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Disengage</strong> · Movement</dt>
+        <dd>Slide 1m. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Help</strong> · Swift</dt>
+        <dd>An adjacent ally immediately makes an end-of-turn save against an affliction. You cannot use a damaging attack on the same turn as Help. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Hide</strong> · Movement</dt>
+        <dd>Until your next turn starts, adjacent cover counts as blocking terrain and attackers suffer double penalties from rough terrain you occupy. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Intercept</strong> · Reaction</dt>
+        <dd>When an ally within 3m would be hit by an enemy attack without Social or Sureshot, move to the ally or into the attack’s path and take the hit. Swap the ally to an adjacent space if you reach them. The hit is one damage step stronger (maximum ×1.5), or resisted if you would be immune. Spending a Standard action prevents the increase. An ally still inside an intercepted area attack gains one step of resistance. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Jump</strong> · Movement</dt>
+        <dd>Move up to half your Movement in a straight line, including diagonally. Ignore ground terrain effects and hazards crossed, subject to GM rulings for hazards such as smoke. <small>PTE Rule Book, p. 170</small></dd>
+        <dt><strong>Respite</strong> · Full</dt>
+        <dd>Requires no enemies within 2m. Pick two benefits, with repeats allowed. Reset negative combat stages to default, cure an affliction, remove a condition independent of a current affliction, or remove a Coat or Mark. Then reset all positive combat stages to default. <small>PTE Rule Book, p. 171</small></dd>
+        <dt><strong>Sprint</strong> · Standard or Swift</dt>
+        <dd>Double Movement this turn as a Standard action, or add 2 to Movement this turn as a Swift action. <small>PTE Rule Book, p. 171</small></dd>
+        <dt><strong>Riposte</strong> · Standard + Reaction · AC 4 · Field</dt>
+        <dd>When you or an ally would take damage from a single-target, Line, or Blast attack without Sureshot, spend one use of a damaging attack and roll Riposte. On a hit, subtract your attack’s raw damage roll from the incoming raw roll. At zero or less the incoming attack misses every target and applies no effects. On a successful Riposte you cannot use it again that scene. See p. 171 for positioning, type requirements, and counter-damage. <small>PTE Rule Book, p. 171</small></dd>
+      </dl>
+      <h3>Manipulate</h3>
+      <dl>
+        <dt><strong>Analyze</strong> · Swift · No AC · 6m, one target</dt>
+        <dd>Choose a combat-relevant detail about the target to investigate. The GM reveals what you can determine and may call for a skill check. Minor information may be a Free action. <small>PTE Rule Book, p. 172</small></dd>
+        <dt><strong>Distract</strong> · Swift · AC 6 · 6m, one target</dt>
+        <dd>Oppose Guile or Stealth with Focus or Perception. On a win, inflict Dazed or Provoke the target until the end of its next turn. Resistant. <small>PTE Rule Book, p. 172</small></dd>
+        <dt><strong>Intrigue</strong> · Swift · AC 6 · 6m, one target</dt>
+        <dd>Oppose Charm or Command with Focus or Intuition. On a win, inflict Entranced until the end of the target’s next turn. Resistant. <small>PTE Rule Book, p. 172</small></dd>
+        <dt><strong>Provoke</strong> · Swift · AC 2 · 6m, one target</dt>
+        <dd>The target makes a CR 3 Focus check, or CR 2 if you already failed this maneuver against it this scene. On failure it is Provoked by you until the end of its next turn. Resistant. <small>PTE Rule Book, p. 172</small></dd>
+        <dt><strong>Terrorize</strong> · Swift · AC 6 · 6m, one target</dt>
+        <dd>Oppose Command or Intimidate with Intimidate or Focus. On a win, inflict Suppressed until the end of the target’s next turn. Resistant. <small>PTE Rule Book, p. 172</small></dd>
+      </dl>
+      <h3>Tactic</h3>
+      <dl>
+        <dt><strong>Attack of Opportunity</strong> · Reaction</dt>
+        <dd>When an adjacent enemy willingly moves to a nonadjacent space or makes a ranged attack against someone nonadjacent to it, you may make a Basic Attack against that enemy as a Free action. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Disarm</strong> · Swift · AC 4 · Melee, one target</dt>
+        <dd>Both sides roll Combat or Stealth. On a win, drop an item from the target’s inventory slot or impair equipped gear until the end of its next turn. It can spend a Swift action to clear the impairment early. Resistant. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Grapple</strong> · Standard · No AC · Melee, one target · Sureshot</dt>
+        <dd>Both sides roll Athletics or Combat. On a win, both become Grappled and you gain Dominance. Grappled combatants are Vulnerable, Provoke each other, and have restricted Movement actions. Teleporter Speed or Phasing prevents grappling. Resistant. See p. 173 for Drag, Strike, Secure, Cease, and contesting Dominance. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Hinder</strong> · Swift · AC 4 · Melee, one target</dt>
+        <dd>Both sides roll Athletics or Combat. On a win, the target is Vulnerable against the next attack targeting it. Resistant. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Push</strong> · Swift or Movement · AC 2 · Melee, one target</dt>
+        <dd>Both sides roll Athletics or Combat. On a win, slide the target away up to a number of meters equal to your higher Athletics or Combat rank minus its Weight Class. Resistant. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Throw</strong> · Standard · AC 4</dt>
+        <dd>Throw a Throwable item within 4m plus your Athletics rank. On a hit, apply the item’s effect. The maneuver gains Sureshot if the target is adjacent. <small>PTE Rule Book, p. 173</small></dd>
+        <dt><strong>Trip</strong> · Standard · AC 4 · Melee, one target</dt>
+        <dd>Both sides roll Combat or Acrobatics. On a win, the target becomes Tripped. Resistant. <small>PTE Rule Book, p. 173</small></dd>
+      </dl>
+    </details>
+  </section>
   {{#if editable}}<section>
     <h2>Attack Tracking · Turn {{system.attackTurn}}</h2>
     <div class="pte-buttons"><button type="button" data-action="basicAttack">Basic Attack</button><button type="button" data-action="advanceAttackTurn">Advance Attack Turn</button>

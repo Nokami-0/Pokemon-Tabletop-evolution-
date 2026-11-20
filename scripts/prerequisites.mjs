@@ -59,8 +59,14 @@ export function requirementResult(texts, context) {
   return all(clauses);
 }
 
-function namesFrom(text) {
-  return text.split(",").map(normalizeRequirement);
+export function normalizeAbilityName(value) {
+  const name = normalizeRequirement(value);
+  return ({beauitful:"beautiful", "lateral sense":"lateral senses", omean:"omen",
+    "mycellium might":"mycelium might"})[name] || name;
+}
+
+export function speciesAbilityNames(profile) {
+  return (profile?.abilities || "").split(",").map(name=>name.trim()).filter(Boolean);
 }
 
 export function normalizeMoveName(value) {
@@ -70,9 +76,9 @@ export function normalizeMoveName(value) {
 
 export function speciesRequirement(entry, profile, level) {
   if (!profile) return {review:"Set the Pokémon’s species using the Pokédex or have the GM confirm this grant."};
-  const name = entry.category === "Pokémon Abilities" ? normalizeRequirement(entry.name) : normalizeMoveName(entry.name);
+  const name = entry.category === "Pokémon Abilities" ? normalizeAbilityName(entry.name) : normalizeMoveName(entry.name);
   if (entry.category === "Pokémon Abilities") {
-    if (namesFrom(profile.abilities || "").includes(name)) return {};
+    if (speciesAbilityNames(profile).some(ability=>normalizeAbilityName(ability) === name)) return {};
     return {review:"This ability is outside the recorded species list. A GM must verify an alternate grant."};
   }
   if (profile.starting.some(move=>normalizeMoveName(move)===name)) return {};

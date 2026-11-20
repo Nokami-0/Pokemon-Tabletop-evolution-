@@ -1,5 +1,5 @@
 import {capabilityGroups} from "../data/capabilities.mjs";
-import {normalizeRequirement, requirementResult, speciesRequirement, normalizeMoveName} from "./prerequisites.mjs";
+import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
@@ -366,7 +366,10 @@ const catalogListings = new Map(catalog.map(entry => [
 const catalogListing = item => catalogListings.get(listingKey(item.type,item.system.source,item.name));
 const roleCategory = "Pokémon Roles";
 const isRoleItem = item => catalogListing(item)?.category === roleCategory;
-const isAbilityItem = item => catalogListing(item)?.category === "Pokémon Abilities";
+const abilityCategory = "Pokémon Abilities";
+const isAbilityItem = item => catalogListing(item)?.category === abilityCategory;
+const abilitiesByName = new Map(catalog.filter(entry=>entry.category === abilityCategory)
+  .map(entry=>[normalizeAbilityName(entry.name),entry]));
 const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
 
 const catalogNames = new Set(catalog.filter(entry=>entry.kind === "class" || entry.kind === "feature")
@@ -437,7 +440,7 @@ async function acquisitionCheck(actor, entry) {
     if (eligibility.error || eligibility.review) return eligibility;
     if (entry.category === "Pokémon Abilities") {
       const abilities = actor.items.filter(item=>catalogListing(item)?.category === "Pokémon Abilities");
-      if (abilities.some(item=>normalizeRequirement(item.name) === normalizeRequirement(entry.name))) {
+      if (abilities.some(item=>normalizeAbilityName(item.name) === normalizeAbilityName(entry.name))) {
         return {error:"This Pokémon already has that ability."};
       }
       if (abilities.length) {
@@ -470,9 +473,10 @@ async function allowCatalogAcquisition(actor,data) {
     yes:{label:"Grant Entry"},rejectClose:false});
 }
 
-async function pickCatalogEntry(type, rolesOnly = false) {
+async function pickCatalogEntry(type, rolesOnly, actor) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
-    .filter(entry => entry.kind === type && ((entry.category === roleCategory) === rolesOnly)), entry => entry.category);
+    .filter(entry => entry.kind === type && ((entry.category === roleCategory) === rolesOnly) &&
+      (!pokemon(actor) || entry.category !== abilityCategory)), entry => entry.category);
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
@@ -487,8 +491,37 @@ async function pickCatalogEntry(type, rolesOnly = false) {
   if (selection == null) return null;
   if (!rolesOnly && selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = catalog[Number(selection)];
-  if (entry?.kind !== type || (entry.category === roleCategory) !== rolesOnly) return null;
+  if (entry?.kind !== type || (entry.category === roleCategory) !== rolesOnly ||
+    (pokemon(actor) && entry.category === abilityCategory)) return null;
   return catalogItemData(entry);
+}
+
+const pendingAbilityChoices = new WeakSet();
+
+async function chooseSpeciesAbility(actor) {
+  if (pendingAbilityChoices.has(actor)) return;
+  pendingAbilityChoices.add(actor);
+  try {
+    const profile = (await dexProfiles()).get(actor.system.dexPage);
+    if (!profile || normalizeRequirement(profile.name) !== normalizeRequirement(actor.system.species || "")) {
+      return ui.notifications.warn("Select a species from the Pokédex first.");
+    }
+    const owned = new Set(actor.items.filter(isAbilityItem).map(item=>normalizeAbilityName(item.name)));
+    const entries = speciesAbilityNames(profile).map(normalizeAbilityName)
+      .filter(name=>!owned.has(name)).map(name=>abilitiesByName.get(name)).filter(Boolean);
+    if (!entries.length) return ui.notifications.warn("There are no remaining abilities on this species list.");
+    const choice = await DialogV2.prompt({classes:["pte-dialog"],window:{title:`${profile.name} · Choose Ability`},
+      content:`<label>Ability <select name="ability">${entries.map((entry,index)=>
+        `<option value="${index}">${escape(entry.name)}</option>`).join("")}</select></label>`,
+      ok:{label:"Add Ability",callback:(event,button)=>new FormData(button.form).get("ability")},rejectClose:false});
+    if (choice == null || !entries[Number(choice)]) return;
+    const data = catalogItemData(entries[Number(choice)]);
+    if (!await allowCatalogAcquisition(actor,data)) return;
+    const [item] = await actor.createEmbeddedDocuments("Item",[data]);
+    item?.sheet.render({force:true});
+  } finally {
+    pendingAbilityChoices.delete(actor);
+  }
 }
 
 function catalogItemData(entry) {
@@ -778,6 +811,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },
       trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },
       move(event,target) { return useMove(this.document,this.document.items.get(target.dataset.id)); },
+      chooseAbility() {
+        if (this.isEditable && pokemon(this.document)) return chooseSpeciesAbility(this.document);
+      },
       open(event,target) { return this.document.items.get(target.dataset.id)?.sheet.render({force:true}); },
       async add(event,target) {
         const type = target.dataset.type;
@@ -785,7 +821,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (type === "class" && pokemon(this.document)) return;
         const rolesOnly = target.dataset.roles === "true";
         if (rolesOnly && !pokemon(this.document)) return;
-        const data = await pickCatalogEntry(type,rolesOnly);
+        const data = await pickCatalogEntry(type,rolesOnly,this.document);
         if (!data || !await allowCatalogAcquisition(this.document,data)) return;
         if (type === "move" && pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit) {
           data.system = {...data.system,knownOnly:true};
@@ -878,13 +914,15 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
-    const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || !isRoleItem(i))).map(i => ({
+    const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
         id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
     const onProfile = group => group.type === "class" || group.type === "feature";
     const teamTrainer = pokemon(actor) ? trainer : actor;
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
+      speciesAbilities:speciesAbilityNames(speciesProfile).map(name=>abilitiesByName.get(normalizeAbilityName(name))?.name || name).join(", "),
+      ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name})) : [],
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
       orderTierValue:[5,10,20][tier(system.level,false) - 1],
       stats:Object.entries(stats).map(([key,label]) => ({key,label,value:system.stats[key]})),

@@ -40,6 +40,16 @@
       {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>{{/each}}
   </section>{{/if}}
+      {{#if pokemon}}<section>
+        <div class="pte-row"><h2>Ability List</h2>{{#if editable}}{{#if speciesAbilities}}<button type="button" data-action="chooseAbility">Choose Ability</button>{{/if}}{{/if}}</div>
+        {{#if speciesAbilities}}<ul><li>{{speciesAbilities}}</li></ul>{{else}}<p>Select a species from the Pokédex to see its available abilities.</p>{{/if}}
+        {{#if ownedAbilities}}<h3>Selected Abilities</h3>
+          {{#each ownedAbilities}}<div class="pte-row pte-itemrow">
+            <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+            {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
+          </div>{{/each}}
+        {{/if}}
+      </section>{{/if}}
       {{> itemGroups profileGroups}}
       {{#unless pokemon}}
       <section>
@@ -139,7 +149,6 @@
     {{#if speciesProfile}}
       {{#if speciesProfile.profile}}<p>{{speciesProfile.profile}}</p>{{/if}}
       {{#if speciesProfile.evolution}}<p class="pte-evolution"><strong>Evolution</strong><br>{{speciesProfile.evolution}}</p>{{/if}}
-      {{#if speciesProfile.abilities}}<p><strong>Species abilities</strong> · {{speciesProfile.abilities}}</p>{{/if}}
       {{#if speciesProfile.starting}}<details><summary>Starting attacks</summary>
         <ul>{{#each speciesProfile.starting}}<li>{{this}}</li>{{/each}}</ul>
       </details>{{/if}}

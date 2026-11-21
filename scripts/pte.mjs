@@ -1133,7 +1133,9 @@ async function chooseSpeciesAbility(actor) {
 
 function itemDescription(item, listing = catalogListing(item)) {
   const description = item.system.description;
-  if (!listing || (description?.trim() && description !== linkedEffectPlaceholder &&
+  const legacyRole = listing?.category === roleCategory && description?.startsWith("Primary role: choose two different eligible stats") &&
+    description.endsWith("See the source page for the role’s effect.");
+  if (!listing || (!legacyRole && description?.trim() && description !== linkedEffectPlaceholder &&
     description !== categoryEffectPlaceholder(listing))) return description;
   return catalogEffect(listing) || description;
 }
@@ -2002,7 +2004,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       walletBalance:actor.type === "trainer" ? formatMoney(system.money) : null,
       walletHistory:(system.walletHistory || "").split("\n").filter(Boolean),
       roles:pokemon(actor) ? actor.items.filter(isRoleItem).map(item=>({
-        id:item.id,name:item.name,startingStats:catalogListing(item).startingStats
+        id:item.id,name:item.name,startingStats:catalogListing(item).startingStats,description:itemDescription(item)
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,

@@ -112,6 +112,9 @@
     {{#each roles}}<div class="pte-row pte-itemrow" data-item-search="{{name}}">
       <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
       <small>Primary role stat options · {{startingStats}}</small>
+      {{#if description}}<details style="flex-basis:100%"><summary>Role effect</summary>
+        <p class="pte-rule-text">{{description}}</p>
+      </details>{{/if}}
       {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>{{/each}}
   </section>

@@ -1885,13 +1885,15 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const groups = Object.entries(itemTypes).filter(([type]) => !pokemon(actor) || (type !== "class" && type !== "feature")).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
         id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
-    const profileGroups = groups.filter(group=>group.type === "class" || group.type === "feature").flatMap(group=>{
-      if (group.type !== "feature" || pokemon(actor)) return [group];
-      return trainerFeatureGroups.map(category=>({
-        ...group,label:category.label,addLabel:category.addLabel,featureGroup:category.key,
-        items:group.items.filter(row=>trainerFeatureGroup(catalogListing(actor.items.get(row.id))) === category.key)
-      }));
-    });
+    const features = groups.find(group=>group.type === "feature");
+    const featureGroups = features ? trainerFeatureGroups.map(category=>({
+      ...features,label:category.label,addLabel:category.addLabel,featureGroup:category.key,compact:true,
+      items:features.items.filter(row=>trainerFeatureGroup(catalogListing(actor.items.get(row.id))) === category.key)
+    })) : [];
+    const classes = groups.find(group=>group.type === "class");
+    const trainerCardGroups = classes ? [{...classes,addLabel:"Add Class",compact:true},
+      ...featureGroups.filter(group=>group.featureGroup === "class")] : [];
+    const profileGroups = featureGroups.filter(group=>group.featureGroup !== "class");
     const tierLevel = tier(system.level,pokemon(actor));
     const tierValue = [5,10,20][tierLevel - 1];
     const teamTrainer = pokemon(actor) ? trainer : actor;
@@ -1951,7 +1953,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         .map(([key,label])=>({key,label,active:key === this.activePanel})),
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
-      profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
+      trainerCardGroups,profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
       movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",
       moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,items:group.items.filter(item=>!item.knownOnly)})),
       knownGroups:groups.filter(group=>group.type === "move").map(group=>({...group,label:"Known Moves",known:true,

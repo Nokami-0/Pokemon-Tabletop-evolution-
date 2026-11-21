@@ -128,3 +128,18 @@
 .pte-species-dialog a {color:#174b85; text-decoration:underline}
 
 .pte .pte-rule-text {white-space:pre-line}
+
+.pte .pte-trainer-card {
+  background:linear-gradient(120deg,#ae1f33,#c72b40);
+  border-radius:16px;
+  border-bottom:5px solid #801623;
+  gap:0;
+}
+.pte .pte-trainer-card .pte-banner {background:none; border:0; padding:10px 12px}
+.pte .pte-trainer-card-details {display:grid; gap:5px; padding:0 9px 8px}
+.pte .pte-trainer-card-details[hidden] {display:none}
+.pte .pte-compact-group {padding:5px 8px; border-radius:8px}
+.pte .pte-compact-group h2 {margin:0}
+.pte .pte-compact-group button {padding:2px 7px; min-height:27px}
+.pte .pte-compact-group input[type=search] {height:29px; margin:4px 0}
+.pte .pte-compact-group .pte-itemrow {padding:3px 0}

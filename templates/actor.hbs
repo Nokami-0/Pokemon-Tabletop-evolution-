@@ -1,8 +1,8 @@
 {{#*inline "itemGroups"}}
   {{#each this}}
-  <section>
+  <section{{#if compact}} class="pte-compact-group"{{/if}}>
     <div class="pte-row"><h2>{{label}}</h2>{{#if @root.editable}}<button type="button" data-action="add" data-type="{{type}}" {{#if featureGroup}}data-feature-group="{{featureGroup}}"{{/if}} {{#if known}}data-known="true"{{/if}}>{{#if known}}Add Known Move{{else}}{{#if addLabel}}{{addLabel}}{{else}}Add {{type}}{{/if}}{{/if}}</button>{{/if}}</div>
-    <input type="search" data-item-query aria-label="Search {{label}}" placeholder="Search {{label}}">
+    {{#if compact}}{{#if items}}<input type="search" data-item-query aria-label="Search {{label}}" placeholder="Search {{label}}">{{/if}}{{else}}<input type="search" data-item-query aria-label="Search {{label}}" placeholder="Search {{label}}">{{/if}}
     {{#each items}}
     <div class="pte-row pte-itemrow" data-item-search="{{name}} {{system.element}} {{system.category}}">
       <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
@@ -16,7 +16,7 @@
   {{/each}}
 {{/inline}}
 <div class="pte-body">
-  <div class="pte-card">
+  <div class="pte-card{{#unless pokemon}} pte-trainer-card{{/unless}}">
   <header class="pte-banner">
     <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
     <div>
@@ -27,6 +27,23 @@
     {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
     {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}{{/if}}
   </header>
+  {{#unless pokemon}}
+  <div class="pte-trainer-card-details" data-sheet-panel="profile" {{#unless profileActive}}hidden{{/unless}}>
+    <section class="pte-compact-group">
+      <div class="pte-row">
+        <h2>Wallet · {{walletBalance}}</h2>
+        {{#if editable}}<div class="pte-buttons">
+          <button type="button" data-action="wallet" data-mode="credit">Add Money</button>
+          <button type="button" data-action="wallet" data-mode="debit">Spend Money</button>
+        </div>{{/if}}
+      </div>
+      {{#if walletHistory}}<details><summary>Recent transactions</summary>
+        <ul>{{#each walletHistory}}<li>{{this}}</li>{{/each}}</ul>
+      </details>{{/if}}
+    </section>
+    {{> itemGroups trainerCardGroups}}
+  </div>
+  {{/unless}}
   </div>
   <nav class="pte-buttons" aria-label="Actor sheet sections">
     {{#each panels}}<button type="button" data-action="sheetPanel" data-panel="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>{{/each}}
@@ -55,18 +72,7 @@
         {{/if}}
       </section>{{/if}}
       {{> itemGroups profileGroups}}
-      {{#unless pokemon}}
-      <section>
-        <div class="pte-row"><h2>Wallet</h2><strong>{{walletBalance}}</strong></div>
-        {{#if editable}}<div class="pte-buttons">
-          <button type="button" data-action="wallet" data-mode="credit">Add Money</button>
-          <button type="button" data-action="wallet" data-mode="debit">Spend Money</button>
-        </div>{{/if}}
-        {{#if walletHistory}}<details><summary>Recent transactions</summary>
-          <ul>{{#each walletHistory}}<li>{{this}}</li>{{/each}}</ul>
-        </details>{{/if}}
-      </section>
-    {{/unless}}
+
   </div>
   <fieldset {{#unless editable}}disabled{{/unless}}>
     <div class="pte-grid">

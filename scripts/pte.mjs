@@ -1971,8 +1971,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      panels:[["profile","Profile"],["moves","Moves"],["known","Known Moves"],["bag","Bag"],["team","Team"],["skills","Skills"]]
+      panels:[["profile","Profile"],["status","Afflictions & Conditions"],["moves","Moves"],["known","Known Moves"],["bag","Bag"],["team","Team"],["skills","Skills"]]
         .map(([key,label])=>({key,label,active:key === this.activePanel})),
+      statusActive:this.activePanel === "status",
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
       identityFields:pokemon(actor) ? [] : [["idNumber","ID No."],["birthDate","DOB"],["age","Age"],

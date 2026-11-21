@@ -189,25 +189,6 @@
     </fieldset>
     {{#if editable}}<button type="button" data-action="resetStages">Reset to Scene Defaults</button>{{/if}}
   </section>
-  <section>
-    <h2>Afflictions</h2>
-    <div class="pte-buttons">
-      {{#each afflictions}}<button type="button" data-action="toggleAffliction" data-key="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}" {{#unless ../editable}}disabled{{/unless}}>{{label}}</button>{{/each}}
-    </div>
-    {{#if potionEffects}}<p>Scene potion bonuses{{#each potionEffects}} · {{label}} +{{value}}{{/each}}</p>{{/if}}
-    <label>Affliction details <textarea name="system.afflictionNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.afflictionNotes}}</textarea></label>
-    {{#if editable}}<div class="pte-buttons"><button type="button" data-action="endTurnTicks">Apply End-Turn HP Loss</button>
-    <button type="button" data-action="clearAfflictions">Clear Scene Afflictions and Potions</button></div>{{/if}}
-  </section>
-  <section>
-    <h2>Conditions</h2>
-    <div class="pte-buttons">
-      {{#if fainted}}<strong>Fainted · 0 HP</strong>{{/if}}
-      {{#each conditions}}<button type="button" data-action="toggleCondition" data-key="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}" {{#if granted}}disabled title="Granted by another active effect"{{else}}{{#if ../fainted}}disabled{{else}}{{#unless ../editable}}disabled{{/unless}}{{/if}}{{/if}}>{{label}}{{#if granted}} (granted){{/if}}</button>{{/each}}
-    </div>
-    <label>Condition sources and durations <textarea name="system.conditionNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.conditionNotes}}</textarea></label>
-    <small>PTE Rule Book, p. 183</small>
-  </section>
   {{#if pokemon}}<section>
     <h2>Pokémon Progression</h2>
     {{#if editable}}{{#if system.dexPage}}<div class="pte-buttons">
@@ -368,6 +349,27 @@
     <button type="button" data-action="resetAttackScene">Reset Attack Scene</button></div>
   </section>{{/if}}
   <section><h2>Notes</h2><textarea aria-label="Notes" name="system.biography" rows="4" {{#unless editable}}readonly{{/unless}}>{{system.biography}}</textarea></section>
+  </div>
+  <div class="pte-sheet-panel" data-sheet-panel="status" {{#unless statusActive}}hidden{{/unless}}>
+  <section>
+    <h2>Afflictions</h2>
+    <div class="pte-buttons">
+      {{#each afflictions}}<button type="button" data-action="toggleAffliction" data-key="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}" {{#unless ../editable}}disabled{{/unless}}>{{label}}</button>{{/each}}
+    </div>
+    {{#if potionEffects}}<p>Scene potion bonuses{{#each potionEffects}} · {{label}} +{{value}}{{/each}}</p>{{/if}}
+    <label>Affliction details <textarea name="system.afflictionNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.afflictionNotes}}</textarea></label>
+    {{#if editable}}<div class="pte-buttons"><button type="button" data-action="endTurnTicks">Apply End-Turn HP Loss</button>
+    <button type="button" data-action="clearAfflictions">Clear Scene Afflictions and Potions</button></div>{{/if}}
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <div class="pte-buttons">
+      {{#if fainted}}<strong>Fainted · 0 HP</strong>{{/if}}
+      {{#each conditions}}<button type="button" data-action="toggleCondition" data-key="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}" {{#if granted}}disabled title="Granted by another active effect"{{else}}{{#if ../fainted}}disabled{{else}}{{#unless ../editable}}disabled{{/unless}}{{/if}}{{/if}}>{{label}}{{#if granted}} (granted){{/if}}</button>{{/each}}
+    </div>
+    <label>Condition sources and durations <textarea name="system.conditionNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.conditionNotes}}</textarea></label>
+    <small>PTE Rule Book, p. 183</small>
+  </section>
   </div>
   <div class="pte-sheet-panel" data-sheet-panel="moves" {{#unless movesActive}}hidden{{/unless}}>
     {{#if pokemon}}<p>Battle move slots · {{battleSlots}} / {{system.battleMoveLimit}}</p>{{/if}}

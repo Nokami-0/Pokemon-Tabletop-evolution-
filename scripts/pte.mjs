@@ -1,3 +1,4 @@
+import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
 import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
@@ -96,24 +97,41 @@ function dexProfiles() {
   return profiles;
 }
 
-async function tokenArtwork(page) {
-  if (!Number.isInteger(page) || page < 1) return "";
-  const directory = game.settings.get(ID,"token-directory").trim().replace(/\/+$/,"");
-  if (!directory) return "";
-  const path = `${directory}/${page}.png`;
+async function availableArtwork(path) {
   try {
     const response = await fetch(foundry.utils.getRoute(path),{method:"HEAD"});
-    return response.ok && (response.headers.get("content-type") || "").includes("image/png") ? path : "";
+    return response.ok && (response.headers.get("content-type") || "").startsWith("image/") ? path : "";
   } catch {
     return "";
   }
 }
 
+async function tokenArtwork(page) {
+  const directory = game.settings.get(ID,"token-directory").trim().replace(/\/+$/,"");
+  const file = speciesArtworkFiles[page];
+  if (!directory || !file) return {};
+  const [portrait,token] = await Promise.all([
+    availableArtwork(`${directory}/Portraits/${file}`),
+    availableArtwork(`${directory}/Ringed Tokens/${file}`)
+  ]);
+  const legacy = portrait && token ? "" : await availableArtwork(`${directory}/${page}.png`);
+  return {portrait:portrait || legacy || token,token:token || legacy || portrait};
+}
+
+function tokenArtworkUpdates(art) {
+  return {...(art.portrait ? {img:art.portrait} : {}),
+    ...(art.token ? {"prototypeToken.texture.src":art.token} : {})};
+}
+
 async function applySpeciesArtwork(actor) {
   if (!actor.isOwner || actor.type !== "pokemon") return;
   const art = await tokenArtwork(actor.system.dexPage);
-  if (!art) return ui.notifications.warn("Install the PNG pack in the configured Foundry Data folder.");
-  await actor.update({img:art,"prototypeToken.texture.src":art});
+  if (!art.token) return ui.notifications.warn("Install the portrait and token pack in the configured Foundry Data folder.");
+  await actor.update(tokenArtworkUpdates(art));
+  const scene = globalThis.canvas?.scene;
+  const updates = Array.from(scene?.tokens ?? []).filter(token=>token.actor?.uuid === actor.uuid && token.isOwner)
+    .map(token=>({_id:token.id,"texture.src":art.token}));
+  if (updates.length) await scene.updateEmbeddedDocuments("Token",updates);
 }
 
 function prototypeFootprintUpdates(footprint) {
@@ -1221,7 +1239,7 @@ async function evolvePokemon(actor) {
       "system.stats":evolved.stats,"system.health.value":evolved.hp,
       ...prototypeFootprintUpdates(pokemonTokenFootprint(next.profile)),
       "system.progressionHistory":pokemonHistory(actor,`Evolved from ${source.name} to ${next.name}. Review skill ranks, abilities, and any Evolution attack with the GM.`),
-      ...(art ? {img:art,"prototypeToken.texture.src":art} : {})
+      ...tokenArtworkUpdates(art)
     };
     return actor.update(updates);
   } finally {
@@ -1600,12 +1618,12 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
       const footprint = pokemonTokenFootprint(profile?.profile);
       if (this.destination?.isOwner) {
         system.health = {value:maxHP(this.destination.system.level,entry.stats.hp,true)};
-        await this.destination.update({system,...prototypeFootprintUpdates(footprint),...(art ? {img:art,"prototypeToken.texture.src":art} : {})});
+        await this.destination.update({system,...prototypeFootprintUpdates(footprint),...tokenArtworkUpdates(art)});
       } else {
         if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need permission to create an Actor.");
         const actor = await Actor.create({type:"pokemon",name:entry.name,system,items:startingMoveData(entry),
-          prototypeToken:{...footprint,...(art ? {texture:{src:art}} : {})},
-          ...(art ? {img:art} : {})});
+          prototypeToken:{...footprint,...(art.token ? {texture:{src:art.token}} : {})},
+          ...(art.portrait ? {img:art.portrait} : {})});
         actor?.sheet.render({force:true});
       }
     }}
@@ -1642,8 +1660,8 @@ Hooks.once("init", () => {
       hint:"Enter a Foundry Data path or an HTTPS URL accessible to your group.",
       scope:"world",config:true,type:String,default:""});
   }
-  game.settings.register(ID,"token-directory",{name:"Pokémon PNG folder",
-    hint:"Foundry Data folder containing the extracted page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
+  game.settings.register(ID,"token-directory",{name:"Pokémon artwork folder",
+    hint:"Foundry Data folder containing Portraits and Ringed Tokens, or the older page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
   game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks};
 });
 

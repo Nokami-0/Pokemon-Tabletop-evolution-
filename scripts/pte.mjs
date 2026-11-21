@@ -833,6 +833,9 @@ async function acquisitionCheck(actor, entry) {
   const prerequisites = entry.prerequisites || [];
   const result = catalogRequirementResult(entry, catalogRequirementContext(actor));
   if (result === false) return {error:"Prerequisites unmet. " + prerequisites.join(" / ")};
+  if (result === null && featureClass(entry)) {
+    return {error:"This class feature’s prerequisites could not be verified. " + prerequisites.join(" / ")};
+  }
   if (result === null) return {review:"Confirm the requirements in the Rule Book. " + prerequisites.join(" / ")};
   if (entry.category === "Pokémon Abilities" && !pokemon(actor)) {
     return {review:"A Trainer needs a rule or feature granting this Pokémon ability."};
@@ -1032,14 +1035,16 @@ function bindCatalogSearch(event,dialog) {
 const catalogSearchField = '<label>Search <input type="search" data-catalog-query placeholder="Search by name or category" autofocus></label><p role="status" data-catalog-count></p>';
 
 async function pickCatalogEntry(type, rolesOnly, actor, featureGroup) {
-  const classContext = type === "class" ? catalogRequirementContext(actor) : null;
+  const classFeaturesOnly = type === "feature" && featureGroup?.key === "class";
+  const classContext = type === "class" || classFeaturesOnly ? catalogRequirementContext(actor) : null;
   const entries = catalog.map((entry,index)=>({...entry,index})).filter(entry=>
     entry.kind === type && (entry.category === roleCategory) === rolesOnly &&
     (!pokemon(actor) || entry.category !== abilityCategory) &&
     (!featureGroup || trainerFeatureGroup(entry) === featureGroup.key) &&
     (!classContext || catalogRequirementResult(entry,classContext) === true));
   if (classContext && !entries.length) {
-    ui.notifications.info("No classes match this trainer’s current prerequisites.");
+    ui.notifications.info(classFeaturesOnly ? "No class features match this trainer’s current prerequisites." :
+      "No classes match this trainer’s current prerequisites.");
     return null;
   }
   const groups = Object.groupBy(entries,entry=>entry.category);
@@ -1060,6 +1065,10 @@ async function pickCatalogEntry(type, rolesOnly, actor, featureGroup) {
   if (allowCustom && selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = entries.find(entry=>String(entry.index) === selection);
   if (!entry) return null;
+  if (classFeaturesOnly && catalogRequirementResult(entry,catalogRequirementContext(actor)) !== true) {
+    ui.notifications.warn("The trainer no longer meets this class feature’s prerequisites.");
+    return null;
+  }
   return catalogItemData(entry);
 }
 

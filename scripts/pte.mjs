@@ -1954,7 +1954,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
       identityFields:pokemon(actor) ? [] : [["idNumber","ID No."],["birthDate","DOB"],["age","Age"],
-        ["eyes","Eyes"],["hair","Hair"],["height","Ht."],["weight","Wt."]]
+        ["eyes","Eyes"],["hair","Hair"],["height","Ht."],["weight","Wt."],["size","Size"]]
         .map(([key,label])=>({key,label,value:system.trainerIdentity?.[key]})),
       trainerCardGroups,profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
       movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",

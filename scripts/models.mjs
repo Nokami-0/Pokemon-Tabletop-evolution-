@@ -30,7 +30,7 @@ class CreatureData extends foundry.abstract.TypeDataModel {
 export class TrainerData extends CreatureData {
   static defineSchema() {
     return {...super.defineSchema(10),
-      trainerIdentity:new SchemaField(keyset(["idNumber","age","birthDate","eyes","hair","height","weight","signature"],()=>text())),
+      trainerIdentity:new SchemaField(keyset(["idNumber","age","birthDate","eyes","hair","height","weight","size","signature"],()=>text())),
       money:count(),walletHistory:text(),trainerClass:text(),partnerActions:actionFields(),
       merits:count(),meritGoal:count(),levelPoints:count(),progressionHistory:text(),virtuosoSkill:text(),
       startingProgression:new BooleanField({initial:false}),

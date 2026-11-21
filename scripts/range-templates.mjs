@@ -191,17 +191,28 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
 
   const controller = new AbortController();
   const {signal} = controller;
+  const ruler = document.createElement("div");
+  ruler.hidden = true;
+  ruler.setAttribute("aria-hidden","true");
+  Object.assign(ruler.style,{position:"fixed",inset:"0",pointerEvents:"none",zIndex:"10000"});
+  const segment = document.createElement("div");
+  Object.assign(segment.style,{position:"absolute",height:"3px",borderRadius:"2px",
+    transformOrigin:"0 50%",boxShadow:"0 0 0 1px #15263b"});
+  const startMarker = document.createElement("div");
+  const endMarker = document.createElement("div");
+  for (const marker of [startMarker,endMarker]) {
+    Object.assign(marker.style,{position:"absolute",width:"8px",height:"8px",borderRadius:"50%",
+      border:"1px solid #15263b",transform:"translate(-50%,-50%)"});
+  }
   const indicator = document.createElement("div");
-  indicator.hidden = true;
-  indicator.setAttribute("aria-hidden","true");
-  Object.assign(indicator.style,{position:"fixed",pointerEvents:"none",zIndex:"10000",
-    padding:"3px 8px",borderRadius:"5px",background:"#15263b",color:"#fff",
-    border:"1px solid #a7bdd7",font:"600 13px system-ui",whiteSpace:"nowrap"});
-  document.body.append(indicator);
+  Object.assign(indicator.style,{position:"absolute",padding:"3px 8px",borderRadius:"5px",
+    background:"#15263b",color:"#fff",border:"1px solid #a7bdd7",font:"600 13px system-ui",whiteSpace:"nowrap"});
+  ruler.append(segment,startMarker,endMarker,indicator);
+  document.body.append(ruler);
   const cancel = ()=>{
     controller.abort();
     clearTimeout(timer);
-    indicator.remove();
+    ruler.remove();
     cancelPlacement = null;
   };
   const timer = setTimeout(cancel,45000);
@@ -246,14 +257,26 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
       if (!scene.tokens.has(token.id)) return cancel();
       origin = tokenRangeOrigin(token,size);
     }
-    indicator.hidden = event.target !== board || !origin;
-    if (indicator.hidden) return;
-    const distance = distanceTo(canvas.grid.getTopLeftPoint(placementSquare(event)));
+    ruler.hidden = event.target !== board || !origin;
+    if (ruler.hidden) return;
+    const square = placementSquare(event);
+    const distance = distanceTo(canvas.grid.getTopLeftPoint(square));
     const limit = shape.kind === "closeBlast" ? 1 : shape.reach ?? (directional ? shape.length : null);
+    const color = limit != null && distance > limit ? "#ff917e" : "#a7ddff";
+    const from = canvas.clientCoordinatesFromCanvas(origin.center);
+    const to = canvas.clientCoordinatesFromCanvas(canvas.grid.getCenterPoint(square));
+    const dx = to.x-from.x;
+    const dy = to.y-from.y;
+    Object.assign(segment.style,{left:`${from.x}px`,top:`${from.y-1.5}px`,width:`${Math.hypot(dx,dy)}px`,
+      transform:`rotate(${Math.atan2(dy,dx)}rad)`,background:color});
+    Object.assign(startMarker.style,{left:`${from.x}px`,top:`${from.y}px`,background:color});
+    Object.assign(endMarker.style,{left:`${to.x}px`,top:`${to.y}px`,background:color});
     indicator.textContent = `${Number(distance.toFixed(2))} m${limit == null ? "" : ` · Max ${limit} m`}`;
-    indicator.style.borderColor = limit != null && distance > limit ? "#ff917e" : "#a7bdd7";
-    indicator.style.left = `${Math.max(0,Math.min(event.clientX+14,window.innerWidth-indicator.offsetWidth-4))}px`;
-    indicator.style.top = `${Math.max(0,Math.min(event.clientY+14,window.innerHeight-indicator.offsetHeight-4))}px`;
+    indicator.style.borderColor = color;
+    const labelX = (from.x+to.x-indicator.offsetWidth)/2;
+    const labelY = (from.y+to.y)/2-indicator.offsetHeight-8;
+    indicator.style.left = `${Math.max(4,Math.min(labelX,window.innerWidth-indicator.offsetWidth-4))}px`;
+    indicator.style.top = `${Math.max(4,Math.min(labelY,window.innerHeight-indicator.offsetHeight-4))}px`;
   },{capture:true,signal});
   window.addEventListener("pointerdown",async event=>{
     if (event.target !== board || event.button !== 0) return;

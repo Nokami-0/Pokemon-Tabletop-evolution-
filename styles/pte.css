@@ -166,7 +166,8 @@
   display:grid; place-items:center; align-content:center; gap:3px; min-width:0; padding:4px;
   background:#dce9f9; border:1px solid #f0f7ff; border-radius:7px;
 }
-.pte .pte-trainer-id-portrait button {display:grid; place-items:center; padding:2px; max-width:100%}
+.pte .pte-trainer-art-actions {justify-content:center; gap:3px}
+.pte .pte-trainer-id-portrait button {padding:2px 5px; font-size:11px; min-height:23px}
 .pte .pte-trainer-id-portrait img {height:86px; width:100px; max-width:100%; object-fit:contain; border:0}
 .pte .pte-trainer-id-portrait small {font-weight:650; text-align:center}
 

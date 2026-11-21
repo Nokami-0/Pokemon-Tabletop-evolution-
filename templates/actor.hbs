@@ -60,8 +60,11 @@
             </select></label>
           </div>
           <div class="pte-trainer-id-portrait">
-            {{#if editable}}<button type="button" data-action="editImage" data-edit="img" aria-label="Change Trainer portrait"><img src="{{actor.img}}" alt=""></button>
-            {{else}}<img src="{{actor.img}}" alt="Trainer portrait">{{/if}}
+            <img src="{{actor.img}}" alt="Trainer portrait">
+            {{#if editable}}<div class="pte-buttons pte-trainer-art-actions">
+              <button type="button" data-action="trainerArtwork" data-art="portrait">Edit Portrait</button>
+              <button type="button" data-action="trainerArtwork" data-art="token">Edit Token</button>
+            </div>{{/if}}
             <small>Tier {{tier}} · Value {{tierValue}}</small>
           </div>
         </div>

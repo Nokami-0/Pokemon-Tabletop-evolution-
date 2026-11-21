@@ -1669,6 +1669,17 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         }
         body.scrollTop = this.panelScroll.get(this.activePanel) ?? 0;
       },
+      trainerArtwork(event,target) {
+        const actor = this.document;
+        const art = target.dataset.art;
+        if (!this.isEditable || actor.type !== "trainer" || !["portrait","token"].includes(art)) return;
+        const token = art === "token" ? actor.token : null;
+        const document = token ?? actor;
+        const property = art === "portrait" ? "img" : token ? "texture.src" : "prototypeToken.texture.src";
+        const current = art === "portrait" ? actor.img : (token ?? actor.prototypeToken)?.texture.src;
+        const FilePicker = foundry.applications.apps.FilePicker.implementation;
+        return new FilePicker({type:"image",current,callback:path=>document.update({[property]:path})}).render({force:true});
+      },
       wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
       evolvePokemon() { return evolvePokemon(this.document); },
       levelPokemon() { return levelPokemon(this.document); },

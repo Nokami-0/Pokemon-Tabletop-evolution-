@@ -24,8 +24,10 @@
       <label>Frequency <input name="system.frequency" value="{{frequency}}"></label>
       <label>Action <input name="system.action" value="{{action}}"></label>
       {{/if}}
+      <label>Fixed SP cost <input type="number" name="system.spiritCost" min="0" max="6" value="{{system.spiritCost}}"></label>
       <label>Source / Page <input name="system.source" value="{{system.source}}"></label>
     </div>
+    {{#if canPaySpirit}}<button type="button" data-action="paySpirit">Spend {{system.spiritCost}} SP</button>{{/if}}
     {{#if prerequisites}}<p><strong>Prerequisites</strong></p><ul>{{#each prerequisites}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
     {{#if keywords}}<p><strong>Keywords</strong> {{#each keywords}}{{this}} {{/each}}</p>{{/if}}
     {{#if tierName}}<p>{{tierName}}</p>{{/if}}

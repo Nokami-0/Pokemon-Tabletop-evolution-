@@ -9,7 +9,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonTokenFootprint, initiativeSpeedModifier, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonTokenFootprint, initiativeSpeedModifier, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance, maxSpiritPoints, spiritBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -209,24 +209,53 @@ const skillThreshold = (actor,index,threshold) =>
   actor.type === "trainer" && actor.system.skills[`s${index}`] === 6 &&
   actor.system.virtuosoSkill === `s${index}` ? Math.max(3,threshold - 1) : threshold;
 
+async function changeSpirit(actor,delta,label) {
+  if (!actor?.isOwner || pendingGear.has(actor.uuid)) return;
+  pendingGear.add(actor.uuid);
+  try {
+    const current = actor.system.spirit;
+    const balance = spiritBalance(current,delta);
+    if (balance === null) return ui.notifications.warn("This combatant does not have enough Spirit Points.");
+    if (balance === current) return ui.notifications.info("Spirit Points are already full.");
+    await actor.update({"system.spirit":balance});
+    if (label) await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
+      content:`<strong>${escape(label)}</strong> · ${Math.abs(balance - current)} SP ${delta < 0 ? "spent" : "gained"} · ${balance} / ${maxSpiritPoints} SP`});
+    return true;
+  } finally {
+    pendingGear.delete(actor.uuid);
+  }
+}
+
+async function adjustSpirit(actor, mode) {
+  if (!actor.isOwner) return;
+  if (mode === "session") return changeSpirit(actor,tier(actor.system.level,pokemon(actor)),"Session Spirit Points");
+  const spending = mode === "spend";
+  const amount = await DialogV2.prompt({classes:["pte-dialog"],window:{title:spending ? "Spend Spirit Points" : "Gain Spirit Points"},
+    content:`<p>${actor.system.spirit} / ${maxSpiritPoints} SP</p><label>Amount <input name="amount" type="number" min="1" max="${maxSpiritPoints}" value="1" required></label>`,
+    ok:{label:spending ? "Spend" : "Gain",callback:(event,button)=>Number(new FormData(button.form).get("amount"))},rejectClose:false});
+  if (!Number.isInteger(amount) || amount < 1 || amount > maxSpiritPoints) return;
+  return changeSpirit(actor,spending ? -amount : amount,spending ? "Spirit Points" : "Spirit Point Recovery");
+}
+
 async function skill(actor, index) {
   const rank = actor.system.skills[`s${index}`];
+  const trained = pokemon(actor) ? pokemonSkillTrainingDice(actor.system,`s${index}`) : 0;
+  const maxBonusDice = rank > 1 ? rank + trained - 1 : 0;
   const args = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:skills[index]},
     content:`<label>Challenge Rating <input name="cr" type="number" min="0" value="2"></label>
       <label>Modifier <select name="mode"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label>
-      <label>Spirit Points <input name="sp" type="number" min="0" max="${Math.max(0,Math.min(actor.isOwner ? actor.system.spirit : 0, rank - 1))}" value="0"></label>`,
+      <label>Spirit Points <input name="sp" type="number" min="0" max="${Math.max(0,Math.min(actor.isOwner ? actor.system.spirit : 0, maxBonusDice))}" value="0"></label>`,
     ok:{label:"Roll", callback:(event, button) => new FormData(button.form)},
     rejectClose:false
   });
   if (!args) return;
-  const sp = Math.max(0,Math.min(actor.isOwner ? actor.system.spirit : 0, rank - 1, Math.trunc(Number(args.get("sp")) || 0)));
+  const sp = Math.max(0,Math.min(actor.isOwner ? actor.system.spirit : 0, maxBonusDice, Math.trunc(Number(args.get("sp")) || 0)));
   const cr = Math.max(0, Math.trunc(Number(args.get("cr")) || 0));
-  if (sp) await actor.update({"system.spirit":actor.system.spirit - sp});
-  const trained = pokemon(actor) ? pokemonSkillTrainingDice(actor.system,`s${index}`) : 0;
+  if (sp && !await changeSpirit(actor,-sp)) return;
   const roll = await new Roll(`${rank + sp + trained}d6`).evaluate();
   const count = successes(roll.dice[0].values, skillThreshold(actor,index,Number(args.get("mode"))));
-  await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}`});
+  await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>${skills[index]}</strong> · ${count} successes · CR ${cr} · ${count >= cr ? "Pass" : "Fail"}${sp ? ` · ${sp} SP spent (${actor.system.spirit} left)` : ""}`});
 }
 
 async function multiSkillCheck(actor, opposed) {
@@ -290,18 +319,29 @@ async function trackedMove(actor,item) {
   }
 }
 
-async function spendMove(actor,item,pool,cost = moveActionCost(item.system.action)) {
+async function spendMove(actor,item,pool,cost = moveActionCost(item.system.action),spiritCost = 0) {
   if (!cost) return {error:"This action cost requires manual resolution. Use Roll Only."};
   const plan = moveUsePlan(item.system,actor.system.attackTurn,actor.system.attackScene);
   if (plan.error) return plan;
   const error = maneuverCostError(pool,cost);
   if (error) return {error};
   const actionChanges = spent => Object.fromEntries(cost.map(key=>[`system.${pool.key}.${key}`,spent]));
+  const previousSpirit = actor.system.spirit;
+  const remainingSpirit = spiritBalance(previousSpirit,-spiritCost);
+  if (remainingSpirit === null) return {error:"This combatant does not have enough Spirit Points."};
   if (cost.length) await pool.owner.update(actionChanges(true));
+  let paid = false;
   try {
+    if (spiritCost) {
+      await actor.update({"system.spirit":remainingSpirit});
+      paid = true;
+    }
     await item.update(plan.updates);
   } catch (error) {
-    if (cost.length) await pool.owner.update(actionChanges(false));
+    const rollback = [];
+    if (cost.length) rollback.push(pool.owner.update(actionChanges(false)));
+    if (paid) rollback.push(actor.update({"system.spirit":previousSpirit}));
+    await Promise.allSettled(rollback);
     throw error;
   }
   return {cost};
@@ -360,9 +400,10 @@ async function useMove(actor, item, pool = null) {
   });
   let tracked = "";
   if (pool) {
-    const outcome = await spendMove(actor,item,pool);
+    const outcome = await spendMove(actor,item,pool,undefined,move.spiritCost || 0);
     if (outcome.error) return ui.notifications.warn(outcome.error);
     tracked = outcome.cost.length ? ` · Spent ${outcome.cost.map(titleCase).join(" + ")}` : " · Free action tracked";
+    if (move.spiritCost) tracked += ` · ${move.spiritCost} SP spent (${actor.system.spirit} left)`;
   }
   const lines = results.map(result=>result.line);
   const range = [move.element,move.category,move.range,move.frequency,move.action].map(escape).join(" · ");
@@ -1393,6 +1434,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const loss = afflictionTickDamage(actor.system.health.max,active,form.has("moved"));
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
+      spirit(event,target) { return adjustSpirit(this.document,target.dataset.mode); },
       initiative(event,target) { return rollInitiative(this.document,target.dataset.party === "true"); },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
       maneuver(event,target) {
@@ -1536,7 +1578,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
       speciesAbilities:speciesAbilityNames(speciesProfile).map(name=>abilitiesByName.get(normalizeAbilityName(name))?.name || name).join(", "),
-      ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name})) : [],
+      ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name,spiritCost:item.system.spiritCost})) : [],
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
       orderTierValue:[5,10,20][tier(system.level,false) - 1],
       stats:Object.entries(stats).map(([key,label]) => ({key,label,value:system.stats[key]})),
@@ -1595,7 +1637,15 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 }
 
 class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
-  static DEFAULT_OPTIONS = {classes:["pte","pte-item"], tag:"form",position:{width:550,height:"auto"},form:{submitOnChange:true,closeOnSubmit:false}};
+  static DEFAULT_OPTIONS = {classes:["pte","pte-item"],tag:"form",position:{width:550,height:"auto"},
+    form:{submitOnChange:true,closeOnSubmit:false},
+    actions:{paySpirit() {
+      const item = this.document;
+      if (item.type !== "move" && item.system.spiritCost > 0) {
+        return changeSpirit(item.parent,-item.system.spiritCost,item.name);
+      }
+    }}
+  };
   static PARTS = {body:{template:`${root}/templates/item.hbs`}};
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
@@ -1608,6 +1658,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
+      canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
       sourceLink,description,variants,variableDb:item.system.variableDb || listing?.stats?.variableDb,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",

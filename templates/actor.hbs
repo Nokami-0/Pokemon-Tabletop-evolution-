@@ -5,6 +5,7 @@
     {{#each items}}
     <div class="pte-row pte-itemrow">
       <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+      {{#if system.spiritCost}}<small>{{system.spiritCost}} SP</small>{{/if}}
       {{#if move}}<span class="pte-type" data-element="{{system.element}}">{{system.element}}</span><small>{{system.category}} · {{system.frequency}} · {{system.range}}{{#if sceneUses}} · {{sceneUses}} used this scene{{/if}}</small>{{#if knownOnly}}<small>Known only</small>{{else}}<button type="button" data-action="move" data-id="{{id}}">Roll Only</button>{{#if @root.editable}}<button type="button" data-action="trackedMove" data-id="{{id}}">Roll &amp; Track</button>{{/if}}{{/if}}{{#if @root.pokemon}}{{#if @root.editable}}<button type="button" data-action="toggleBattleMove" data-id="{{id}}">{{#if knownOnly}}Move to Battle{{else}}Move to Known{{/if}}</button>{{/if}}{{/if}}{{/if}}
       {{#if gear}}<small>Qty {{system.quantity}}{{#if price}} · {{price}}{{/if}}</small>{{#if @root.editable}}{{#if usable}}<button type="button" data-action="useGear" data-id="{{id}}">Use</button>{{/if}}<button type="button" data-action="equip" data-id="{{id}}">{{#if system.equipped}}Unequip{{else}}Equip{{/if}}</button>{{/if}}{{/if}}
       {{#if @root.editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
@@ -46,6 +47,7 @@
         {{#if ownedAbilities}}<h3>Selected Abilities</h3>
           {{#each ownedAbilities}}<div class="pte-row pte-itemrow">
             <button type="button" data-action="open" data-id="{{id}}">{{name}}</button>
+            {{#if spiritCost}}<small>{{spiritCost}} SP</small>{{/if}}
             {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
           </div>{{/each}}
         {{/if}}
@@ -69,7 +71,7 @@
       <label>Level <input name="system.level" type="number" min="1" {{#unless pokemon}}max="20"{{/unless}} value="{{system.level}}"></label>
       <label>HP (max {{system.health.max}}) <input name="system.health.value" type="number" min="0" max="{{system.health.max}}" value="{{system.health.value}}"></label>
       <label>Temp HP <input name="system.health.temp" type="number" min="0" value="{{system.health.temp}}"></label>
-      <label>Spirit Points <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
+      <label>Spirit Points / 6 <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
       <label>Movement (m) <input name="system.movement" type="number" min="0" value="{{system.movement}}"></label>
       {{#if pokemon}}
       <label>Species <input name="system.species" value="{{system.species}}"></label>
@@ -82,6 +84,11 @@
       {{/if}}
     </div>
   </fieldset>
+  {{#if editable}}<div class="pte-buttons" aria-label="Spirit Point controls">
+    <button type="button" data-action="spirit" data-mode="spend">Spend SP</button>
+    <button type="button" data-action="spirit" data-mode="gain">Gain SP</button>
+    <button type="button" data-action="spirit" data-mode="session" title="Apply once at session start for this Trainer or a selected team Pokémon">Session SP (+{{tier}})</button>
+  </div>{{/if}}
   {{#if trainerProgression}}
   <section>
     <h2>Trainer Progression</h2>

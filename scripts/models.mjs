@@ -45,7 +45,7 @@ export class PokemonData extends CreatureData {
   }
 }
 class ItemData extends foundry.abstract.TypeDataModel {
-  static defineSchema() { return {description:text(),source:text()}; }
+  static defineSchema() { return {description:text(),source:text(),spiritCost:count(0,0,6)}; }
 }
 export class MoveData extends ItemData {
   static defineSchema() {

@@ -36,6 +36,31 @@
     {{#if sourceLink}}<p><a href="{{sourceLink}}" target="_blank" rel="noopener noreferrer">Open source page</a></p>{{/if}}
     {{#if pokemonMove}}<label class="pte-check"><input type="checkbox" name="system.slotExempt" {{#if system.slotExempt}}checked{{/if}}> Granted attack · no Battle slot</label>{{/if}}
     {{#if pricePage}}<p>Price reference · PTE Rule Book p. {{pricePage}}{{#if priceNote}} · {{priceNote}}{{/if}}</p>{{/if}}
+    {{#if parentClass}}<p><strong>Class</strong> · {{parentClass}}</p>{{/if}}
     <label>Effects and rules <textarea name="system.description" rows="6">{{description}}</textarea></label>
+    {{#if classGrants}}<section>
+      <h2>Granted Benefits</h2>
+      {{#each classGrants}}
+        <div class="pte-row">
+          {{#if grantedNames}}<strong>{{label}}</strong><span>{{grantedNames}}</span>{{else}}
+            {{#if canClaim}}<button type="button" data-action="claimGrant" data-grant="{{id}}">{{label}}</button>
+            {{else}}{{#if minFeatures}}<small>{{label}} · Requires {{minFeatures}} class features</small>{{/if}}
+            {{#if minLevel}}<small>{{label}} · Level {{minLevel}}{{#if requiresPrevious}} and prior grant{{/if}}</small>{{/if}}{{/if}}
+          {{/if}}
+        </div>
+      {{/each}}
+    </section>{{/if}}
+    {{#if classFeatures}}<section>
+      <h2>Class Features</h2>
+      {{#each classFeatures}}
+        <details><summary>{{name}}{{#if ownedId}} · Owned{{/if}}</summary>
+          {{#if prerequisites}}<ul>{{#each prerequisites}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
+          {{#if frequency}}<p>{{frequency}}{{#if action}} · {{action}}{{/if}}</p>{{/if}}
+          {{#if description}}<p class="pte-rule-text">{{description}}</p>{{/if}}
+          {{#if ownedId}}<button type="button" data-action="openClassFeature" data-id="{{ownedId}}">Open Feature</button>{{/if}}
+          {{#if canAdd}}<button type="button" data-action="addClassFeature" data-index="{{index}}">Add Feature</button>{{/if}}
+        </details>
+      {{/each}}
+    </section>{{/if}}
   </fieldset>
 </div>

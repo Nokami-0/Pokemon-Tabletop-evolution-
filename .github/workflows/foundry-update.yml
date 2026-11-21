@@ -20,13 +20,9 @@ jobs:
         run: |
           version=$(node -p "require('./system.json').version")
           package=pokemon-tabletop-evolution-$version.zip
-          if [ "$version" != "0.1.52" ]; then exit 0; fi
-          for script in scripts/*.mjs; do node --check "$script" || exit 1; done
+          if [ "$version" != "0.1.53" ]; then exit 0; fi
+          for script in scripts/*.mjs data/*.mjs; do node --check "$script" || exit 1; done
           cp dist/pokemon-tabletop-evolution-0.1.50.zip "$package"
-          zip -q "$package" system.json scripts/pte.mjs scripts/prerequisites.mjs data/catalog.mjs
+          zip -q "$package" system.json scripts/pte.mjs scripts/prerequisites.mjs data/catalog.mjs data/item-data.mjs data/class-effects.mjs data/class-grants.mjs styles/pte.css templates/actor.hbs templates/item.hbs
           unzip -tq "$package"
-          if gh release view "v$version" >/dev/null 2>&1; then
-            gh release upload "v$version" "$package" system.json --clobber
-          else
-            gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds sheet initiative to the Combat Tracker, filters the Trainer class picker by prerequisites, and preserves sheet scroll position."
-          fi
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds class effect text, associated features, and grant choices for supported class benefits."

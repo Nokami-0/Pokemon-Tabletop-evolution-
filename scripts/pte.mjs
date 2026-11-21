@@ -1,7 +1,8 @@
+import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
 import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
-import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
+import {entrySource, catalogItemData, catalogEffect, classEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
 import {capabilityGroups, capabilityUses, capabilitySpiritCost} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, evolutionOptions, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
@@ -863,6 +864,103 @@ async function acquisitionCheck(actor, entry) {
   return {};
 }
 
+const grantEntries = new Map(catalog.map(entry=>[`${entry.kind}|${normalizeRequirement(entry.name)}`,entry]));
+const grantEntry = reward => reward.kind === "capability"
+  ? capabilityEntries.find(entry=>normalizeRequirement(entry.name) === normalizeRequirement(reward.name)) ??
+    bookCatalog.find(entry=>entry.category === "Occult Capabilities" && normalizeRequirement(entry.name) === normalizeRequirement(reward.name))
+  : grantEntries.get(`${reward.kind}|${normalizeRequirement(reward.name)}`);
+const grantedCapabilities = actor => [...new Set(actor.items.flatMap(item=>
+  Object.values(item.getFlag(ID,"classGrants") || {}).flatMap(rewards=>
+    rewards.filter(reward=>reward.kind === "capability").map(reward=>reward.name))))];
+
+function grantsFor(item) {
+  const entry = catalogListing(item);
+  if (!entry || !classEffect(entry)) return [];
+  const actor = item.parent;
+  const featureCount = actor ? new Set(actor.items.filter(owned=>owned.type === "feature" &&
+    catalogListing(owned)?.category === entry.name).map(owned=>owned.name)).size : 0;
+  const claims = item.getFlag(ID,"classGrants") || {};
+  return advancementGrants(entry,classEffect(entry),grantEntry).map(grant=>({
+    ...grant,claimed:claims[grant.id],ready:Boolean(actor && featureCount >= (grant.minFeatures || 0) && actor.system.level >= (grant.minLevel || 1) &&
+      (!grant.requiresPrevious || claims[grant.requiresPrevious]))
+  }));
+}
+
+const pendingClassGrants = new Set();
+
+async function claimGrant(item,id) {
+  const actor = item.parent;
+  if (!actor?.isOwner || actor.type !== "trainer" || pendingClassGrants.has(actor.uuid)) return;
+  const grant = grantsFor(item).find(row=>row.id === id && row.ready && !row.claimed);
+  if (!grant) return;
+  pendingClassGrants.add(actor.uuid);
+  let created = [];
+  try {
+    const capabilities = grantedCapabilities(actor);
+    const previous = grant.requiresPrevious ? Object.values(item.getFlag(ID,"classGrants") || {}).flat() : [];
+    const options = grant.options.filter(list=>list.every(reward=>grantEntry(reward) &&
+      (!grant.count || reward.kind !== "capability" || !capabilities.includes(reward.name)) &&
+      !previous.some(prior=>prior.kind === reward.kind && prior.name === reward.name)));
+    if (options.length < Math.max(1,grant.count)) return ui.notifications.warn("This grant has too few available choices.");
+    let rewards = options[0];
+    if (grant.count) {
+      const picked = await DialogV2.prompt({classes:["pte-dialog"],window:{title:grant.label},
+        content:`<p>Choose ${grant.count}.</p>${options.map((list,index)=>
+          `<label><input type="checkbox" name="reward" value="${index}"> ${escape(list.map(reward=>reward.name).join(" + "))}</label>`).join("")}`,
+        ok:{label:"Grant",callback:(event,button)=>new FormData(button.form).getAll("reward")},rejectClose:false});
+      if (picked == null) return;
+      const indexes = [...new Set(picked)].map(Number);
+      if (indexes.length !== grant.count || indexes.some(index=>!options[index])) {
+        return ui.notifications.warn(`Choose exactly ${grant.count} options.`);
+      }
+      rewards = indexes.flatMap(index=>options[index]);
+    }
+    if (!actor.items.has(item.id) || !grantsFor(item).some(row=>row.id === id && row.ready && !row.claimed)) return;
+    const data = rewards.filter(reward=>reward.kind !== "capability" && !actor.items.some(owned=>
+      owned.type === reward.kind && normalizeRequirement(owned.name) === normalizeRequirement(reward.name))).map(reward=>{
+        const data = catalogItemData(grantEntry(reward));
+        if (reward.kind === "gear") data.system.equipped = true;
+        return data;
+      });
+    if (data.length) created = await actor.createEmbeddedDocuments("Item",data);
+    if (created.length !== data.length) throw Error("Could not create all granted items.");
+    await item.setFlag(ID,`classGrants.${id}`,rewards);
+    ui.notifications.info(`Granted: ${rewards.map(reward=>reward.name).join(", ")}`);
+  } catch (error) {
+    if (created.length) await actor.deleteEmbeddedDocuments("Item",created.map(reward=>reward.id));
+    console.warn("PTE could not complete a class grant.",error);
+    ui.notifications.warn("The class grant could not be completed.");
+  } finally {
+    pendingClassGrants.delete(actor.uuid);
+  }
+}
+
+async function createCatalogItem(actor,data) {
+  const [item] = await actor.createEmbeddedDocuments("Item",[data]);
+  if (item && ["class","feature"].includes(item.type) && grantsFor(item).some(grant=>grant.id === "fixed")) {
+    await claimGrant(item,"fixed");
+  }
+  return item;
+}
+
+function featureClass(entry) {
+  if (entry?.kind !== "feature") return null;
+  const name = entry.category === "Infernal Elementalist (example)" ? "Infernal Elementalist" : entry.category;
+  return bookCatalog.find(candidate=>candidate.kind === "class" && candidate.name === name);
+}
+
+function classFeatureEntries(entry,actor) {
+  if (entry?.kind !== "class") return [];
+  const context = actor ? catalogRequirementContext(actor) : null;
+  return bookCatalog.flatMap((feature,index)=>{
+    if (featureClass(feature) !== entry) return [];
+    const owned = actor?.items.find(item=>catalogListing(item) === feature);
+    return [{index,name:feature.name,description:catalogEffect(feature),prerequisites:feature.prerequisites,
+      frequency:feature.frequency,action:feature.action,ownedId:owned?.id,
+      canAdd:Boolean(actor?.isOwner && !owned && catalogRequirementResult(feature,context) === true)}];
+  });
+}
+
 async function allowCatalogAcquisition(actor,data) {
   if (data.type === "gear") return true;
   const entry = data.system && catalogListing(data);
@@ -1629,7 +1727,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           (pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit))) {
           data.system = {...data.system,knownOnly:true};
         }
-        const [item] = await this.document.createEmbeddedDocuments("Item",[data]);
+        const item = await createCatalogItem(this.document,data);
         item?.sheet.render({force:true});
       },
       toggleBattleMove(event,target) {
@@ -1726,8 +1824,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     delete data._id;
     delete data.folder;
-    const [created] = await actor.createEmbeddedDocuments("Item",[data]);
-    return created ?? null;
+    return await createCatalogItem(actor,data) ?? null;
   }
 
   async _prepareContext(options) {
@@ -1759,7 +1856,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const teamTrainer = pokemon(actor) ? trainer : actor;
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
-      actorCapabilities:actorCapabilityButtons(speciesProfile?.capabilities,system.capabilityNotes),
+      classCapabilities:grantedCapabilities(actor),
+      actorCapabilities:actorCapabilityButtons(speciesProfile?.capabilities,[system.capabilityNotes,...grantedCapabilities(actor)].join(" ")),
       speciesAbilities:speciesAbilityNames(speciesProfile).map(name=>abilitiesByName.get(normalizeAbilityName(name))?.name || name).join(", "),
       ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name,spiritCost:item.system.spiritCost})) : [],
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
@@ -1825,7 +1923,26 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {classes:["pte","pte-item"],tag:"form",position:{width:550,height:"auto"},
     form:{submitOnChange:true,closeOnSubmit:false},
-    actions:{paySpirit() {
+    actions:{
+      async claimGrant(event,target) {
+        await claimGrant(this.document,target.dataset.grant);
+        return this.render({parts:["body"]});
+      },
+      openClassFeature(event,target) { return this.document.parent?.items.get(target.dataset.id)?.sheet.render({force:true}); },
+      async addClassFeature(event,target) {
+        const item = this.document;
+        const actor = item.parent;
+        if (!actor?.isOwner || !actor.items.has(item.id)) return;
+        const index = Number(target.dataset.index);
+        const feature = classFeatureEntries(catalogListing(item),actor).find(row=>row.index === index && row.canAdd);
+        if (!feature) return ui.notifications.warn("The feature is owned or its requirements have changed.");
+        const data = catalogItemData(bookCatalog[index]);
+        if (!await allowCatalogAcquisition(actor,data)) return;
+        const created = await createCatalogItem(actor,data);
+        await this.render({parts:["body"]});
+        return created?.sheet.render({force:true});
+      },
+      paySpirit() {
       const item = this.document;
       if (item.type !== "move" && item.system.spiritCost > 0) {
         return changeSpirit(item.parent,-item.system.spiritCost,item.name);
@@ -1845,6 +1962,10 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
       canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
+      classFeatures:classFeatureEntries(listing,item.parent),
+      parentClass:featureClass(listing)?.name,
+      classGrants:grantsFor(item).map(grant=>({...grant,canClaim:item.parent?.isOwner && grant.ready && !grant.claimed,
+        grantedNames:grant.claimed?.map(reward=>reward.name).join(", ")})),
       sourceLink,description,variants,variableDb:item.system.variableDb || listing?.stats?.variableDb,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,
       priceNote:listing?.priceNote,pricePage:listing?.pricePage,editable:this.isEditable,move:item.type === "move",gear:item.type === "gear",feature:item.type === "feature",

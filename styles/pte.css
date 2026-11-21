@@ -126,3 +126,5 @@
 }
 .pte-species-dialog :is(p, strong, h3, li) {color:inherit; text-shadow:none}
 .pte-species-dialog a {color:#174b85; text-decoration:underline}
+
+.pte .pte-rule-text {white-space:pre-line}

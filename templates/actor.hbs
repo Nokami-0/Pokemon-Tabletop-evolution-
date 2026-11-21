@@ -217,6 +217,7 @@
   <section>
     <h2>Capabilities</h2>
     {{#each speciesCapabilities}}<p>{{this}}</p>{{/each}}
+    {{#if classCapabilities}}<p>Granted by classes and features · {{#each classCapabilities}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}</p>{{/if}}
     <label>Gained or modified capabilities
       <textarea name="system.capabilityNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.capabilityNotes}}</textarea>
     </label>

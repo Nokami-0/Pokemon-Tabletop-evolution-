@@ -397,7 +397,7 @@ async function spendMove(actor,item,pool,cost = moveActionCost(item.system.actio
 
 async function useMove(actor, item, pool = null) {
   if (item?.type !== "move") return;
-  if (pokemon(actor) && item.system.knownOnly) return ui.notifications.warn("Move this attack to the Battle list first.");
+  if (item.system.knownOnly) return ui.notifications.warn("Move this attack to the Moves list first.");
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
   if (move.weaponId) {
@@ -803,6 +803,34 @@ async function allowCatalogAcquisition(actor,data) {
     yes:{label:"Grant Entry"},rejectClose:false});
 }
 
+function bindCatalogSearch(event,dialog) {
+  const search = dialog.element.querySelector("[data-catalog-query]");
+  const select = dialog.element.querySelector("[data-catalog-options]");
+  const status = dialog.element.querySelector("[data-catalog-count]");
+  const original = Array.from(select.children).map(child=>child.cloneNode(true));
+  const filter = () => {
+    const query = normalizeRequirement(search.value);
+    const current = select.value;
+    const matches = (option,category = "") => normalizeRequirement(`${option.textContent} ${category}`).includes(query);
+    const visible = original.flatMap(node=>{
+      if (node.tagName !== "OPTGROUP") return matches(node) ? [node.cloneNode(true)] : [];
+      const options = [...node.children].filter(option=>matches(option,node.label));
+      if (!options.length) return [];
+      const group = node.cloneNode(false);
+      group.append(...options.map(option=>option.cloneNode(true)));
+      return [group];
+    });
+    select.replaceChildren(...visible);
+    const count = select.options.length;
+    if ([...select.options].some(option=>option.value === current)) select.value = current;
+    status.textContent = count ? `${count} matching entries` : "No matches";
+  };
+  search.addEventListener("input",filter);
+  filter();
+}
+
+const catalogSearchField = '<label>Search <input type="search" data-catalog-query placeholder="Search by name or category" autofocus></label><p role="status" data-catalog-count></p>';
+
 async function pickCatalogEntry(type, rolesOnly, actor) {
   const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
     .filter(entry => entry.kind === type && ((entry.category === roleCategory) === rolesOnly) &&
@@ -814,7 +842,8 @@ async function pickCatalogEntry(type, rolesOnly, actor) {
   ).join("");
   const selection = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:rolesOnly ? "Add Pokémon Role" : `Add ${titleCase(type)}`},
-    content:`<label>Catalog <select name="entry">${rolesOnly ? "" : `<option value="custom">Custom ${escape(type)}</option>`}${options}</select></label>`,
+    render:bindCatalogSearch,
+    content:`${catalogSearchField}<label>Catalog <select name="entry" data-catalog-options>${rolesOnly ? "" : `<option value="custom">Custom ${escape(type)}</option>`}${options}</select></label>`,
     ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
     rejectClose:false
   });
@@ -875,7 +904,7 @@ function startingMoveData(entry) {
   });
 }
 
-async function learnSpeciesMove(actor) {
+async function learnSpeciesMove(actor, known = false) {
   if (!actor.isOwner || !pokemon(actor)) return;
   const profile = (await dexProfiles()).get(actor.system.dexPage);
   if (!profile || normalizeRequirement(profile.name) !== normalizeRequirement(actor.system.species || "")) {
@@ -889,7 +918,8 @@ async function learnSpeciesMove(actor) {
   });
   if (!eligible.length) return ui.notifications.info("There are no new starting or level-up moves available.");
   const choice = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Learn Species Move"},
-    content:`<label>Eligible move <select name="move">${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)} · ${escape(move.stats.element)}</option>`).join("")}</select></label>`,
+    render:bindCatalogSearch,
+    content:`${catalogSearchField}<label>Eligible move <select name="move" data-catalog-options>${eligible.map((move,index)=>`<option value="${index}">${escape(move.name)} · ${escape(move.stats.element)}</option>`).join("")}</select></label>`,
     ok:{label:"Learn",callback:(event,button)=>new FormData(button.form).get("move")},rejectClose:false});
   if (choice == null) return;
   const move = eligible[Number(choice)];
@@ -897,7 +927,7 @@ async function learnSpeciesMove(actor) {
   const current = speciesRequirement(move,profile,actor.system.level);
   if (current.error || current.review) return ui.notifications.warn("The Pokémon is no longer eligible for that move.");
   const data = catalogItemData(move);
-  data.system.knownOnly = battleSlotsUsed(actor) >= actor.system.battleMoveLimit;
+  data.system.knownOnly = known || battleSlotsUsed(actor) >= actor.system.battleMoveLimit;
   await actor.createEmbeddedDocuments("Item",[data]);
 }
 
@@ -1507,7 +1537,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (rolesOnly && !pokemon(this.document)) return;
         const data = await pickCatalogEntry(type,rolesOnly,this.document);
         if (!data || !await allowCatalogAcquisition(this.document,data)) return;
-        if (type === "move" && pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit) {
+        if (type === "move" && (target.dataset.known === "true" ||
+          (pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit))) {
           data.system = {...data.system,knownOnly:true};
         }
         const [item] = await this.document.createEmbeddedDocuments("Item",[data]);
@@ -1516,8 +1547,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       toggleBattleMove(event,target) {
         const actor = this.document;
         const item = actor.items.get(target.dataset.id);
-        if (!this.isEditable || !pokemon(actor) || item?.type !== "move") return;
-        if (item.system.knownOnly && !item.system.slotExempt && battleSlotsUsed(actor) >= actor.system.battleMoveLimit) {
+        if (!this.isEditable || item?.type !== "move") return;
+        if (pokemon(actor) && item.system.knownOnly && !item.system.slotExempt && battleSlotsUsed(actor) >= actor.system.battleMoveLimit) {
           return ui.notifications.warn("The Battle Attack List is full.");
         }
         return item.update({"system.knownOnly":!item.system.knownOnly});
@@ -1575,13 +1606,27 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       books() { return showBooks(); },
       speciesTokenSize() { return applySpeciesTokenSize(this.document); },
       speciesArtwork() { return applySpeciesArtwork(this.document); },
-      learnSpeciesMove() { return learnSpeciesMove(this.document); },
+      learnSpeciesMove(event,target) { return learnSpeciesMove(this.document,target.dataset.known === "true"); },
       profile() { return showProfile(this.document.system.dexPage); },
       dex() { return new Dex({destination:this.document}).render({force:true}); },
       async openPartner(event,target) { return game.actors.get(target.dataset.id)?.sheet.render({force:true}); }
     }
   };
   static PARTS = {body:{template:`${root}/templates/actor.hbs`,scrollable:[".pte-body"]}};
+  _onRender(context,options) {
+    super._onRender(context,options);
+    for (const input of this.element.querySelectorAll("[data-item-query]")) {
+      if (input.dataset.searchBound) continue;
+      input.dataset.searchBound = "true";
+      input.addEventListener("input",()=>{
+        const query = normalizeRequirement(input.value);
+        for (const row of input.closest("section").querySelectorAll("[data-item-search]")) {
+          row.hidden = !normalizeRequirement(row.dataset.itemSearch).includes(query);
+        }
+      });
+    }
+  }
+
   async _onDropItem(event, item) {
     if (!item.pack?.startsWith(`${ID}.`) || item.type === "gear") return super._onDropItem(event,item);
     const actor = this.document;
@@ -1620,7 +1665,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
     const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
-        id:i.id,name:i.name,knownOnly:pokemon(actor) && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
     const onProfile = group => group.type === "class" || group.type === "feature";
     const teamTrainer = pokemon(actor) ? trainer : actor;
@@ -1676,12 +1721,15 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      panels:[["profile","Profile"],["bag","Bag"],["team","Team"],["skills","Skills"]]
+      panels:[["profile","Profile"],["moves","Moves"],["known","Known Moves"],["bag","Bag"],["team","Team"],["skills","Skills"]]
         .map(([key,label])=>({key,label,active:key === this.activePanel})),
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
       profileGroups:groups.filter(onProfile),bagGroups:groups.filter(group=>group.type === "gear"),
-      moveGroups:groups.filter(group=>group.type === "move")
+      movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",
+      moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,items:group.items.filter(item=>!item.knownOnly)})),
+      knownGroups:groups.filter(group=>group.type === "move").map(group=>({...group,label:"Known Moves",known:true,
+        items:group.items.filter(item=>item.knownOnly)}))
     };
   }
 }

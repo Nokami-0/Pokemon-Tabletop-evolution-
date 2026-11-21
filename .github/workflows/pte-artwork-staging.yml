@@ -1,0 +1,27 @@
+name: Assemble PTE artwork package
+on:
+  push:
+    branches: [pte-bundle-artwork-0-1-45]
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify and publish the artwork package
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = '4c84aef97bba17f6465b8bcc7bea817ea07c3244'
+          cat .pte-artwork-parts/*.part > 'dist/pokemon-tabletop-evolution-0.1.45.zip'
+          printf '%s  %s\n' '93e49d3c14b37636fff0518995008d74b5b8f7e7230b4ea30ad4b969c0bc88a3' 'dist/pokemon-tabletop-evolution-0.1.45.zip' | sha256sum -c -
+          unzip -tq 'dist/pokemon-tabletop-evolution-0.1.45.zip'
+          git reset --soft '4c84aef97bba17f6465b8bcc7bea817ea07c3244'
+          git rm --cached -r .pte-artwork-parts .github/workflows/pte-artwork-staging.yml
+          git add 'dist/pokemon-tabletop-evolution-0.1.45.zip'
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Bundle all Pokemon portraits and ringed tokens in PTE 0.1.45'
+          git push origin HEAD:main

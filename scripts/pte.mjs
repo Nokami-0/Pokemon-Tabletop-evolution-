@@ -109,12 +109,17 @@ async function availableArtwork(path) {
 async function tokenArtwork(page) {
   const directory = game.settings.get(ID,"token-directory").trim().replace(/\/+$/,"");
   const file = speciesArtworkFiles[page];
-  if (!directory || !file) return {};
-  const [portrait,token] = await Promise.all([
-    availableArtwork(`${directory}/Portraits/${file}`),
-    availableArtwork(`${directory}/Ringed Tokens/${file}`)
+  if (!file) return {};
+  const bundled = `${root}/assets/pte-tokens`;
+  const readPair = folder => Promise.all([
+    availableArtwork(`${folder}/Portraits/${file}`),
+    availableArtwork(`${folder}/Ringed Tokens/${file}`)
   ]);
-  const legacy = portrait && token ? "" : await availableArtwork(`${directory}/${page}.png`);
+  const [customPortrait,customToken] = directory && directory !== bundled ? await readPair(directory) : ["",""];
+  const [bundledPortrait,bundledToken] = customPortrait && customToken ? ["",""] : await readPair(bundled);
+  const portrait = customPortrait || bundledPortrait;
+  const token = customToken || bundledToken;
+  const legacy = portrait && token ? "" : await availableArtwork(`${directory || "pte-tokens"}/${page}.png`);
   return {portrait:portrait || legacy || token,token:token || legacy || portrait};
 }
 

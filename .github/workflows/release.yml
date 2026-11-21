@@ -26,7 +26,8 @@ jobs:
           fs.writeFileSync("system.json", JSON.stringify(manifest, null, 2) + "\n");
           JS
           for script in scripts/*.mjs; do node --check "$script" || exit 1; done
-          zip -r pokemon-tabletop-evolution.zip system.json scripts styles templates data packs README.md
+          unzip -q dist/pokemon-tabletop-evolution-0.1.45.zip 'assets/pte-tokens/*'
+          zip -r pokemon-tabletop-evolution.zip system.json scripts styles templates data packs assets README.md
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

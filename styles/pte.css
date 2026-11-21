@@ -129,7 +129,7 @@
 
 .pte .pte-rule-text {white-space:pre-line}
 
-.pte .pte-trainer-card {
+.pte :is(.pte-trainer-card,.pte-pokemon-card) {
   background:linear-gradient(135deg,#2a4f89,#6c9aca);
   border:2px solid #b6d0eb;
   border-radius:16px;
@@ -179,5 +179,13 @@
 .pte .pte-compact-group input[type=search] {height:29px; margin:4px 0}
 .pte .pte-compact-group .pte-itemrow {padding:3px 0}
 
-.pte .pte-pokemon-card {border:1px solid var(--pte-line); background:#eaf1fa; border-radius:16px; padding:8px}
-.pte .pte-pokemon-card .pte-banner {flex-wrap:wrap}
+.pte .pte-pokemon-card {
+  background:linear-gradient(135deg,#a91e35,#d14354);
+  border-color:#efbac0;
+  box-shadow:inset 0 0 0 1px #791b2b;
+}
+.pte .pte-pokemon-card .pte-trainer-id-title {background:#73172a}
+.pte .pte-pokemon-card .pte-trainer-id :is(label,.pte-trainer-id-portrait) {background:#fae1e4}
+.pte .pte-pokemon-card .pte-trainer-id :is(input,select) {background:#fff8f9}
+.pte .pte-pokemon-card .pte-trainer-id-fields {padding:0; grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+.pte .pte-pokemon-card .pte-trainer-id-fields label {flex-direction:column; align-items:stretch; gap:2px; padding:4px 6px}

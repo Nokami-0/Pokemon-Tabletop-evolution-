@@ -767,6 +767,8 @@ const roleCategory = "Pokémon Roles";
 const isRoleItem = item => catalogListing(item)?.category === roleCategory;
 const abilityCategory = "Pokémon Abilities";
 const isAbilityItem = item => catalogListing(item)?.category === abilityCategory;
+const pokemonCatalogFeature = entry => entry?.kind === "feature" &&
+  [roleCategory,abilityCategory].includes(entry.category);
 const abilitiesByName = new Map(catalog.filter(entry=>entry.category === abilityCategory)
   .map(entry=>[normalizeAbilityName(entry.name),entry]));
 const gearPrice = item => item.system.price || catalogListing(item)?.price || "";
@@ -978,6 +980,11 @@ function classFeatureEntries(entry,actor) {
 async function allowCatalogAcquisition(actor,data) {
   if (data.type === "gear") return true;
   const entry = data.system && catalogListing(data);
+  if (pokemon(actor) && (data.type === "class" ||
+    (data.type === "feature" && !pokemonCatalogFeature(entry)))) {
+    ui.notifications.warn("Pokémon gain Roles and Abilities. Trainer features and talents belong on Trainer sheets.");
+    return false;
+  }
   const outcome = await acquisitionCheck(actor,entry);
   if (outcome.error) {
     ui.notifications.warn(outcome.error);
@@ -1736,6 +1743,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (type === "class" && pokemon(this.document)) return;
         const rolesOnly = target.dataset.roles === "true";
         if (rolesOnly && !pokemon(this.document)) return;
+        if (pokemon(this.document) && type === "feature" && !rolesOnly) return;
         const featureGroup = type === "feature" && !pokemon(this.document)
           ? trainerFeatureGroups.find(group=>group.key === target.dataset.featureGroup) : null;
         const data = await pickCatalogEntry(type,rolesOnly,this.document,featureGroup);
@@ -1831,8 +1839,13 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   async _onDropItem(event, item) {
-    if (!item.pack?.startsWith(`${ID}.`) || item.type === "gear") return super._onDropItem(event,item);
     const actor = this.document;
+    if (pokemon(actor) && (item.type === "class" ||
+      (item.type === "feature" && !pokemonCatalogFeature(catalogListing(item))))) {
+      ui.notifications.warn("Use Pokémon Roles and Abilities on Pokémon sheets.");
+      return null;
+    }
+    if (!item.pack?.startsWith(`${ID}.`) || item.type === "gear") return super._onDropItem(event,item);
     if (!this.isEditable || (pokemon(actor) && item.type === "class")) return null;
     const data = item.toObject();
     if (!await allowCatalogAcquisition(actor,data)) return null;
@@ -1866,7 +1879,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
-    const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
+    const groups = Object.entries(itemTypes).filter(([type]) => !pokemon(actor) || (type !== "class" && type !== "feature")).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
         id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
     const profileGroups = groups.filter(group=>group.type === "class" || group.type === "feature").flatMap(group=>{

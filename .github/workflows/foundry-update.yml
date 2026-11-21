@@ -1,0 +1,32 @@
+name: Package Foundry update
+
+on:
+  push:
+    branches: [main]
+    paths: [system.json]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package the updated system
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./system.json').version")
+          package=pokemon-tabletop-evolution-$version.zip
+          if [ "$version" != "0.1.52" ]; then exit 0; fi
+          for script in scripts/*.mjs; do node --check "$script" || exit 1; done
+          cp dist/pokemon-tabletop-evolution-0.1.50.zip "$package"
+          zip -q "$package" system.json scripts/pte.mjs scripts/prerequisites.mjs data/catalog.mjs
+          unzip -tq "$package"
+          if gh release view "v$version" >/dev/null 2>&1; then
+            gh release upload "v$version" "$package" system.json --clobber
+          else
+            gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds sheet initiative to the Combat Tracker, filters the Trainer class picker by prerequisites, and preserves sheet scroll position."
+          fi

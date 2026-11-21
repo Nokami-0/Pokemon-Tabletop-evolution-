@@ -10,6 +10,22 @@ const aliases = ["general","medicine","nature","occult","pokemon","technology"]
 const short = ["gen","med","nature","occult","poke","tech"];
 const skillIds = new Map(skills.map((name,index)=>[normalizeRequirement(name),index]));
 short.forEach((name,index)=>skillIds.set(name+" edu",skillIds.get(aliases[index])));
+skillIds.set("general edu",skillIds.get("general education"));
+const skillGroups = {
+  chronicler:["gen edu","intuition","perception"],
+  coordinator:["charm","command","poke edu"],
+  dreamwalker:["charm","intuition","guile","intimidate"],
+  musician:["gen edu","guile","charm","focus"],
+  ninja:["acrobatics","guile","intimidate","stealth"],
+  performer:["acrobatics","charm","focus","guile"],
+  provocateur:["charm","command","guile","intimidate"],
+  ranger:["charm","command","intuition","nature edu","poke edu"],
+  stat:["athletics","combat","focus","occult edu","acrobatics"],
+  swashbuckler:["acrobatics","charm","combat","command","guile","intimidate","stealth"]
+};
+const groupPattern = Object.keys(skillGroups).join("|");
+const groupRequirement = new RegExp(`^(?:(a|an|two) )?(${rankPattern}) (${groupPattern}) skills?$`);
+
 const all = values => values.includes(false) ? false : values.includes(null) ? null : true;
 const any = values => values.includes(true) ? true : values.includes(null) ? null : false;
 
@@ -32,12 +48,18 @@ export function requirementResult(texts, context) {
       if (text.includes(" at ") && !text.includes(" and ")) return null;
       return all(and.map(evaluate));
     }
+    const group = groupRequirement.exec(text);
+    if (group) {
+      const [,count,rank,name] = group;
+      return skillGroups[name].filter(skill=>context.skills[`s${skillIds.get(skill)}`] >= ranks[rank]).length >= (count === "two" ? 2 : 1);
+    }
     const skill = new RegExp(`^(${rankPattern}) (.+)$`).exec(text);
     if (skill) {
       const alternatives = skill[2].split(/\s+or\s+/);
       return any(alternatives.map(name=>{
         if (skillIds.has(name)) return context.skills[`s${skillIds.get(name)}`] >= ranks[skill[1]];
-        return /^(?:pathetic|untrained|novice|adept|expert|master) /.test(name) ? evaluate(name) : null;
+        const requirement = name.replace(/^(?:a|an) /,"");
+        return /^(?:pathetic|untrained|novice|adept|expert|master) /.test(requirement) ? evaluate(requirement) : null;
       }));
     }
     if (context.owned.has(text)) return true;

@@ -483,42 +483,49 @@ function maneuverSkillField(label, side, options) {
 let initiativeTrackerQueue = Promise.resolve();
 
 function initiativeToken(actor,scene,preferred) {
-  if (!scene) return null;
-  if (actor.token?.parent?.id === scene.id) return actor.token;
-  const candidates = Array.from(scene.tokens.values()).filter(token=>token.actor?.uuid === actor.uuid);
+  if (actor.isToken) return {token:actor.token?.parent?.id === scene?.id ? actor.token : null, requiresToken:true};
+  const candidates = Array.from(scene?.tokens.values() ?? []).filter(token=>token.actorId === actor.id && token.actor);
   const targeted = candidates.filter(token=>preferred.has(token.id));
-  if (targeted.length === 1) return targeted[0];
+  if (targeted.length === 1) return {token:targeted[0],requiresToken:true};
   const controlled = candidates.filter(token=>token.object?.controlled);
-  if (controlled.length === 1) return controlled[0];
-  return candidates.length === 1 ? candidates[0] : null;
+  if (controlled.length === 1) return {token:controlled[0],requiresToken:true};
+  return {token:candidates.length === 1 ? candidates[0] : null,requiresToken:candidates.length > 0};
 }
 
 async function putInitiativeInTracker(scene,results) {
-  const placed = results.filter(result=>result.token && scene?.tokens.has(result.token.id));
-  if (!placed.length) return "Tracker unchanged. Place the actors on the current scene, and select the intended token if there are copies.";
-  if (globalThis.canvas?.scene?.id !== scene.id) return "Tracker unchanged because the scene changed during the roll.";
-  const matchesScene = combat => combat && (!combat.scene || combat.scene.id === scene.id);
-  let combat = [game.combats.viewed,game.combat].find(matchesScene);
-  if (!combat && !game.user.isGM) return "Ask the GM to create an encounter in this scene before rolling into the tracker.";
+  if (globalThis.canvas?.scene?.id !== scene?.id) return "The scene changed before initiative could be added.";
+  const ready = results.filter(({token,requiresToken,member})=>
+    token ? scene?.tokens.has(token.id) : !requiresToken && game.actors.has(member.id));
+  if (!ready.length) return "Select the intended token on the current scene and roll again.";
+  const matchesScene = combat => combat && (!combat.scene || combat.scene.id === scene?.id);
+  let combat = [game.combat,game.combats.viewed,...game.combats].find(matchesScene);
+  if (!combat && !game.user.isGM) return "Ask the GM to create an encounter before rolling into the tracker.";
   try {
-    if (!combat) combat = await CONFIG.Combat.documentClass.create({scene:scene.id,active:true});
+    if (!combat) combat = await CONFIG.Combat.documentClass.create({scene:scene?.id ?? null,active:true});
     if (!combat) return "The Combat Tracker encounter could not be created.";
-    const existing = new Map(Array.from(combat.combatants.values())
-      .filter(member=>member.token?.parent?.id === scene.id).map(member=>[member.tokenId,member]));
-    const missing = placed.filter(result=>!existing.has(result.token.id));
-    if (missing.length) {
-      const created = await CONFIG.Token.documentClass.createCombatants(missing.map(result=>result.token),{combat});
-      for (const member of created) existing.set(member.tokenId,member);
-    }
     let updated = 0;
-    for (const result of placed) {
-      const member = existing.get(result.token.id);
-      if (!member) continue;
+    for (const result of ready) {
+      const {token,member,initiative} = result;
       try {
-        await combat.setInitiative(member.id,result.initiative);
-        updated++;
+        const combatants = Array.from(combat.combatants.values());
+        const existing = token && combatants.find(entry=>entry.tokenId === token.id && entry.token?.parent?.id === scene.id);
+        const actorOnly = !member.isToken && combatants.find(entry=>!entry.tokenId && entry.actorId === member.id);
+        if (existing || actorOnly) {
+          const entry = existing ?? actorOnly;
+          if (token && !existing) await entry.update({tokenId:token.id,sceneId:scene.id,hidden:token.hidden});
+          await combat.setInitiative(entry.id,initiative);
+          if (entry.initiative === initiative) updated++;
+        } else if (token) {
+          const [entry] = await CONFIG.Token.documentClass.createCombatants([token],{combat});
+          if (!entry) continue;
+          await combat.setInitiative(entry.id,initiative);
+          if (entry.initiative === initiative) updated++;
+        } else {
+          const created = await combat.createEmbeddedDocuments("Combatant",[{actorId:member.id,initiative}]);
+          if (created.length) updated++;
+        }
       } catch (error) {
-        console.warn("PTE could not set initiative for a combatant.",error);
+        console.warn("PTE could not register a combatant's initiative.",error);
       }
     }
     return updated === results.length ? `Combat Tracker updated for ${updated} combatant${updated === 1 ? "" : "s"}.` :
@@ -537,8 +544,8 @@ async function rollInitiative(actor, party) {
   const primary = initiativeToken(actor,scene,preferred);
   const selected = party ? targeted : [];
   const entries = [...new Map([
-    ...(primary || !selected.some(token=>token.actor.uuid === actor.uuid) ? [{member:actor,token:primary}] : []),
-    ...selected.map(token=>({member:token.actor,token}))
+    ...(primary.token || !selected.some(token=>token.actorId === actor.id) ? [{member:primary.token?.actor ?? actor,...primary}] : []),
+    ...selected.map(token=>({member:token.actor,token,requiresToken:true}))
   ].map(entry=>[entry.token?.uuid || entry.member.uuid,entry])).values()];
   const participants = entries.map(entry=>entry.member);
   if (participants.some(member=>!member.isOwner || !["trainer","pokemon"].includes(member.type))) {
@@ -557,10 +564,10 @@ async function rollInitiative(actor, party) {
   if (!form || participants.some(member=>!member.isOwner || member.system.health.value <= 0)) return;
   const choices = entries.map((entry,index)=>({...entry,skill:form.get(`skill${index}`),mode:Number(form.get(`skill${index}Mode`))}));
   if (choices.some(choice=>!skills.includes(choice.skill) || ![3,4,5].includes(choice.mode))) return;
-  const results = await Promise.all(choices.map(async ({member,token,skill,mode})=>{
+  const results = await Promise.all(choices.map(async ({member,token,requiresToken,skill,mode})=>{
     const check = await maneuverSkill(member,skill,mode);
     const modifier = initiativeSpeedModifier(combatStat(member,"spe"));
-    return {...check,token,name:token?.name || member.name,skill,modifier,initiative:check.successes + modifier};
+    return {...check,member,token,requiresToken,name:token?.name || member.name,skill,modifier,initiative:check.successes + modifier};
   }));
   const trackerUpdate = initiativeTrackerQueue.then(()=>putInitiativeInTracker(scene,results));
   initiativeTrackerQueue = trackerUpdate.catch(()=>{});
@@ -766,6 +773,36 @@ const gearPrice = item => item.system.price || catalogListing(item)?.price || ""
 const catalogNames = new Set(catalog.filter(entry=>entry.kind === "class" || entry.kind === "feature")
   .map(entry=>normalizeRequirement(entry.name)));
 
+function catalogRequirementContext(actor) {
+  const owned = new Set();
+  const classes = new Set();
+  const featureCounts = new Map();
+  const counted = new Set();
+  for (const item of actor.items) {
+    if (item.type !== "class" && item.type !== "feature") continue;
+    const name = normalizeRequirement(item.name);
+    owned.add(name);
+    if (item.type === "class") classes.add(name);
+    const listing = catalogListing(item);
+    if (item.type !== "feature" || !listing || counted.has(name)) continue;
+    counted.add(name);
+    const group = normalizeRequirement(listing.category);
+    featureCounts.set(group,(featureCounts.get(group) || 0)+1);
+  }
+  const legacyClass = normalizeRequirement(actor.system.trainerClass || "");
+  if (legacyClass) {
+    classes.add(legacyClass);
+    owned.add(legacyClass);
+  }
+  return {level:actor.system.level,skills:actor.system.skills,owned,classes,featureCounts,catalogNames};
+}
+
+function catalogRequirementResult(entry, context) {
+  const prerequisites = entry.prerequisites || [];
+  return requirementResult(entry.kind === "class" ? prerequisites.map(line=>
+    line.replace(/ Bind (?:X|\d+) - .* Action$/i,"")) : prerequisites,context);
+}
+
 async function acquisitionCheck(actor, entry) {
   if (entry?.category === roleCategory) {
     if (!pokemon(actor)) return {error:"Pokémon Roles can only be added to Pokémon."};
@@ -787,28 +824,8 @@ async function acquisitionCheck(actor, entry) {
     return {};
   }
   if (!entry) return {review:"A custom class, feature, or move requires GM approval."};
-  const owned = new Set();
-  const classes = new Set();
-  const featureCounts = new Map();
-  const counted = new Set();
-  for (const item of actor.items) {
-    if (item.type !== "class" && item.type !== "feature") continue;
-    const name = normalizeRequirement(item.name);
-    owned.add(name);
-    if (item.type === "class") classes.add(name);
-    const listing = catalogListing(item);
-    if (item.type !== "feature" || !listing || counted.has(name)) continue;
-    counted.add(name);
-    const group = normalizeRequirement(listing.category);
-    featureCounts.set(group,(featureCounts.get(group) || 0)+1);
-  }
-  const legacyClass = normalizeRequirement(actor.system.trainerClass || "");
-  if (legacyClass) {
-    classes.add(legacyClass);
-    owned.add(legacyClass);
-  }
   const prerequisites = entry.prerequisites || [];
-  const result = requirementResult(prerequisites,{level:actor.system.level,skills:actor.system.skills,owned,classes,featureCounts,catalogNames});
+  const result = catalogRequirementResult(entry, catalogRequirementContext(actor));
   if (result === false) return {error:"Prerequisites unmet. " + prerequisites.join(" / ")};
   if (result === null) return {review:"Confirm the requirements in the Rule Book. " + prerequisites.join(" / ")};
   if (entry.category === "Pokémon Abilities" && !pokemon(actor)) {
@@ -893,9 +910,17 @@ function bindCatalogSearch(event,dialog) {
 const catalogSearchField = '<label>Search <input type="search" data-catalog-query placeholder="Search by name or category" autofocus></label><p role="status" data-catalog-count></p>';
 
 async function pickCatalogEntry(type, rolesOnly, actor) {
-  const groups = Object.groupBy(catalog.map((entry, index) => ({...entry,index}))
-    .filter(entry => entry.kind === type && ((entry.category === roleCategory) === rolesOnly) &&
-      (!pokemon(actor) || entry.category !== abilityCategory)), entry => entry.category);
+  const classContext = type === "class" ? catalogRequirementContext(actor) : null;
+  const entries = catalog.map((entry,index)=>({...entry,index})).filter(entry=>
+    entry.kind === type && (entry.category === roleCategory) === rolesOnly &&
+    (!pokemon(actor) || entry.category !== abilityCategory) &&
+    (!classContext || catalogRequirementResult(entry,classContext) === true));
+  if (classContext && !entries.length) {
+    ui.notifications.info("No classes match this trainer’s current prerequisites.");
+    return null;
+  }
+  const groups = Object.groupBy(entries,entry=>entry.category);
+  const allowCustom = !rolesOnly && !classContext;
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
@@ -904,15 +929,14 @@ async function pickCatalogEntry(type, rolesOnly, actor) {
   const selection = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:rolesOnly ? "Add Pokémon Role" : `Add ${titleCase(type)}`},
     render:bindCatalogSearch,
-    content:`${catalogSearchField}<label>Catalog <select name="entry" data-catalog-options>${rolesOnly ? "" : `<option value="custom">Custom ${escape(type)}</option>`}${options}</select></label>`,
+    content:`${catalogSearchField}<label>Catalog <select name="entry" data-catalog-options>${allowCustom ? `<option value="custom">Custom ${escape(type)}</option>` : ""}${options}</select></label>`,
     ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
     rejectClose:false
   });
   if (selection == null) return null;
-  if (!rolesOnly && selection === "custom") return {name:`New ${titleCase(type)}`,type};
-  const entry = catalog[Number(selection)];
-  if (entry?.kind !== type || (entry.category === roleCategory) !== rolesOnly ||
-    (pokemon(actor) && entry.category === abilityCategory)) return null;
+  if (allowCustom && selection === "custom") return {name:`New ${titleCase(type)}`,type};
+  const entry = entries.find(entry=>String(entry.index) === selection);
+  if (!entry) return null;
   return catalogItemData(entry);
 }
 
@@ -1503,21 +1527,24 @@ async function changeWallet(actor,mode) {
 
 class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   activePanel = "profile";
+  panelScroll = new Map();
 
   static DEFAULT_OPTIONS = {
     classes:["pte","pte-actor"], tag:"form", position:{width:760,height:815}, window:{resizable:true},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
       sheetPanel(event,target) {
-        this.activePanel = target.dataset.panel;
+        if (this.activePanel === target.dataset.panel) return;
         const body = target.closest(".pte-body");
+        this.panelScroll.set(this.activePanel,body.scrollTop);
+        this.activePanel = target.dataset.panel;
         for (const button of body.querySelectorAll("[data-action=sheetPanel]")) {
           button.setAttribute("aria-pressed",String(button.dataset.panel === this.activePanel));
         }
         for (const panel of body.querySelectorAll("[data-sheet-panel]")) {
           panel.hidden = panel.dataset.sheetPanel !== this.activePanel;
         }
-        body.scrollTop = 0;
+        body.scrollTop = this.panelScroll.get(this.activePanel) ?? 0;
       },
       wallet(event,target) { return changeWallet(this.document,target.dataset.mode); },
       evolvePokemon() { return evolvePokemon(this.document); },
@@ -1673,7 +1700,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       async openPartner(event,target) { return game.actors.get(target.dataset.id)?.sheet.render({force:true}); }
     }
   };
-  static PARTS = {body:{template:`${root}/templates/actor.hbs`,scrollable:[".pte-body"]}};
+  static PARTS = {body:{template:`${root}/templates/actor.hbs`,scrollable:[""]}};
   _onRender(context,options) {
     super._onRender(context,options);
     for (const input of this.element.querySelectorAll("[data-item-query]")) {
@@ -1805,7 +1832,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
     }}
   };
-  static PARTS = {body:{template:`${root}/templates/item.hbs`}};
+  static PARTS = {body:{template:`${root}/templates/item.hbs`,scrollable:[""]}};
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const item = this.document;

@@ -357,6 +357,35 @@ async function multiSkillCheck(actor, opposed) {
 const battleSlotsUsed = actor => actor.items.filter(item=>
   item.type === "move" && !item.system.knownOnly && !item.system.slotExempt).length;
 
+async function resetAttackScene(actor) {
+  if (!actor.isOwner) return;
+  const pool = actionPool(actor);
+  const owners = new Set([actor.uuid,pool.owner.uuid]);
+  if ([...owners].some(id=>pendingGear.has(id))) {
+    return ui.notifications.warn("Wait for the current action to finish before resetting the attack scene.");
+  }
+  for (const id of owners) pendingGear.add(id);
+  try {
+    const clearActions = key => Object.fromEntries(actions.map(action=>[`system.${key}.${action}`,false]));
+    const changes = {
+      "system.attackScene":actor.system.attackScene + 1,
+      "system.attackTurn":0,
+      ...clearActions("actions")
+    };
+    if (pool.owner === actor && actor.type === "trainer") Object.assign(changes,clearActions("partnerActions"));
+    await actor.update(changes);
+    if (pool.owner !== actor) {
+      if (!pool.owner.isOwner) {
+        return ui.notifications.warn("Attack usage reset. Ask the Trainer’s owner or GM to reset shared Pokémon actions.");
+      }
+      await pool.owner.update(clearActions(pool.key));
+    }
+    ui.notifications.info(`${actor.name}’s attack scene was reset.`);
+  } finally {
+    for (const id of owners) pendingGear.delete(id);
+  }
+}
+
 async function trackedMove(actor,item) {
   if (!actor.isOwner || item?.type !== "move") return;
   const pool = actionPool(actor);
@@ -1753,7 +1782,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       basicAttack() { return rollBasicAttack(this.document); },
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
-      resetAttackScene() { return this.document.update({"system.attackScene":this.document.system.attackScene + 1}); },
+      resetAttackScene() { return resetAttackScene(this.document); },
       trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },
       move(event,target) { return useMove(this.document,this.document.items.get(target.dataset.id)); },
       chooseAbility() {

@@ -1,3 +1,10 @@
+{{#*inline "actorVitals"}}
+      <label>Level <input name="system.level" type="number" min="1" {{#unless pokemon}}max="20"{{/unless}} value="{{system.level}}"></label>
+      <label>HP (max {{system.health.max}}) <input name="system.health.value" type="number" min="0" max="{{system.health.max}}" value="{{system.health.value}}"></label>
+      <label>Temp HP <input name="system.health.temp" type="number" min="0" value="{{system.health.temp}}"></label>
+      <label>Spirit Points / 6 <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
+      <label>Movement (m) <input name="system.movement" type="number" min="0" value="{{system.movement}}"></label>
+{{/inline}}
 {{#*inline "itemGroups"}}
   {{#each this}}
   <section{{#if compact}} class="pte-compact-group"{{/if}}>
@@ -47,6 +54,10 @@
             {{#each identityFields}}
               <label>{{label}} <input name="system.trainerIdentity.{{key}}" value="{{value}}" {{#unless @root.editable}}readonly{{/unless}}></label>
             {{/each}}
+            <label>Size <select name="system.trainerIdentity.size" {{#unless editable}}disabled{{/unless}}>
+              <option value="" disabled {{#unless trainerSizeSelected}}selected{{/unless}}>Choose size</option>
+              {{#each trainerSizeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}
+            </select></label>
           </div>
           <div class="pte-trainer-id-portrait">
             {{#if editable}}<button type="button" data-action="editImage" data-edit="img" aria-label="Change Trainer portrait"><img src="{{actor.img}}" alt=""></button>
@@ -54,7 +65,9 @@
             <small>Tier {{tier}} · Value {{tierValue}}</small>
           </div>
         </div>
-        <label class="pte-id-signature">Signature <input name="system.trainerIdentity.signature" value="{{system.trainerIdentity.signature}}" {{#unless editable}}readonly{{/unless}}></label>
+        <fieldset class="pte-grid pte-trainer-vitals" {{#unless editable}}disabled{{/unless}}>
+          {{> actorVitals}}
+        </fieldset>
       </header>
       <div class="pte-trainer-card-details">
         <section class="pte-compact-group">
@@ -100,12 +113,8 @@
   </div>
   <fieldset {{#unless editable}}disabled{{/unless}}>
     <div class="pte-grid">
-      <label>Level <input name="system.level" type="number" min="1" {{#unless pokemon}}max="20"{{/unless}} value="{{system.level}}"></label>
-      <label>HP (max {{system.health.max}}) <input name="system.health.value" type="number" min="0" max="{{system.health.max}}" value="{{system.health.value}}"></label>
-      <label>Temp HP <input name="system.health.temp" type="number" min="0" value="{{system.health.temp}}"></label>
-      <label>Spirit Points / 6 <input name="system.spirit" type="number" min="0" max="6" value="{{system.spirit}}"></label>
-      <label>Movement (m) <input name="system.movement" type="number" min="0" value="{{system.movement}}"></label>
       {{#if pokemon}}
+      {{> actorVitals}}
       <label>Species <input name="system.species" value="{{system.species}}"></label>
       <label>Primary Type <select name="system.type1" data-element="{{system.type1}}">{{#each type1}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
       <label>Secondary Type <select name="system.type2" data-element="{{system.type2}}">{{#each type2}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>

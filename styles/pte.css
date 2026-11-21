@@ -157,8 +157,11 @@
   background:#dce9f9; border-radius:10px; padding:1px 6px; white-space:nowrap;
 }
 .pte .pte-trainer-id-fields .pte-id-wide {grid-column:1/-1}
-.pte .pte-trainer-id input {min-width:0; height:23px; font-size:12px; border:0; background:#f6fbff}
-.pte .pte-trainer-id .pte-id-signature {margin:0 9px 7px}
+.pte .pte-trainer-id :is(input,select) {min-width:0; height:23px; font-size:12px; border:0; background:#f6fbff}
+.pte .pte-trainer-id .pte-trainer-vitals {
+  margin:0 9px 7px; grid-template-columns:repeat(auto-fit,minmax(95px,1fr)); gap:4px;
+}
+.pte .pte-trainer-id .pte-trainer-vitals label {flex-direction:column; align-items:stretch; gap:2px; padding:4px 6px}
 .pte .pte-trainer-id-portrait {
   display:grid; place-items:center; align-content:center; gap:3px; min-width:0; padding:4px;
   background:#dce9f9; border:1px solid #f0f7ff; border-radius:7px;

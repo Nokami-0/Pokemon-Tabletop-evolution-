@@ -1894,6 +1894,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const trainerCardGroups = classes ? [{...classes,addLabel:"Add Class",compact:true},
       ...featureGroups.filter(group=>group.featureGroup === "class")] : [];
     const profileGroups = featureGroups.filter(group=>group.featureGroup !== "class");
+    const trainerSize = system.trainerIdentity?.size?.trim().toLowerCase();
+    const trainerSizeOptions = ["Small","Medium","Large"].map(value=>({value,selected:value.toLowerCase() === trainerSize}));
     const tierLevel = tier(system.level,pokemon(actor));
     const tierValue = [5,10,20][tierLevel - 1];
     const teamTrainer = pokemon(actor) ? trainer : actor;
@@ -1954,8 +1956,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
       identityFields:pokemon(actor) ? [] : [["idNumber","ID No."],["birthDate","DOB"],["age","Age"],
-        ["eyes","Eyes"],["hair","Hair"],["height","Ht."],["weight","Wt."],["size","Size"]]
+        ["eyes","Eyes"],["hair","Hair"],["height","Ht."],["weight","Wt."]]
         .map(([key,label])=>({key,label,value:system.trainerIdentity?.[key]})),
+      trainerSizeOptions,trainerSizeSelected:trainerSizeOptions.some(option=>option.selected),
       trainerCardGroups,profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
       movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",
       moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,items:group.items.filter(item=>!item.knownOnly)})),

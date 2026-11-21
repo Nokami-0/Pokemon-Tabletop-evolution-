@@ -1,0 +1,29 @@
+name: Package PTE 0.1.48
+on:
+  push:
+    branches: [pte-package-upkeep-0-1-48]
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = '511bacb35a08623696f7121521818b537f0e8c5b'
+          unzip -q dist/pokemon-tabletop-evolution-0.1.47.zip 'assets/pte-tokens/*'
+          for f in scripts/*.mjs data/capabilities.mjs; do node --check "$f"; done
+          zip -qr dist/pokemon-tabletop-evolution-0.1.48.zip system.json scripts styles templates data packs assets README.md
+          unzip -tq dist/pokemon-tabletop-evolution-0.1.48.zip
+          test "$(unzip -Z1 dist/pokemon-tabletop-evolution-0.1.48.zip | grep -c '\.webp$')" -eq 2004
+          git reset --soft '511bacb35a08623696f7121521818b537f0e8c5b'
+          git rm --cached .github/workflows/pte-upkeep-staging.yml
+          git add dist/pokemon-tabletop-evolution-0.1.48.zip
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Track optional capability SP costs and upkeep'
+          git push origin HEAD:main

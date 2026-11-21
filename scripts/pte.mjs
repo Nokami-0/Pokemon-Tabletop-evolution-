@@ -2,7 +2,7 @@ import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
 import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
-import {capabilityGroups, capabilityUses} from "../data/capabilities.mjs";
+import {capabilityGroups, capabilityUses, capabilitySpiritCost} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, evolutionOptions, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
@@ -237,20 +237,29 @@ async function useCapability(actor,name) {
   const entry = capabilityEntries.find(capability=>capability.name === name);
   if (!entry) return;
   const options = actorCapabilityUses(actor,name);
+  const disabled = Boolean(actor.system.afflictions.disabled);
   const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:name},
     content:`<p>${escape(entry.summary)}</p><p>${actor.system.spirit} / ${maxSpiritPoints} SP available.</p>
-      <label>Use <select name="use">${options.map(({label,cost},index)=>
-        `<option value="${index}">${escape(label)} · ${cost === null ? "Variable SP" : `${cost} SP`}</option>`).join("")}</select></label>
-      ${options.some(option=>option.cost === null) ? `<label>Amount for variable SP use <input name="amount" type="number" min="1" max="${maxSpiritPoints}" value="1"></label>` : ""}
+      <label>Use <select name="use">${options.map(({label,cost,quantity},index)=>{
+        const price = quantity === "hours" ? "1 SP per additional hour" : quantity === "sp" ? "Choose SP amount" :
+          quantity === "additionalDisabled" && disabled ? `${cost} SP + extra Disabled instances` : `${cost} SP`;
+        return `<option value="${index}">${escape(label)} · ${price}</option>`;
+      }).join("")}</select></label>
+      ${options.some(option=>option.quantity === "hours") ? '<label>Additional hours, if staying merged <input name="hours" type="number" min="1" max="6" value="1"></label>' : ""}
+      ${options.some(option=>option.quantity === "sp") ? '<label>Spirit Points, if clarifying the vision <input name="sp" type="number" min="1" max="6" value="1"></label>' : ""}
+      ${disabled && options.some(option=>option.quantity === "additionalDisabled") ? '<label>Extra Disabled instances beyond the one tracked <input name="additionalDisabled" type="number" min="0" max="2" value="0"></label>' : ""}
       <p>Confirm this actor has the capability and meets its trigger. Resolve action costs, checks and effects at the table.</p>`,
     ok:{label:"Use Capability",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
   if (!form || !actor.isOwner || actor.system.health.value <= 0) return;
-  const option = actorCapabilityUses(actor,name)[Number(form.get("use"))];
+  const index = Number(form.get("use"));
+  const option = actorCapabilityUses(actor,name)[index];
   if (!option) return;
-  const cost = option.cost ?? Number(form.get("amount"));
-  if (!Number.isInteger(cost) || cost < 0 || (option.cost === null && (cost < 1 || cost > maxSpiritPoints))) {
-    return ui.notifications.warn("Enter a valid SP amount.");
+  if (option.cost !== options[index]?.cost || disabled !== Boolean(actor.system.afflictions.disabled)) {
+    return ui.notifications.warn("The SP cost may have changed. Reopen the capability to confirm it.");
   }
+  const amounts = Object.fromEntries(["hours","sp","additionalDisabled"].map(key=>[key,Number(form.get(key))]));
+  const cost = capabilitySpiritCost(option,amounts,disabled);
+  if (cost === null) return ui.notifications.warn("Enter a valid amount for this capability.");
   if (cost && !await changeSpirit(actor,-cost)) return;
   return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:
     `<strong>${escape(name)}</strong> · ${escape(option.label)} · ${cost} SP spent · ${actor.system.spirit} / ${maxSpiritPoints} SP<p>${escape(entry.summary)}</p>`});

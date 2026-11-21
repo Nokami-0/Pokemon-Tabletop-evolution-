@@ -8,7 +8,7 @@ import {attackCatalog} from "../data/attacks.mjs";
 const catalog = [...bookCatalog,...attackCatalog];
 const attackReference = "https://docs.google.com/spreadsheets/d/1t6aEWjhpgM7m93lNExN4cNAFnuPEr53n_vbtsPZM99k/edit";
 import {TrainerData, PokemonData, MoveData, GearData, FeatureData} from "./models.mjs";
-import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, initiativeSpeedModifier, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
+import {stats, skills, ranks, types, effectiveness, matchupLabel, tier, maxHP, evasion, successes, damageFormula, stagedStat, afflictions, conditions, grantedCondition, afflictionImmunities, afflictionTickDamage, recoveryGear, recoveryPlan, boostGear, boostPlan, potionVariants, capCombatModifier, maladyGear, maladyPlan, moveActionCost, moveUsePlan, combatDamageUpdate, restPlan, basicAttackProfiles, basicAttackData, opposedResult, pokemonTokenFootprint, initiativeSpeedModifier, trainerMeritGoal, trainerLevelPlan, pokemonTutorTiers, pokemonSkillTrainingDice, pokemonStatReward, pokemonEvolutionStats, pokemonLevelCap, pokemonLevelPlan, allocateLevelPoints, walletBalance} from "./rules.mjs";
 
 const ID = "pokemon-tabletop-evolution";
 const root = `systems/${ID}`;
@@ -114,6 +114,25 @@ async function applySpeciesArtwork(actor) {
   const art = await tokenArtwork(actor.system.dexPage);
   if (!art) return ui.notifications.warn("Install the PNG pack in the configured Foundry Data folder.");
   await actor.update({img:art,"prototypeToken.texture.src":art});
+}
+
+function prototypeFootprintUpdates(footprint) {
+  return footprint ? {"prototypeToken.width":footprint.width,"prototypeToken.height":footprint.height} : {};
+}
+
+async function applySpeciesTokenSize(actor) {
+  if (!actor.isOwner || !pokemon(actor)) return;
+  const entry = (await dexProfiles()).get(actor.system.dexPage);
+  const footprint = entry && normalizeRequirement(entry.name) === normalizeRequirement(actor.system.species || "") &&
+    pokemonTokenFootprint(entry.profile);
+  if (!footprint) return ui.notifications.warn("This Pokédex entry has no listed grid size. Set the token dimensions manually.");
+  const scene = globalThis.canvas?.scene;
+  const tokens = scene?.tokens ?? [];
+  const updates = Array.from(tokens).filter(token=>token.actor?.uuid === actor.uuid && token.isOwner)
+    .map(token=>({_id:token.id,...footprint}));
+  await actor.update(prototypeFootprintUpdates(footprint));
+  if (updates.length) await scene.updateEmbeddedDocuments("Token",updates);
+  ui.notifications.info(`Token size set to ${footprint.width} × ${footprint.height}.`);
 }
 
 function describeProfile(entry) {
@@ -1200,6 +1219,7 @@ async function evolvePokemon(actor) {
     const updates = {
       "system.species":next.name,"system.dexPage":next.page,"system.type1":next.types[0] || "","system.type2":next.types[1] || "",
       "system.stats":evolved.stats,"system.health.value":evolved.hp,
+      ...prototypeFootprintUpdates(pokemonTokenFootprint(next.profile)),
       "system.progressionHistory":pokemonHistory(actor,`Evolved from ${source.name} to ${next.name}. Review skill ranks, abilities, and any Evolution attack with the GM.`),
       ...(art ? {img:art,"prototypeToken.texture.src":art} : {})
     };
@@ -1435,6 +1455,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return this.document.update(combatDamageUpdate(this.document.system,amount));
       },
       books() { return showBooks(); },
+      speciesTokenSize() { return applySpeciesTokenSize(this.document); },
       speciesArtwork() { return applySpeciesArtwork(this.document); },
       learnSpeciesMove() { return learnSpeciesMove(this.document); },
       profile() { return showProfile(this.document.system.dexPage); },
@@ -1575,13 +1596,16 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
       if (!entry) return;
       const system = {species:entry.name,dexPage:entry.page,stats:entry.stats,type1:entry.types[0] ?? "",type2:entry.types[1] ?? ""};
       const art = await tokenArtwork(entry.page);
+      const profile = (await dexProfiles()).get(entry.page);
+      const footprint = pokemonTokenFootprint(profile?.profile);
       if (this.destination?.isOwner) {
         system.health = {value:maxHP(this.destination.system.level,entry.stats.hp,true)};
-        await this.destination.update({system,...(art ? {img:art,"prototypeToken.texture.src":art} : {})});
+        await this.destination.update({system,...prototypeFootprintUpdates(footprint),...(art ? {img:art,"prototypeToken.texture.src":art} : {})});
       } else {
         if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need permission to create an Actor.");
         const actor = await Actor.create({type:"pokemon",name:entry.name,system,items:startingMoveData(entry),
-          ...(art ? {img:art,prototypeToken:{texture:{src:art}}} : {})});
+          prototypeToken:{...footprint,...(art ? {texture:{src:art}} : {})},
+          ...(art ? {img:art} : {})});
         actor?.sheet.render({force:true});
       }
     }}

@@ -317,3 +317,12 @@ export function walletBalance(balance, amount, mode) {
   if (!Number.isSafeInteger(next)) return {error:"The resulting balance is too large."};
   return {balance:next};
 }
+
+const speciesFootprints = {small:1,medium:1,large:2,huge:3,gigantic:4};
+
+export function pokemonTokenFootprint(profile) {
+  const size = /\((small\s*-\s*medium|small|smal|medium|large|huge|gigantic)(?=\s*(?:\)|weight\b|$))/i.exec(profile || "")?.[1].toLowerCase();
+  if (!size) return null;
+  const width = speciesFootprints[size === "smal" || size.includes("-") ? "small" : size];
+  return {width,height:width};
+}

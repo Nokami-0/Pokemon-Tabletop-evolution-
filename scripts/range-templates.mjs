@@ -26,6 +26,7 @@ export function rangeShapes(range, description = "") {
 
 export function rangeTemplateData(shape, origin, point, size, units) {
   const rect = (x,y,w,h)=>({t:"rect",x,y,direction:Math.atan2(h,w)*180/Math.PI,distance:Math.hypot(w,h)*units});
+  if (shape.kind === "circle") return {t:"circle",x:point.x,y:point.y,distance:shape.length*units};
   if (shape.kind === "zone" || shape.kind === "rangedBlast" || shape.kind === "closeBlast") {
     return rect(point.x,point.y,shape.length,shape.width);
   }
@@ -37,7 +38,6 @@ export function rangeTemplateData(shape, origin, point, size, units) {
   const dy = point.y-origin.center.y;
   if (!dx && !dy) return null;
   const direction = (Math.round(Math.atan2(dy,dx)/(Math.PI/4))*45+360)%360;
-  const radians = direction*Math.PI/180;
   const distance = Math.min(shape.length,Math.max(1,Math.round(Math.max(Math.abs(dx),Math.abs(dy))/size)));
   return {t:shape.kind === "cone" ? "cone" : "ray",x:origin.center.x,y:origin.center.y,direction,
     distance:(shape.kind === "cone" ? shape.length : distance*(direction%90 ? Math.SQRT2 : 1))*units,
@@ -46,18 +46,32 @@ export function rangeTemplateData(shape, origin, point, size, units) {
 
 let cancelPlacement;
 
-export function placeRangeTemplate(shape, token, name) {
+const systemId = "pokemon-tabletop-evolution";
+
+export async function removeLastRangeTemplate() {
+  if (!canvas.ready) return;
+  if (cancelPlacement) return cancelPlacement();
+  const candidates = [...canvas.scene.templates.values()].filter(template=>
+    template.getFlag(systemId,"range") &&
+    (template.author?.id === game.user.id || template._source.author === game.user.id || game.user.isGM) &&
+    template.canUserModify(game.user,"delete"));
+  const latest = candidates.reverse().sort((a,b)=>(b._stats?.createdTime ?? 0)-(a._stats?.createdTime ?? 0))[0];
+  if (!latest) return ui.notifications.info("No removable PTE template on this scene.");
+  await latest.delete();
+}
+
+export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   const scene = canvas.scene;
   const board = document.getElementById("board");
   if (!scene || !board || !canvas.grid.isSquare) return ui.notifications.warn("PTE range placement requires an active square-grid scene.");
   const Template = CONFIG.MeasuredTemplate.documentClass;
   if (!Template.canUserCreate(game.user)) return ui.notifications.warn("You need permission to create measured templates.");
-  if (!token && shape.kind !== "zone") return ui.notifications.warn("Select the move’s source token on the map.");
-  const origin = token && {x:token.bounds.x,y:token.bounds.y,width:token.bounds.width,height:token.bounds.height,center:token.center};
+  if (!manual && !token && shape.kind !== "zone") return ui.notifications.warn("Select the move’s source token on the map.");
+  let origin = token && {x:token.bounds.x,y:token.bounds.y,width:token.bounds.width,height:token.bounds.height,center:token.center};
   const size = canvas.grid.size;
   const units = scene.grid.distance;
   const aimed = !["reach","burst"].includes(shape.kind);
-  const publish = data=>Template.create({...data,fillColor:game.user.color,flags:{"pokemon-tabletop-evolution":{move:name,range:shape.label}}},{parent:scene});
+  const publish = data=>Template.create({...data,author:game.user.id,fillColor:game.user.color,flags:{[systemId]:{move:name,range:shape.label}}},{parent:scene});
   cancelPlacement?.();
   if (!aimed) return publish(rangeTemplateData(shape,origin,null,size,units));
 
@@ -66,7 +80,10 @@ export function placeRangeTemplate(shape, token, name) {
   const cancel = ()=>{controller.abort();clearTimeout(timer);cancelPlacement=null};
   const timer = setTimeout(cancel,45000);
   cancelPlacement=cancel;
-  ui.notifications.info("Click the map to place the shape. For Blasts and Zones, click the upper-left square. Press Esc to cancel.");
+  const directional = ["line","cone"].includes(shape.kind);
+  const instruction = directional ? (manual ? "Click the starting square, then click to aim." : "Click a square to aim.") :
+    shape.kind === "circle" ? "Click the center square." : "Click the upper-left square.";
+  ui.notifications.info(`${instruction} Press Esc to cancel.`);
   window.addEventListener("keydown",event=>{
     if (event.key === "Escape") cancel();
   },{capture:true,signal});
@@ -77,7 +94,12 @@ export function placeRangeTemplate(shape, token, name) {
     event.stopImmediatePropagation();
     const position = canvas.canvasCoordinatesFromClient({x:event.clientX,y:event.clientY});
     const offset = canvas.grid.getOffset(position);
-    const point = ["line","cone"].includes(shape.kind) ? canvas.grid.getCenterPoint(offset) : canvas.grid.getTopLeftPoint(offset);
+    const point = directional || shape.kind === "circle" ? canvas.grid.getCenterPoint(offset) : canvas.grid.getTopLeftPoint(offset);
+    if (manual && directional && !origin) {
+      origin = {center:point};
+      ui.notifications.info("Click a square to aim. Press Esc to cancel.");
+      return;
+    }
     if (shape.kind === "closeBlast" || shape.kind === "rangedBlast") {
       const width = shape.kind === "closeBlast" ? shape.length*size : size;
       const height = shape.kind === "closeBlast" ? shape.width*size : size;

@@ -4,7 +4,7 @@ export const capabilityGroups = [
     ["Slow",176,"Base Movement is 4m."],
     ["Burrower",176,"Spend a Swift action with Movement to reach a space through connected diggable ground without triggering reactions."],
     ["Climber",176,"Climb vertical surfaces without movement penalties or checks. You may stop on the surface below 4m."],
-    ["Flier",176,"Spend a Swift action when moving to become Airborne, generally up to 4m. Spend 1 SP at turn end to stay airborne. Includes Glider."],
+    ["Flier",176,"Spend a Swift action when moving to become Airborne, generally up to 4m. At the end of each turn, pay 1 SP to remain airborne or land. Includes Glider."],
     ["Glider",176,"Avoid falling damage when able to glide."],
     ["Grounded",176,"Cannot use the Jump maneuver."],
     ["Jumper",176,"Jump up to full Movement."],
@@ -23,7 +23,7 @@ export const capabilityGroups = [
     ["Mountable",177,"An adjacent creature can mount or dismount a willing active Pokémon as a Swift action. Both share space and move together using the mount’s movement capabilities."],
     ["Naturewalk",178,"Ignore Slowed and rough terrain penalties in the listed environments."],
     ["Reach",178,"Extend melee attacks and maneuvers to 2m for Small or Medium users and 3m for Large or bigger users. Attack of Opportunity is excluded."],
-    ["Shadow Meld",178,"Merge into a shadow as a Standard or Extended action, becoming untargetable with limited actions. Emerge adjacent as a Movement action."],
+    ["Shadow Meld",178,"Merge into a shadow as a Standard or Extended action, becoming untargetable with limited actions. Emerge adjacent as a Movement action. Outside combat, the first 10 minutes are free and each additional hour costs 1 SP."],
     ["Telekinetic",178,"Lift objects within 10m with Focus and spend 1 SP for +2 Power for an hour. Disarm, Hinder, Push, and Trip can use Focus at 6m."],
     ["Threaded",178,"Create thread or vine appendages. Most Tactic maneuvers can target from 5m, with Push pulling toward you."],
     ["Truant",178,"Standard-action damaging attacks take a Full action."],
@@ -72,19 +72,34 @@ export function capabilityUses(name, tier, afflictions = {}) {
   const tierCost = Math.max(0,3 - tier);
   const options = ({
     Flier:[["Become Airborne",0],["Stay Airborne at turn end",1]],
-    Phaser:[["Phase through terrain",impaired]],
-    Teleporter:[["Teleport",impaired]],
+    Phaser:[["Phase through terrain",impaired,"additionalDisabled"]],
+    Teleporter:[["Teleport",impaired,"additionalDisabled"]],
     Blindsense:[free,["Enhance a sense for up to 30 minutes",1]],
     Groundshaper:[["Change terrain within 2m",0],["Extend terrain shaping",1],["Create fragile blocking terrain",2]],
     Invisibility:[["Become invisible or visible",0],["Maintain concentration instead of a Focus check",1]],
-    "Shadow Meld":[free,["Spend SP for additional hours outside combat",null]],
+    "Shadow Meld":[["Merge into a shadow (up to 10 minutes outside combat)",0],
+      ["Stay merged for additional hours outside combat",1,"hours"],["Emerge from the shadow",0]],
     Telekinetic:[free,["Gain +2 Power for one hour",1]],
-    "Dream Reader":[free,["Shape or project a touched sleeper’s dreams",1]],
+    "Dream Reader":[["View an adjacent sleeper’s dream",0],
+      ["Shape a touched sleeper’s dream",1],["Project a touched sleeper’s dream",1]],
     Empath:[free,["Sense deeper emotions with a Focus check",1]],
     Illusionist:[free,["Lift one illusion restriction",tierCost]],
-    "Mind Weaver":[free,["Spend SP to reach older memories after the check",2]],
-    Premonition:[free,["Spend SP to clarify the vision",null]],
+    "Mind Weaver":[["Read memories from the past 24 hours",0],
+      ["Reach older memories after winning by 2 or more",2],["Reach older memories through a Downtime action",0]],
+    Premonition:[free,["Clarify the vision",1,"sp"]],
     Telepath:[free,["Attempt to read deeper thoughts after a successful read",tierCost]]
   })[name];
-  return (options ?? [free]).map(([label,cost])=>({label,cost}));
+  return (options ?? [free]).map(([label,cost,quantity])=>({label,cost,quantity}));
+}
+
+export function capabilitySpiritCost(option, amounts, disabled) {
+  if (option.quantity === "additionalDisabled" && disabled) {
+    const extra = amounts.additionalDisabled;
+    return Number.isInteger(extra) && extra >= 0 && extra <= 2 ? option.cost + extra : null;
+  }
+  if (option.quantity === "hours" || option.quantity === "sp") {
+    const count = amounts[option.quantity];
+    return Number.isInteger(count) && count >= 1 && count <= 6 ? option.cost * count : null;
+  }
+  return option.cost;
 }

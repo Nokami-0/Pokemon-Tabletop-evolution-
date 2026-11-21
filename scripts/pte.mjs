@@ -480,9 +480,67 @@ function maneuverSkillField(label, side, options) {
     <label>Check modifier <select name="${side}Mode"><option value="4">Normal</option><option value="3">Boon</option><option value="5">Bane</option></select></label>`;
 }
 
+let initiativeTrackerQueue = Promise.resolve();
+
+function initiativeToken(actor,scene,preferred) {
+  if (!scene) return null;
+  if (actor.token?.parent?.id === scene.id) return actor.token;
+  const candidates = Array.from(scene.tokens.values()).filter(token=>token.actor?.uuid === actor.uuid);
+  const targeted = candidates.filter(token=>preferred.has(token.id));
+  if (targeted.length === 1) return targeted[0];
+  const controlled = candidates.filter(token=>token.object?.controlled);
+  if (controlled.length === 1) return controlled[0];
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+async function putInitiativeInTracker(scene,results) {
+  const placed = results.filter(result=>result.token && scene?.tokens.has(result.token.id));
+  if (!placed.length) return "Tracker unchanged. Place the actors on the current scene, and select the intended token if there are copies.";
+  if (globalThis.canvas?.scene?.id !== scene.id) return "Tracker unchanged because the scene changed during the roll.";
+  const matchesScene = combat => combat && (!combat.scene || combat.scene.id === scene.id);
+  let combat = [game.combats.viewed,game.combat].find(matchesScene);
+  if (!combat && !game.user.isGM) return "Ask the GM to create an encounter in this scene before rolling into the tracker.";
+  try {
+    if (!combat) combat = await CONFIG.Combat.documentClass.create({scene:scene.id,active:true});
+    if (!combat) return "The Combat Tracker encounter could not be created.";
+    const existing = new Map(Array.from(combat.combatants.values())
+      .filter(member=>member.token?.parent?.id === scene.id).map(member=>[member.tokenId,member]));
+    const missing = placed.filter(result=>!existing.has(result.token.id));
+    if (missing.length) {
+      const created = await CONFIG.Token.documentClass.createCombatants(missing.map(result=>result.token),{combat});
+      for (const member of created) existing.set(member.tokenId,member);
+    }
+    let updated = 0;
+    for (const result of placed) {
+      const member = existing.get(result.token.id);
+      if (!member) continue;
+      try {
+        await combat.setInitiative(member.id,result.initiative);
+        updated++;
+      } catch (error) {
+        console.warn("PTE could not set initiative for a combatant.",error);
+      }
+    }
+    return updated === results.length ? `Combat Tracker updated for ${updated} combatant${updated === 1 ? "" : "s"}.` :
+      `Combat Tracker updated for ${updated} of ${results.length}. Check token selection, scene placement, and encounter permissions.`;
+  } catch (error) {
+    console.warn("PTE could not add initiative results to the Combat Tracker.",error);
+    return "The Combat Tracker could not add these tokens. Ask the GM to check the encounter permissions.";
+  }
+}
+
 async function rollInitiative(actor, party) {
-  const participants = party ? [...new Map([actor,...[...game.user.targets].map(token=>token.actor)]
-    .filter(Boolean).map(member=>[member.uuid,member])).values()] : [actor];
+  const scene = globalThis.canvas?.scene;
+  const targeted = [...game.user.targets].map(token=>token.document)
+    .filter(token=>token?.actor && token.parent?.id === scene?.id);
+  const preferred = new Set(targeted.map(token=>token.id));
+  const primary = initiativeToken(actor,scene,preferred);
+  const selected = party ? targeted : [];
+  const entries = [...new Map([
+    ...(primary || !selected.some(token=>token.actor.uuid === actor.uuid) ? [{member:actor,token:primary}] : []),
+    ...selected.map(token=>({member:token.actor,token}))
+  ].map(entry=>[entry.token?.uuid || entry.member.uuid,entry])).values()];
+  const participants = entries.map(entry=>entry.member);
   if (participants.some(member=>!member.isOwner || !["trainer","pokemon"].includes(member.type))) {
     return ui.notifications.warn("Choose combatants you own, or have the GM roll for this party.");
   }
@@ -497,20 +555,23 @@ async function rollInitiative(actor, party) {
       <div style="max-height:60vh;overflow:auto">${fields}</div>`,
     ok:{label:"Roll Initiative",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
   if (!form || participants.some(member=>!member.isOwner || member.system.health.value <= 0)) return;
-  const choices = participants.map((member,index)=>({member,skill:form.get(`skill${index}`),mode:Number(form.get(`skill${index}Mode`))}));
+  const choices = entries.map((entry,index)=>({...entry,skill:form.get(`skill${index}`),mode:Number(form.get(`skill${index}Mode`))}));
   if (choices.some(choice=>!skills.includes(choice.skill) || ![3,4,5].includes(choice.mode))) return;
-  const results = await Promise.all(choices.map(async ({member,skill,mode})=>{
+  const results = await Promise.all(choices.map(async ({member,token,skill,mode})=>{
     const check = await maneuverSkill(member,skill,mode);
     const modifier = initiativeSpeedModifier(combatStat(member,"spe"));
-    return {...check,name:member.name,skill,modifier,initiative:check.successes + modifier};
+    return {...check,token,name:token?.name || member.name,skill,modifier,initiative:check.successes + modifier};
   }));
+  const trackerUpdate = initiativeTrackerQueue.then(()=>putInitiativeInTracker(scene,results));
+  initiativeTrackerQueue = trackerUpdate.catch(()=>{});
+  const tracker = await trackerUpdate;
   const total = results.reduce((sum,result)=>sum + result.initiative,0);
   const highest = Math.max(...results.map(result=>result.initiative));
   const details = results.map(result=>`<li>${escape(result.name)} · ${escape(result.skill)} · ${result.successes} successes
     + ${result.modifier} Speed = <strong>${result.initiative}</strong></li>`).join("");
   return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls:results.map(result=>result.roll),
     content:`<strong>${party ? `Party Initiative · Total ${total} · Highest ${highest}` : `Initiative · ${total}`}</strong>
-      <ul>${details}</ul><p>Compare parties using the total or highest result according to your table’s initiative rule.</p>`});
+      <ul>${details}</ul><p>${escape(tracker)}</p>${party ? "<p>Compare party totals or highest results using your table’s initiative rule.</p>" : ""}`});
 }
 
 async function useManeuver(actor,key,rules) {

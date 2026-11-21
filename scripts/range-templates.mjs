@@ -39,6 +39,9 @@ export function rangeTemplateData(shape, origin, point, size, units) {
   if (shape.kind === "zone" || shape.kind === "rangedBlast" || shape.kind === "closeBlast") {
     return rect(point.x,point.y,shape.length,shape.width);
   }
+  if (shape.kind === "centeredZone") {
+    return rect(origin.center.x-shape.length*size/2,origin.center.y-shape.width*size/2,shape.length,shape.width);
+  }
   if (shape.kind === "reach" || shape.kind === "burst") {
     const radius = shape.length*size;
     return rect(origin.x-radius,origin.y-radius,origin.width/size+2*shape.length,origin.height/size+2*shape.length);
@@ -73,6 +76,19 @@ let cancelPlacement;
 
 const systemId = "pokemon-tabletop-evolution";
 
+export async function inspectRangeTemplates() {
+  if (!canvas.ready) return ui.notifications.warn("Open a scene to manage templates.");
+  await ui.controls.activate({control:"templates"});
+  ui.notifications.info("Hover a template’s origin handle and press Delete to remove it.");
+}
+
+export function tokenRangeOrigin(token, size) {
+  const {x,y,width,height} = token.document;
+  const w = width*size;
+  const h = height*size;
+  return {x,y,width:w,height:h,center:{x:x+w/2,y:y+h/2}};
+}
+
 export async function removeLastRangeTemplate() {
   if (!canvas.ready) return;
   if (cancelPlacement) return cancelPlacement();
@@ -94,19 +110,27 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   if (!scene || !board || !canvas.grid.isSquare) return ui.notifications.warn("PTE range placement requires an active square-grid scene.");
   const Template = CONFIG.MeasuredTemplate.documentClass;
   if (!Template.canUserCreate(game.user)) return ui.notifications.warn("You need permission to create measured templates.");
-  if (!manual && !token && !["zone","zoneCells"].includes(shape.kind)) return ui.notifications.warn("Select the move’s source token on the map.");
-  let origin = token && {x:token.bounds.x,y:token.bounds.y,width:token.bounds.width,height:token.bounds.height,center:token.center};
+  if (!token && (shape.kind === "centeredZone" || (!manual && !["zone","zoneCells"].includes(shape.kind)))) return ui.notifications.warn("Select the move’s source token on the map.");
   const size = canvas.grid.size;
+  let origin = token && tokenRangeOrigin(token,size);
   const units = scene.grid.distance;
-  const aimed = !["reach","burst"].includes(shape.kind);
-  const publish = data=>{
+  const aimed = !["reach","burst","centeredZone"].includes(shape.kind);
+  const publish = async data=>{
     const grouped = Array.isArray(data);
     const rangeGroup = grouped ? foundry.utils.randomID() : null;
     const documents = (grouped ? data : [data]).map(template=>({...template,
       author:game.user.id,fillColor:game.user.color,
       flags:{[systemId]:{move:name,range:shape.label,rangeGroup}}
     }));
-    return scene.createEmbeddedDocuments("MeasuredTemplate",documents);
+    const created = await scene.createEmbeddedDocuments("MeasuredTemplate",documents);
+    if (created.length && canvas.scene?.id === scene.id) {
+      try {
+        await inspectRangeTemplates();
+      } catch (error) {
+        console.warn("PTE could not switch to Measurement Controls.",error);
+      }
+    }
+    return created;
   };
   cancelPlacement?.();
   if (!aimed) return publish(rangeTemplateData(shape,origin,null,size,units));
@@ -143,6 +167,10 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   window.addEventListener("pointerdown",async event=>{
     if (event.target !== board || event.button !== 0) return;
     if (canvas.scene?.id !== scene.id) return cancel();
+    if (token) {
+      if (!scene.tokens.has(token.id)) return cancel();
+      origin = tokenRangeOrigin(token,size);
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     const position = canvas.canvasCoordinatesFromClient({x:event.clientX,y:event.clientY});

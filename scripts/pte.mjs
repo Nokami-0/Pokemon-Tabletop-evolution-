@@ -1,4 +1,4 @@
-import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate} from "./range-templates.mjs";
+import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
 import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
@@ -1785,6 +1785,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return resetAttackScene(this.document); },
       manualRange() { return placeManualRange(); },
+      inspectRanges() { return inspectRangeTemplates(); },
       removeRange() { return removeLastRangeTemplate(); },
       moveRange(event,target) { return placeMoveRange(this.document.items.get(target.dataset.id)); },
       trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },
@@ -2027,7 +2028,7 @@ async function placeManualRange() {
   const form = await DialogV2.prompt({
     classes:["pte-dialog"],window:{title:"Place Manual Template"},
     content:`<label>Shape <select name="kind">
-      <option value="zone">Rectangle / Zone</option><option value="zoneCells">Connected Zone</option><option value="circle">Circle</option>
+      <option value="zone">Rectangle / Zone</option><option value="centeredZone">Rectangle Centered on Selected Token</option><option value="zoneCells">Connected Zone</option><option value="circle">Circle</option>
       <option value="line">Line</option><option value="cone">Cone</option>
     </select></label>
     <label>Length, radius (m), or connected square count <input name="length" type="number" min="1" step="1" value="3" required></label>
@@ -2038,11 +2039,12 @@ async function placeManualRange() {
   const kind = form.get("kind");
   const length = Number(form.get("length"));
   const width = Number(form.get("width"));
-  if (!["zone","zoneCells","circle","line","cone"].includes(kind) ||
+  if (!["zone","centeredZone","zoneCells","circle","line","cone"].includes(kind) ||
     ![length,width].every(value=>Number.isSafeInteger(value) && value > 0)) {
     return ui.notifications.warn("Choose a shape and enter positive whole-meter dimensions.");
   }
-  return placeRangeTemplate({kind,length,width,targetLimit:length,label:"Manual template"},null,"Manual template",{manual:true});
+  const source = kind === "centeredZone" ? canvas.tokens.controlled[0] : null;
+  return placeRangeTemplate({kind,length,width,targetLimit:length,label:"Manual template"},source,"Manual template",{manual:true});
 }
 
 async function placeMoveRange(item) {

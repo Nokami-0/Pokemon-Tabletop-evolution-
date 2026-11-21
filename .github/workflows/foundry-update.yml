@@ -13,27 +13,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish Foundry ZIP and manifest together
+      - name: Build and publish the Journal Library update
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=0.1.56
-          package=dist/pokemon-tabletop-evolution-$version.zip
+          set -euo pipefail
+          version=0.1.57
+          package=pokemon-tabletop-evolution-$version.zip
+          mkdir -p books
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=1A2ogu20yuZ22XfIEFDRjcrj081NUGUNc&export=download&confirm=t' -o 'books/cheat-sheet.pdf'
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=1NuntF48LhtQ7v4xzlS_BfrU35SNwqvEg&export=download&confirm=t' -o 'books/rulebook.pdf'
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=11GxwsPEX7Q8_jWIile1D2ptTb25oAz6s&export=download&confirm=t' -o 'books/pokedex.pdf'
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=1FNlONh7b_3w2Jj0KTjV1uC_xxcrb1ngX&export=download&confirm=t' -o 'books/gm-guide.pdf'
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=1_2ZkROgaJQHzYpk7-7GkVSkJkZdu-eQJ&export=download&confirm=t' -o 'books/occultism.pdf'
+          curl -fsSL --retry 3 --max-time 150 'https://drive.usercontent.google.com/download?id=14w0VsDkecg-k0uFt1xFR2KluxE4fdqO7&export=download&confirm=t' -o 'books/elementalism.pdf'
+          sha256sum --check <<'BOOKS'
+          9a7d91caada4dc8bd28870e2b01b5d3539ea77b27129740c06455ea39d149ab4  books/cheat-sheet.pdf
+          3a6fc5d4befa826343a24743aa8b4061b1e08e23e801ec8659f43cc765ab790c  books/elementalism.pdf
+          303762b883e1e4002d77d3d6e7758d46ff71b5e8802118542dc058cdbde55719  books/gm-guide.pdf
+          a56932fdcb8d72b2a91e57de1b75b18f4ffcdab9c2848029cce4e299046fe9af  books/occultism.pdf
+          cf1d1b5e9e0bb5b4731dc7565b2e08d7cb7281f33378994857e016535a6a63a3  books/pokedex.pdf
+          9971c7e303b9a174ab13e26eb3f83f5a59d8be18c289c79f0d927044574f9b19  books/rulebook.pdf
+          BOOKS
           node --input-type=module <<'JS'
           import fs from "node:fs";
-          const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.56";
-          manifest.download = `https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/main/dist/pokemon-tabletop-evolution-${manifest.version}.zip`;
-          fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
+          const manifest = JSON.parse(fs.readFileSync("system.json", "utf8"));
+          manifest.version = "0.1.57";
+          manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
+          fs.writeFileSync("system.json", JSON.stringify(manifest, null, 2) + "\n");
           JS
-          node --check scripts/pte.mjs
-          cp dist/pokemon-tabletop-evolution-0.1.55.zip "$package"
-          zip -q "$package" system.json scripts/pte.mjs
+          for script in scripts/*.mjs data/*.mjs; do node --check "$script" || exit 1; done
+          cp dist/pokemon-tabletop-evolution-0.1.56.zip "$package"
+          zip -qr "$package" system.json README.md books scripts/pte.mjs scripts/journal-library.mjs data/journal-reference.mjs
           unzip -tq "$package"
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "The Rule Library now opens the built-in Foundry Journal index with six bundled PTE books and attack and ability indexes."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- system.json "$package"
-          git commit -m "Publish Foundry v$version"
+          git add system.json
+          git commit -m "Publish the Foundry manifest for v$version"
           git push origin HEAD:main
-          gh release create "v$version" "$package" system.json --target "$(git rev-parse HEAD)" --title "Pokémon Tabletop Evolution v$version" --notes "Keeps Pokémon Roles and Abilities on Pokémon sheets and limits Trainer features to Trainer sheets."

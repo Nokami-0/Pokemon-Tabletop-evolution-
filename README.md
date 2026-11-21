@@ -95,3 +95,9 @@ Push the source to its own GitHub repository with Actions enabled. Tag the manif
 ## Credits
 
 Tabletop design by **Azurespider** and the Pokémon Tabletop Evolution contributors, including Onarreshana, Thewonderwolf, and Starshine. Pokémon belongs to its respective rights holders. This fan project is unaffiliated with Nintendo, The Pokémon Company, or Foundry Gaming.
+
+### In-game Rule Library
+
+With this manual system package installed, launch the world as GM to create the Pokémon Tabletop Evolution folder and its journals. Open **Rule Library** from a character sheet, or find it in the Journal sidebar. The six bundled books and the attack and ability indexes are available to all players by default, including the GM Guide.
+
+If you previously enabled the separate PTE Journal Library module, disable it before relaunching. This system updates the old module's PDF links to point to the bundled books and preserves your existing journal permissions.

@@ -1,3 +1,4 @@
+import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
 import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
@@ -76,6 +77,8 @@ function bookLink(key, page = 1) {
 }
 
 function showBooks() {
+  const journal = openJournalLibrary();
+  if (journal) return journal;
   const content = Object.entries(books).map(([key,title]) => {
     const url = bookLink(key);
     return url ? `<li><a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(title)}</a></li>`
@@ -2093,5 +2096,15 @@ Hooks.on("updateActor", (actor, changes) => {
   if (actor.type !== "trainer" || !changes.system?.partnerActions) return;
   for (const partner of game.actors.filter(candidate => linkedTrainer(candidate)?.id === actor.id)) {
     if (partner.sheet?.rendered) partner.sheet.render();
+  }
+});
+
+Hooks.once("ready", async () => {
+  if (!game.users.activeGM?.isSelf) return;
+  try {
+    await installJournalLibrary();
+  } catch (error) {
+    console.error("PTE Rule Library setup failed",error);
+    ui.notifications.error("The PTE Rule Library could not be set up. See the console for details.");
   }
 });

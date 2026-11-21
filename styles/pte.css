@@ -130,12 +130,43 @@
 .pte .pte-rule-text {white-space:pre-line}
 
 .pte .pte-trainer-card {
-  background:linear-gradient(120deg,#ae1f33,#c72b40);
+  background:linear-gradient(135deg,#2a4f89,#6c9aca);
+  border:2px solid #b6d0eb;
   border-radius:16px;
-  border-bottom:5px solid #801623;
+  box-shadow:inset 0 0 0 1px #254374;
+  overflow:hidden;
   gap:0;
 }
-.pte .pte-trainer-card .pte-banner {background:none; border:0; padding:10px 12px}
+.pte .pte-trainer-id {min-width:0}
+.pte .pte-trainer-id-title {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:5px 12px; background:#15345d; padding:7px 11px;
+}
+.pte .pte-body .pte-trainer-id-title h2 {
+  color:#f4f9ff !important; margin:0; font:700 clamp(17px,4vw,24px)/1.1 system-ui,sans-serif;
+  letter-spacing:.045em;
+}
+.pte .pte-trainer-id-content {
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(64px,24%);
+  gap:8px; padding:8px 9px 5px;
+  background:repeating-linear-gradient(135deg,#fff1 0 22px,transparent 22px 46px);
+}
+.pte .pte-trainer-id-fields {display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:4px}
+.pte .pte-trainer-id label {
+  display:flex; flex-direction:row; align-items:center; gap:5px; min-width:0;
+  background:#dce9f9; border-radius:10px; padding:1px 6px; white-space:nowrap;
+}
+.pte .pte-trainer-id-fields .pte-id-wide {grid-column:1/-1}
+.pte .pte-trainer-id input {min-width:0; height:23px; font-size:12px; border:0; background:#f6fbff}
+.pte .pte-trainer-id .pte-id-signature {margin:0 9px 7px}
+.pte .pte-trainer-id-portrait {
+  display:grid; place-items:center; align-content:center; gap:3px; min-width:0; padding:4px;
+  background:#dce9f9; border:1px solid #f0f7ff; border-radius:7px;
+}
+.pte .pte-trainer-id-portrait button {display:grid; place-items:center; padding:2px; max-width:100%}
+.pte .pte-trainer-id-portrait img {height:86px; width:100px; max-width:100%; object-fit:contain; border:0}
+.pte .pte-trainer-id-portrait small {font-weight:650; text-align:center}
+
 .pte .pte-trainer-card-details {display:grid; gap:5px; padding:0 9px 8px}
 .pte .pte-trainer-card-details[hidden] {display:none}
 .pte .pte-compact-group {padding:5px 8px; border-radius:8px}

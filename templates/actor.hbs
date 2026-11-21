@@ -17,17 +17,38 @@
 {{/inline}}
 <div class="pte-body">
   <div class="pte-card{{#unless pokemon}} pte-trainer-card{{/unless}}">
+  {{#if pokemon}}
   <header class="pte-banner">
     <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
     <div>
-      <span>{{#if pokemon}}POKÉMON PROFILE{{else}}TRAINER CARD{{/if}} · TIER LEVEL {{tier}} · TIER VALUE {{tierValue}}</span>
+      <span>POKÉMON PROFILE · TIER LEVEL {{tier}} · TIER VALUE {{tierValue}}</span>
       <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
     </div>
     <button type="button" data-action="books">Rule Library</button>
-    {{#if pokemon}}<button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
-    {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}{{/if}}
+    <button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
+    {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}
   </header>
-  {{#unless pokemon}}
+  {{else}}
+  <header class="pte-trainer-id">
+    <div class="pte-trainer-id-title">
+      <h2>TRAINER’S CARD</h2>
+      <button type="button" data-action="books">Rule Library</button>
+    </div>
+    <div class="pte-trainer-id-content">
+      <div class="pte-trainer-id-fields">
+        <label class="pte-id-wide">Name <input name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}></label>
+        {{#each identityFields}}
+          <label>{{label}} <input name="system.trainerIdentity.{{key}}" value="{{value}}" {{#unless @root.editable}}readonly{{/unless}}></label>
+        {{/each}}
+      </div>
+      <div class="pte-trainer-id-portrait">
+        {{#if editable}}<button type="button" data-action="editImage" data-edit="img" aria-label="Change Trainer portrait"><img src="{{actor.img}}" alt=""></button>
+        {{else}}<img src="{{actor.img}}" alt="Trainer portrait">{{/if}}
+        <small>Tier {{tier}} · Value {{tierValue}}</small>
+      </div>
+    </div>
+    <label class="pte-id-signature">Signature <input name="system.trainerIdentity.signature" value="{{system.trainerIdentity.signature}}" {{#unless editable}}readonly{{/unless}}></label>
+  </header>
   <div class="pte-trainer-card-details" data-sheet-panel="profile" {{#unless profileActive}}hidden{{/unless}}>
     <section class="pte-compact-group">
       <div class="pte-row">
@@ -43,7 +64,7 @@
     </section>
     {{> itemGroups trainerCardGroups}}
   </div>
-  {{/unless}}
+  {{/if}}
   </div>
   <nav class="pte-buttons" aria-label="Actor sheet sections">
     {{#each panels}}<button type="button" data-action="sheetPanel" data-panel="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>{{/each}}

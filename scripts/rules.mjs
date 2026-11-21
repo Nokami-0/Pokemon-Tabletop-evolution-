@@ -326,3 +326,12 @@ export function pokemonTokenFootprint(profile) {
   const width = speciesFootprints[size === "smal" || size.includes("-") ? "small" : size];
   return {width,height:width};
 }
+
+
+export const maxSpiritPoints = 6;
+
+export function spiritBalance(current, delta) {
+  if (!Number.isInteger(current) || current < 0 || current > maxSpiritPoints || !Number.isInteger(delta)) return null;
+  if (current + delta < 0) return null;
+  return Math.min(maxSpiritPoints,current + delta);
+}

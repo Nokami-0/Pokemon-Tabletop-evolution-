@@ -869,7 +869,7 @@ const grantEntry = reward => reward.kind === "capability"
   ? capabilityEntries.find(entry=>normalizeRequirement(entry.name) === normalizeRequirement(reward.name)) ??
     bookCatalog.find(entry=>entry.category === "Occult Capabilities" && normalizeRequirement(entry.name) === normalizeRequirement(reward.name))
   : grantEntries.get(`${reward.kind}|${normalizeRequirement(reward.name)}`);
-const grantedCapabilities = actor => [...new Set(actor.items.flatMap(item=>
+const grantedCapabilities = actor => [...new Set(actor.items.contents.flatMap(item=>
   Object.values(item.getFlag(ID,"classGrants") || {}).flatMap(rewards=>
     rewards.filter(reward=>reward.kind === "capability").map(reward=>reward.name))))];
 

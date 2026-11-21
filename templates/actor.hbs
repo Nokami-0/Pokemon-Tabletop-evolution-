@@ -1,7 +1,7 @@
 {{#*inline "itemGroups"}}
   {{#each this}}
   <section>
-    <div class="pte-row"><h2>{{label}}</h2>{{#if @root.editable}}<button type="button" data-action="add" data-type="{{type}}" {{#if known}}data-known="true"{{/if}}>{{#if known}}Add Known Move{{else}}Add {{type}}{{/if}}</button>{{/if}}</div>
+    <div class="pte-row"><h2>{{label}}</h2>{{#if @root.editable}}<button type="button" data-action="add" data-type="{{type}}" {{#if featureGroup}}data-feature-group="{{featureGroup}}"{{/if}} {{#if known}}data-known="true"{{/if}}>{{#if known}}Add Known Move{{else}}{{#if addLabel}}{{addLabel}}{{else}}Add {{type}}{{/if}}{{/if}}</button>{{/if}}</div>
     <input type="search" data-item-query aria-label="Search {{label}}" placeholder="Search {{label}}">
     {{#each items}}
     <div class="pte-row pte-itemrow" data-item-search="{{name}} {{system.element}} {{system.category}}">
@@ -20,7 +20,7 @@
   <header class="pte-banner">
     <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
     <div>
-      <span>{{#if pokemon}}POKÉMON PROFILE{{else}}TRAINER CARD{{/if}} · TIER {{tier}}</span>
+      <span>{{#if pokemon}}POKÉMON PROFILE{{else}}TRAINER CARD{{/if}} · TIER LEVEL {{tier}} · TIER VALUE {{tierValue}}</span>
       <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
     </div>
     <button type="button" data-action="books">Rule Library</button>
@@ -239,8 +239,8 @@
     <details><summary>Basic Orders</summary>
       <p>Each order uses your Reaction at the listed trigger. Your Pokémon must be able to hear you, usually within 10m. Orders do not stack on the same target at the same time, and repeated copies of an order do not stack.</p>
       <dl>
-        <dt><strong>Defensive Order</strong></dt><dd>When your Pokémon is hit by a damaging attack, give it {{orderTierValue}} damage reduction against that attack.</dd>
-        <dt><strong>Energetic Order</strong></dt><dd>When your Pokémon hits with a damaging attack, add {{orderTierValue}} to its damage roll.</dd>
+        <dt><strong>Defensive Order</strong></dt><dd>When your Pokémon is hit by a damaging attack, give it {{tierValue}} damage reduction against that attack.</dd>
+        <dt><strong>Energetic Order</strong></dt><dd>When your Pokémon hits with a damaging attack, add {{tierValue}} to its damage roll.</dd>
         <dt><strong>Inspiring Order</strong></dt><dd>When your Pokémon would attack or make a save, give the triggering accuracy or save check +{{tier}}.</dd>
         <dt><strong>Reactive Order</strong></dt><dd>When your Pokémon is targeted by an attack or maneuver, give it +{{tier}} evasion against that action before its accuracy check.</dd>
         <dt><strong>Tactical Order</strong></dt><dd>When your Pokémon uses an attack, give its effect range or critical hit range a modifier of {{tier}}.</dd>

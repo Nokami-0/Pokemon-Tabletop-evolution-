@@ -949,6 +949,20 @@ function featureClass(entry) {
   return bookCatalog.find(candidate=>candidate.kind === "class" && candidate.name === name);
 }
 
+const trainerFeatureGroups = [
+  {key:"class",label:"Class Features",addLabel:"Add Class Feature"},
+  {key:"general",label:"General Features",addLabel:"Add General Feature"},
+  {key:"talent",label:"Talents",addLabel:"Add Talent"},
+  {key:"other",label:"Other Features",addLabel:"Add Other Feature"}
+];
+
+function trainerFeatureGroup(entry) {
+  if (featureClass(entry)) return "class";
+  if (entry?.category === "General Features") return "general";
+  if (entry?.category === "Talents") return "talent";
+  return "other";
+}
+
 function classFeatureEntries(entry,actor) {
   if (entry?.kind !== "class") return [];
   const context = actor ? catalogRequirementContext(actor) : null;
@@ -1007,25 +1021,26 @@ function bindCatalogSearch(event,dialog) {
 
 const catalogSearchField = '<label>Search <input type="search" data-catalog-query placeholder="Search by name or category" autofocus></label><p role="status" data-catalog-count></p>';
 
-async function pickCatalogEntry(type, rolesOnly, actor) {
+async function pickCatalogEntry(type, rolesOnly, actor, featureGroup) {
   const classContext = type === "class" ? catalogRequirementContext(actor) : null;
   const entries = catalog.map((entry,index)=>({...entry,index})).filter(entry=>
     entry.kind === type && (entry.category === roleCategory) === rolesOnly &&
     (!pokemon(actor) || entry.category !== abilityCategory) &&
+    (!featureGroup || trainerFeatureGroup(entry) === featureGroup.key) &&
     (!classContext || catalogRequirementResult(entry,classContext) === true));
   if (classContext && !entries.length) {
     ui.notifications.info("No classes match this trainer’s current prerequisites.");
     return null;
   }
   const groups = Object.groupBy(entries,entry=>entry.category);
-  const allowCustom = !rolesOnly && !classContext;
+  const allowCustom = !rolesOnly && !classContext && (!featureGroup || featureGroup.key === "other");
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
     ).join("")}</optgroup>`
   ).join("");
   const selection = await DialogV2.prompt({classes:["pte-dialog"],
-    window:{title:rolesOnly ? "Add Pokémon Role" : `Add ${titleCase(type)}`},
+    window:{title:rolesOnly ? "Add Pokémon Role" : featureGroup?.addLabel ?? `Add ${titleCase(type)}`},
     render:bindCatalogSearch,
     content:`${catalogSearchField}<label>Catalog <select name="entry" data-catalog-options>${allowCustom ? `<option value="custom">Custom ${escape(type)}</option>` : ""}${options}</select></label>`,
     ok:{label:"Add",callback:(event,button) => new FormData(button.form).get("entry")},
@@ -1721,7 +1736,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (type === "class" && pokemon(this.document)) return;
         const rolesOnly = target.dataset.roles === "true";
         if (rolesOnly && !pokemon(this.document)) return;
-        const data = await pickCatalogEntry(type,rolesOnly,this.document);
+        const featureGroup = type === "feature" && !pokemon(this.document)
+          ? trainerFeatureGroups.find(group=>group.key === target.dataset.featureGroup) : null;
+        const data = await pickCatalogEntry(type,rolesOnly,this.document,featureGroup);
         if (!data || !await allowCatalogAcquisition(this.document,data)) return;
         if (type === "move" && (target.dataset.known === "true" ||
           (pokemon(this.document) && battleSlotsUsed(this.document) >= this.document.system.battleMoveLimit))) {
@@ -1852,16 +1869,23 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const groups = Object.entries(itemTypes).filter(([type]) => type !== "class" || !pokemon(actor)).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
         id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
-    const onProfile = group => group.type === "class" || group.type === "feature";
+    const profileGroups = groups.filter(group=>group.type === "class" || group.type === "feature").flatMap(group=>{
+      if (group.type !== "feature" || pokemon(actor)) return [group];
+      return trainerFeatureGroups.map(category=>({
+        ...group,label:category.label,addLabel:category.addLabel,featureGroup:category.key,
+        items:group.items.filter(row=>trainerFeatureGroup(catalogListing(actor.items.get(row.id))) === category.key)
+      }));
+    });
+    const tierLevel = tier(system.level,pokemon(actor));
+    const tierValue = [5,10,20][tierLevel - 1];
     const teamTrainer = pokemon(actor) ? trainer : actor;
-    return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
+    return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tierLevel,tierValue,
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
       classCapabilities:grantedCapabilities(actor),
       actorCapabilities:actorCapabilityButtons(speciesProfile?.capabilities,[system.capabilityNotes,...grantedCapabilities(actor)].join(" ")),
       speciesAbilities:speciesAbilityNames(speciesProfile).map(name=>abilitiesByName.get(normalizeAbilityName(name))?.name || name).join(", "),
       ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name,spiritCost:item.system.spiritCost})) : [],
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),
-      orderTierValue:[5,10,20][tier(system.level,false) - 1],
       stats:Object.entries(stats).map(([key,label]) => ({key,label,value:system.stats[key]})),
       skills:skills.map((label,index) => ({index,label,rank:ranks.map((label,i) => ({label:pokemon(actor) ? `${i+1}d6` : label,value:i+1,selected:system.skills[`s${index}`] === i+1}))})),
       stages:Object.entries(stats).filter(([key])=>key!=="hp").map(([key,label])=>({
@@ -1911,7 +1935,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         .map(([key,label])=>({key,label,active:key === this.activePanel})),
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
       teamActive:this.activePanel === "team",skillsActive:this.activePanel === "skills",
-      profileGroups:groups.filter(onProfile),bagGroups:groups.filter(group=>group.type === "gear"),
+      profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
       movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",
       moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,items:group.items.filter(item=>!item.knownOnly)})),
       knownGroups:groups.filter(group=>group.type === "move").map(group=>({...group,label:"Known Moves",known:true,

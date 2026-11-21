@@ -23,12 +23,18 @@ export function rangeShapes(range, description = "") {
   for (const match of `${range ?? ""} ${description}`.matchAll(/\b(\d+)\s*[x×]\s*(\d+)\s+zone\b/gi)) {
     add("zone",`Zone · ${match[1]} × ${match[2]}`,+match[1],+match[2]);
   }
+  const counts = ["one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
+  const zoneCount = new RegExp(`\\b(?:zone\\s+of\\s+)?(\\d+|${counts.join("|")})\\s+contiguous(?:\\s+connected)?\\s+(?:spaces|squares)\\b`,"gi");
+  for (const match of `${range ?? ""} ${description}`.matchAll(zoneCount)) {
+    const count = Number(match[1]) || counts.indexOf(match[1].toLowerCase())+1;
+    if (count > 0) add("zoneCells",`Zone · ${count} connected squares`,1,1,null,count);
+  }
   return [...choices.values()];
 }
 
 export function rangeTemplateData(shape, origin, point, size, units) {
   const rect = (x,y,w,h)=>({t:"rect",x,y,direction:Math.atan2(h,w)*180/Math.PI,distance:Math.hypot(w,h)*units});
-  if (shape.kind === "target") return rect(point.x,point.y,1,1);
+  if (["target","zoneCells"].includes(shape.kind)) return rect(point.x,point.y,1,1);
   if (shape.kind === "circle") return {t:"circle",x:point.x,y:point.y,distance:shape.length*units};
   if (shape.kind === "zone" || shape.kind === "rangedBlast" || shape.kind === "closeBlast") {
     return rect(point.x,point.y,shape.length,shape.width);
@@ -88,7 +94,7 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   if (!scene || !board || !canvas.grid.isSquare) return ui.notifications.warn("PTE range placement requires an active square-grid scene.");
   const Template = CONFIG.MeasuredTemplate.documentClass;
   if (!Template.canUserCreate(game.user)) return ui.notifications.warn("You need permission to create measured templates.");
-  if (!manual && !token && shape.kind !== "zone") return ui.notifications.warn("Select the move’s source token on the map.");
+  if (!manual && !token && !["zone","zoneCells"].includes(shape.kind)) return ui.notifications.warn("Select the move’s source token on the map.");
   let origin = token && {x:token.bounds.x,y:token.bounds.y,width:token.bounds.width,height:token.bounds.height,center:token.center};
   const size = canvas.grid.size;
   const units = scene.grid.distance;
@@ -121,13 +127,14 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
       ui.notifications.error("The range template could not be placed.");
     }
   };
-  const instruction = shape.kind === "target" ?
+  const instruction = shape.kind === "zoneCells" ?
+    `Click ${shape.targetLimit} edge-connected squares. Press Esc to cancel.` : shape.kind === "target" ?
     `Click up to ${shape.targetLimit} target square(s) within ${shape.reach} m. Press Enter to finish early.` : directional ? (manual ? "Click the starting square, then click to aim." : "Click a square to aim.") :
     shape.kind === "circle" ? "Click the center square." : "Click the upper-left square.";
   ui.notifications.info(`${instruction} Press Esc to cancel.`);
   window.addEventListener("keydown",event=>{
     if (event.key === "Escape") cancel();
-    if (event.key === "Enter" && selected.size && canvas.scene?.id === scene.id) {
+    if (event.key === "Enter" && shape.kind === "target" && selected.size && canvas.scene?.id === scene.id) {
       event.preventDefault();
       event.stopImmediatePropagation();
       void complete([...selected.values()]);
@@ -164,6 +171,17 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
     }
     const data = rangeTemplateData(shape,origin,point,size,units);
     if (!data) return;
+    if (shape.kind === "zoneCells") {
+      const key = `${point.x},${point.y}`;
+      if (selected.has(key)) return;
+      const neighbors = [[size,0],[-size,0],[0,size],[0,-size]];
+      if (selected.size && !neighbors.some(([dx,dy])=>selected.has(`${point.x+dx},${point.y+dy}`))) {
+        return ui.notifications.warn("Choose a square that shares an edge with a selected square.");
+      }
+      selected.set(key,data);
+      if (selected.size === shape.targetLimit) return complete([...selected.values()]);
+      return ui.notifications.info(`${selected.size} of ${shape.targetLimit} Zone squares selected.`);
+    }
     if (shape.kind === "target") {
       selected.set(`${point.x},${point.y}`,data);
       if (selected.size < shape.targetLimit) {

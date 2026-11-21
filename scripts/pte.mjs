@@ -2027,10 +2027,10 @@ async function placeManualRange() {
   const form = await DialogV2.prompt({
     classes:["pte-dialog"],window:{title:"Place Manual Template"},
     content:`<label>Shape <select name="kind">
-      <option value="zone">Rectangle / Zone</option><option value="circle">Circle</option>
+      <option value="zone">Rectangle / Zone</option><option value="zoneCells">Connected Zone</option><option value="circle">Circle</option>
       <option value="line">Line</option><option value="cone">Cone</option>
     </select></label>
-    <label>Length or radius (m) <input name="length" type="number" min="1" step="1" value="3" required></label>
+    <label>Length, radius (m), or connected square count <input name="length" type="number" min="1" step="1" value="3" required></label>
     <label>Rectangle width (m) <input name="width" type="number" min="1" step="1" value="3" required></label>`,
     ok:{label:"Place",callback:(event,button)=>new FormData(button.form)},rejectClose:false
   });
@@ -2038,11 +2038,11 @@ async function placeManualRange() {
   const kind = form.get("kind");
   const length = Number(form.get("length"));
   const width = Number(form.get("width"));
-  if (!["zone","circle","line","cone"].includes(kind) ||
+  if (!["zone","zoneCells","circle","line","cone"].includes(kind) ||
     ![length,width].every(value=>Number.isSafeInteger(value) && value > 0)) {
     return ui.notifications.warn("Choose a shape and enter positive whole-meter dimensions.");
   }
-  return placeRangeTemplate({kind,length,width,label:"Manual template"},null,"Manual template",{manual:true});
+  return placeRangeTemplate({kind,length,width,targetLimit:length,label:"Manual template"},null,"Manual template",{manual:true});
 }
 
 async function placeMoveRange(item) {

@@ -23,20 +23,6 @@
   {{/each}}
 {{/inline}}
 <div class="pte-body">
-  {{#if pokemon}}
-  <div class="pte-card">
-  <header class="pte-banner">
-    <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
-    <div>
-      <span>POKÉMON PROFILE · TIER LEVEL {{tier}} · TIER VALUE {{tierValue}}</span>
-      <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
-    </div>
-    <button type="button" data-action="books">Rule Library</button>
-    <button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
-    {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}
-  </header>
-  </div>
-  {{/if}}
   <nav class="pte-buttons" aria-label="Actor sheet sections">
     {{#each panels}}<button type="button" data-action="sheetPanel" data-panel="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>{{/each}}
   </nav>
@@ -89,8 +75,29 @@
       </div>
     </div>
     {{/unless}}
-    <div class="pte-card" role="region" aria-label="{{#if pokemon}}Pokémon Profile{{else}}Trainer Card{{/if}}">
-  {{#if pokemon}}<section>
+    {{#if pokemon}}
+    <div class="pte-card pte-pokemon-card" role="region" aria-label="Pokémon Profile">
+  <header class="pte-banner">
+    <img src="{{actor.img}}" alt="" {{#if editable}}data-action="editImage" data-edit="img"{{/if}}>
+    <div>
+      <span>POKÉMON PROFILE · TIER LEVEL {{tier}} · TIER VALUE {{tierValue}}</span>
+      <input aria-label="Name" name="name" value="{{actor.name}}" {{#unless editable}}readonly{{/unless}}>
+    </div>
+    <button type="button" data-action="books">Rule Library</button>
+    <button type="button" data-action="dex" class="pte-dex-button">Pokédex</button>
+    {{#if system.dexPage}}<button type="button" data-action="profile">Species Details</button>{{/if}}
+  </header>
+      <section>
+        <fieldset class="pte-grid" {{#unless editable}}disabled{{/unless}}>
+      <label>Species <input name="system.species" value="{{system.species}}"></label>
+      <label>Primary Type <select name="system.type1" data-element="{{system.type1}}">{{#each type1}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>Secondary Type <select name="system.type2" data-element="{{system.type2}}">{{#each type2}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
+      <label>Role <input name="system.role" value="{{system.role}}"></label>
+      {{#if system.xp}}<label>Legacy XP <input name="system.xp" type="number" min="0" value="{{system.xp}}"></label>{{/if}}
+          {{> actorVitals}}
+        </fieldset>
+      </section>
+      <section>
     <div class="pte-row"><h2>Pokémon Roles</h2>{{#if editable}}<button type="button" data-action="add" data-type="feature" data-roles="true">Add Role</button>{{/if}}</div>
     <p>Rank 1 effect {{#if rankOneUnlocked}}unlocked{{else}}unlocks at level 10{{/if}} · Second role option at level 30</p>
     <input type="search" data-item-query aria-label="Search roles" placeholder="Search roles">
@@ -99,8 +106,8 @@
       <small>Primary role stat options · {{startingStats}}</small>
       {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
     </div>{{/each}}
-  </section>{{/if}}
-      {{#if pokemon}}<section>
+  </section>
+      <section>
         <div class="pte-row"><h2>Ability List</h2>{{#if editable}}{{#if speciesAbilities}}<button type="button" data-action="chooseAbility">Choose Ability</button>{{/if}}{{/if}}</div>
         {{#if speciesAbilities}}<ul><li>{{speciesAbilities}}</li></ul>{{else}}<p>Select a species from the Pokédex to see its available abilities.</p>{{/if}}
         {{#if ownedAbilities}}<h3>Selected Abilities</h3>
@@ -110,24 +117,14 @@
             {{#if ../editable}}<button type="button" data-action="remove" data-id="{{id}}" aria-label="Remove {{name}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
           </div>{{/each}}
         {{/if}}
-      </section>{{/if}}
-      {{> itemGroups profileGroups}}
-
-  </div>
-  <fieldset {{#unless editable}}disabled{{/unless}}>
-    <div class="pte-grid">
-      {{#if pokemon}}
-      {{> actorVitals}}
-      <label>Species <input name="system.species" value="{{system.species}}"></label>
-      <label>Primary Type <select name="system.type1" data-element="{{system.type1}}">{{#each type1}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
-      <label>Secondary Type <select name="system.type2" data-element="{{system.type2}}">{{#each type2}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{value}}</option>{{/each}}</select></label>
-      <label>Role <input name="system.role" value="{{system.role}}"></label>
-      {{#if system.xp}}<label>Legacy XP <input name="system.xp" type="number" min="0" value="{{system.xp}}"></label>{{/if}}
-      {{else}}
-      {{#if system.trainerClass}}<label>Class notes <input name="system.trainerClass" value="{{system.trainerClass}}"></label>{{/if}}
-      {{/if}}
+      </section>
     </div>
-  </fieldset>
+    {{else}}
+    {{> itemGroups profileGroups}}
+    {{#if system.trainerClass}}
+      <label>Class notes <input name="system.trainerClass" value="{{system.trainerClass}}" {{#unless editable}}readonly{{/unless}}></label>
+    {{/if}}
+    {{/if}}
   {{#if editable}}<div class="pte-buttons" aria-label="Spirit Point controls">
     <button type="button" data-action="spirit" data-mode="spend">Spend SP</button>
     <button type="button" data-action="spirit" data-mode="gain">Gain SP</button>

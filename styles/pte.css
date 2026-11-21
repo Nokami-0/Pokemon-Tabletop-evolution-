@@ -178,3 +178,6 @@
 .pte .pte-compact-group button {padding:2px 7px; min-height:27px}
 .pte .pte-compact-group input[type=search] {height:29px; margin:4px 0}
 .pte .pte-compact-group .pte-itemrow {padding:3px 0}
+
+.pte .pte-pokemon-card {border:1px solid var(--pte-line); background:#eaf1fa; border-radius:16px; padding:8px}
+.pte .pte-pokemon-card .pte-banner {flex-wrap:wrap}

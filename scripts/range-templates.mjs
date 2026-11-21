@@ -152,6 +152,12 @@ export function removeRangeOnMap() {
   },{capture:true,signal});
 }
 
+export function placementDistance(origin, square, size, width = size, height = size) {
+  const dx = Math.max(origin.x-square.x-width+size,square.x-origin.x-origin.width+size,0);
+  const dy = Math.max(origin.y-square.y-height+size,square.y-origin.y-origin.height+size,0);
+  return Math.max(dx,dy)/size;
+}
+
 export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   const scene = canvas.scene;
   const board = document.getElementById("board");
@@ -185,7 +191,19 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
 
   const controller = new AbortController();
   const {signal} = controller;
-  const cancel = ()=>{controller.abort();clearTimeout(timer);cancelPlacement=null};
+  const indicator = document.createElement("div");
+  indicator.hidden = true;
+  indicator.setAttribute("aria-hidden","true");
+  Object.assign(indicator.style,{position:"fixed",pointerEvents:"none",zIndex:"10000",
+    padding:"3px 8px",borderRadius:"5px",background:"#15263b",color:"#fff",
+    border:"1px solid #a7bdd7",font:"600 13px system-ui",whiteSpace:"nowrap"});
+  document.body.append(indicator);
+  const cancel = ()=>{
+    controller.abort();
+    clearTimeout(timer);
+    indicator.remove();
+    cancelPlacement = null;
+  };
   const timer = setTimeout(cancel,45000);
   cancelPlacement=cancel;
   const directional = ["line","cone"].includes(shape.kind);
@@ -212,6 +230,31 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
       void complete([...selected.values()]);
     }
   },{capture:true,signal});
+  const placementSquare = event=>{
+    const position = canvas.canvasCoordinatesFromClient({x:event.clientX,y:event.clientY});
+    return canvas.grid.getOffset(position);
+  };
+  const distanceTo = square=>{
+    const footprint = origin.width == null ? {x:origin.center.x-size/2,y:origin.center.y-size/2,width:size,height:size} : origin;
+    return placementDistance(footprint,square,size,
+      shape.kind === "closeBlast" ? shape.length*size : size,
+      shape.kind === "closeBlast" ? shape.width*size : size);
+  };
+  window.addEventListener("pointermove",event=>{
+    if (canvas.scene?.id !== scene.id) return cancel();
+    if (token) {
+      if (!scene.tokens.has(token.id)) return cancel();
+      origin = tokenRangeOrigin(token,size);
+    }
+    indicator.hidden = event.target !== board || !origin;
+    if (indicator.hidden) return;
+    const distance = distanceTo(canvas.grid.getTopLeftPoint(placementSquare(event)));
+    const limit = shape.kind === "closeBlast" ? 1 : shape.reach ?? (directional ? shape.length : null);
+    indicator.textContent = `${Number(distance.toFixed(2))} m${limit == null ? "" : ` · Max ${limit} m`}`;
+    indicator.style.borderColor = limit != null && distance > limit ? "#ff917e" : "#a7bdd7";
+    indicator.style.left = `${Math.max(0,Math.min(event.clientX+14,window.innerWidth-indicator.offsetWidth-4))}px`;
+    indicator.style.top = `${Math.max(0,Math.min(event.clientY+14,window.innerHeight-indicator.offsetHeight-4))}px`;
+  },{capture:true,signal});
   window.addEventListener("pointerdown",async event=>{
     if (event.target !== board || event.button !== 0) return;
     if (canvas.scene?.id !== scene.id) return cancel();
@@ -221,8 +264,7 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
     }
     event.preventDefault();
     event.stopImmediatePropagation();
-    const position = canvas.canvasCoordinatesFromClient({x:event.clientX,y:event.clientY});
-    const offset = canvas.grid.getOffset(position);
+    const offset = placementSquare(event);
     const point = directional || shape.kind === "circle" ? canvas.grid.getCenterPoint(offset) : canvas.grid.getTopLeftPoint(offset);
     if (manual && directional && !origin) {
       origin = {center:point};
@@ -230,11 +272,7 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
       return;
     }
     if (["closeBlast","rangedBlast","target"].includes(shape.kind)) {
-      const width = shape.kind === "closeBlast" ? shape.length*size : size;
-      const height = shape.kind === "closeBlast" ? shape.width*size : size;
-      const dx = Math.max(origin.x-point.x-width+size,point.x-origin.x-origin.width+size,0);
-      const dy = Math.max(origin.y-point.y-height+size,point.y-origin.y-origin.height+size,0);
-      const distance = Math.max(dx,dy)/size;
+      const distance = distanceTo(point);
       if (shape.kind === "closeBlast" && distance !== 1) {
         return ui.notifications.warn("Place the Close Blast beside the source without overlapping it.");
       }

@@ -12,6 +12,7 @@
       <label>Crit Range <input type="number" min="1" max="20" name="system.crit" value="{{system.crit}}"></label>
       <label>Damage Modifier <input type="number" name="system.damage" value="{{system.damage}}"></label>
       <label>Range <input name="system.range" value="{{system.range}}"></label>
+      <button type="button" data-action="moveRange">Place Range</button>
       {{/if}}
       {{#if gear}}
       {{#if variants}}<label>Potion Variant <select name="system.variant"><option value="">Choose a variant</option>

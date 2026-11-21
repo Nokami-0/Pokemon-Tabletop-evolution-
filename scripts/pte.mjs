@@ -1,3 +1,4 @@
+import {rangeShapes,placeRangeTemplate} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
 import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
@@ -1783,6 +1784,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       basicAttack() { return rollBasicAttack(this.document); },
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return resetAttackScene(this.document); },
+      moveRange(event,target) { return placeMoveRange(this.document.items.get(target.dataset.id)); },
       trackedMove(event,target) { return trackedMove(this.document,this.document.items.get(target.dataset.id)); },
       move(event,target) { return useMove(this.document,this.document.items.get(target.dataset.id)); },
       chooseAbility() {
@@ -2018,10 +2020,35 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 }
 
+async function placeMoveRange(item) {
+  if (item?.type !== "move") return;
+  if (!canvas.ready) return ui.notifications.warn("Open a scene before placing a move range.");
+  const shapes = rangeShapes(item.system.range,itemDescription(item));
+  if (!shapes.length) return ui.notifications.info("This move has no fixed map shape or numeric range.");
+  const index = shapes.length === 1 ? 0 : await DialogV2.prompt({
+    classes:["pte-dialog"],window:{title:"Choose Move Range"},
+    content:`<label>Range <select name="shape">${shapes.map((shape,index)=>
+      `<option value="${index}">${escape(shape.label)}</option>`).join("")}</select></label>`,
+    ok:{label:"Place",callback:(event,button)=>Number(new FormData(button.form).get("shape"))},rejectClose:false
+  });
+  if (index == null || !shapes[index] || !canvas.ready) return;
+  const actor = item.parent;
+  const controlled = canvas.tokens.controlled.find(token=>!actor || token.actor?.uuid === actor.uuid);
+  const active = actor?.token?.object ?? actor?.getActiveTokens()?.filter(token=>token.isVisible);
+  const source = controlled ?? (Array.isArray(active) ? active.length === 1 ? active[0] : null : active);
+  try {
+    return await placeRangeTemplate(shapes[index],source,item.name);
+  } catch (error) {
+    console.error("PTE range placement failed",error);
+    ui.notifications.error("The range template could not be placed.");
+  }
+}
+
 class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {classes:["pte","pte-item"],tag:"form",position:{width:550,height:"auto"},
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
+      moveRange() { return placeMoveRange(this.document); },
       async claimGrant(event,target) {
         await claimGrant(this.document,target.dataset.grant);
         return this.render({parts:["body"]});

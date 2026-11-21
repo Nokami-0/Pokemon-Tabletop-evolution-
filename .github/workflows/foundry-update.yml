@@ -19,20 +19,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.63
+          version=0.1.64
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.62 --pattern pokemon-tabletop-evolution-0.1.62.zip --output "$package"
+          gh release download v0.1.63 --pattern pokemon-tabletop-evolution-0.1.63.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.63";
+          manifest.version = "0.1.64";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
           node --check scripts/pte.mjs
           zip -q "$package" system.json scripts/pte.mjs scripts/models.mjs templates/actor.hbs styles/pte.css
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds portrait and token artwork editing to the Trainer Card."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Shows Tier Level and Tier Value in the Trainer Card header."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

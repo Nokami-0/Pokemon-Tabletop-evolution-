@@ -46,6 +46,7 @@
       <header class="pte-trainer-id">
         <div class="pte-trainer-id-title">
           <h2>TRAINER’S CARD</h2>
+          <span class="pte-trainer-tier">Tier Level {{tier}} · Tier Value {{tierValue}}</span>
           <button type="button" data-action="books">Rule Library</button>
         </div>
         <div class="pte-trainer-id-content">
@@ -65,7 +66,6 @@
               <button type="button" data-action="trainerArtwork" data-art="portrait">Edit Portrait</button>
               <button type="button" data-action="trainerArtwork" data-art="token">Edit Token</button>
             </div>{{/if}}
-            <small>Tier {{tier}} · Value {{tierValue}}</small>
           </div>
         </div>
         <fieldset class="pte-grid pte-trainer-vitals" {{#unless editable}}disabled{{/unless}}>

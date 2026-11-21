@@ -169,7 +169,7 @@
 .pte .pte-trainer-art-actions {justify-content:center; gap:3px}
 .pte .pte-trainer-id-portrait button {padding:2px 5px; font-size:11px; min-height:23px}
 .pte .pte-trainer-id-portrait img {height:86px; width:100px; max-width:100%; object-fit:contain; border:0}
-.pte .pte-trainer-id-portrait small {font-weight:650; text-align:center}
+.pte .pte-body .pte-trainer-tier {color:#f4f9ff !important; font-weight:700; font-size:12px}
 
 .pte .pte-trainer-card-details {display:grid; gap:5px; padding:0 9px 8px}
 .pte .pte-trainer-card-details[hidden] {display:none}

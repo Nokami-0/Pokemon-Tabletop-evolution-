@@ -1,4 +1,4 @@
-import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates} from "./range-templates.mjs";
+import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
 import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
@@ -1785,6 +1785,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       advanceAttackTurn() { return this.document.update({"system.attackTurn":this.document.system.attackTurn + 1}); },
       resetAttackScene() { return resetAttackScene(this.document); },
       manualRange() { return placeManualRange(); },
+      deleteRangeOnMap() { return removeRangeOnMap(); },
       inspectRanges() { return inspectRangeTemplates(); },
       removeRange() { return removeLastRangeTemplate(); },
       moveRange(event,target) { return placeMoveRange(this.document.items.get(target.dataset.id)); },
@@ -2030,21 +2031,24 @@ async function placeManualRange() {
     content:`<label>Shape <select name="kind">
       <option value="zone">Rectangle / Zone</option><option value="centeredZone">Rectangle Centered on Selected Token</option><option value="zoneCells">Connected Zone</option><option value="circle">Circle</option>
       <option value="line">Line</option><option value="cone">Cone</option>
+      <option value="closeBlast">Close Blast</option><option value="rangedBlast">Ranged Blast</option><option value="burst">Burst</option>
     </select></label>
     <label>Length, radius (m), or connected square count <input name="length" type="number" min="1" step="1" value="3" required></label>
-    <label>Rectangle width (m) <input name="width" type="number" min="1" step="1" value="3" required></label>`,
+    <label>Rectangle width (m) <input name="width" type="number" min="1" step="1" value="3" required></label>
+    <label>Ranged Blast reach (m) <input name="reach" type="number" min="1" step="1" value="6" required></label>`,
     ok:{label:"Place",callback:(event,button)=>new FormData(button.form)},rejectClose:false
   });
   if (!form) return;
   const kind = form.get("kind");
   const length = Number(form.get("length"));
   const width = Number(form.get("width"));
-  if (!["zone","centeredZone","zoneCells","circle","line","cone"].includes(kind) ||
-    ![length,width].every(value=>Number.isSafeInteger(value) && value > 0)) {
+  const reach = Number(form.get("reach"));
+  if (!["zone","centeredZone","zoneCells","circle","line","cone","closeBlast","rangedBlast","burst"].includes(kind) ||
+    ![length,width,reach].every(value=>Number.isSafeInteger(value) && value > 0)) {
     return ui.notifications.warn("Choose a shape and enter positive whole-meter dimensions.");
   }
-  const source = kind === "centeredZone" ? canvas.tokens.controlled[0] : null;
-  return placeRangeTemplate({kind,length,width,targetLimit:length,label:"Manual template"},source,"Manual template",{manual:true});
+  const source = ["centeredZone","closeBlast","rangedBlast","burst"].includes(kind) ? canvas.tokens.controlled[0] : null;
+  return placeRangeTemplate({kind,length,width:["closeBlast","rangedBlast"].includes(kind) ? length : width,reach,targetLimit:length,label:"Manual template"},source,"Manual template",{manual:true});
 }
 
 async function placeMoveRange(item) {

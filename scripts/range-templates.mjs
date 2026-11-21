@@ -89,19 +89,67 @@ export function tokenRangeOrigin(token, size) {
   return {x,y,width:w,height:h,center:{x:x+w/2,y:y+h/2}};
 }
 
+function removableTemplates(scene) {
+  return [...scene.templates.values()].filter(template=>
+    template.getFlag(systemId,"range") &&
+    (game.user.isGM || template.author?.id === game.user.id || template._source?.author === game.user.id) &&
+    template.canUserModify(game.user,"delete"));
+}
+
+async function deleteRangeTemplate(scene, template, candidates) {
+  const group = template.getFlag(systemId,"rangeGroup");
+  if (!group) return template.delete();
+  const members = candidates.filter(item=>item.getFlag(systemId,"rangeGroup") === group);
+  return scene.deleteEmbeddedDocuments("MeasuredTemplate",members.map(item=>item.id));
+}
+
 export async function removeLastRangeTemplate() {
   if (!canvas.ready) return;
-  if (cancelPlacement) return cancelPlacement();
-  const candidates = [...canvas.scene.templates.values()].filter(template=>
-    template.getFlag(systemId,"range") &&
-    (template.author?.id === game.user.id || template._source?.author === game.user.id || game.user.isGM) &&
-    template.canUserModify(game.user,"delete"));
+  cancelPlacement?.();
+  const scene = canvas.scene;
+  const candidates = removableTemplates(scene);
   const latest = candidates.reverse().sort((a,b)=>(b._stats?.createdTime ?? 0)-(a._stats?.createdTime ?? 0))[0];
   if (!latest) return ui.notifications.info("No removable PTE template on this scene.");
-  const group = latest.getFlag(systemId,"rangeGroup");
-  if (!group) return latest.delete();
-  const members = candidates.filter(template=>template.getFlag(systemId,"rangeGroup") === group);
-  return canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate",members.map(template=>template.id));
+  return deleteRangeTemplate(scene,latest,candidates);
+}
+
+export function removeRangeOnMap() {
+  if (!canvas.ready) return ui.notifications.warn("Open a scene to delete templates.");
+  const scene = canvas.scene;
+  const board = document.getElementById("board");
+  if (!board) return;
+  cancelPlacement?.();
+  const controller = new AbortController();
+  const {signal} = controller;
+  const cancel = ()=>{controller.abort();clearTimeout(timer);cancelPlacement=null};
+  const timer = setTimeout(cancel,45000);
+  cancelPlacement = cancel;
+  ui.notifications.info("Click a PTE template to delete it. Press Esc to cancel.");
+  window.addEventListener("keydown",event=>{
+    if (event.key === "Escape") cancel();
+  },{capture:true,signal});
+  window.addEventListener("pointerdown",async event=>{
+    if (event.target !== board || event.button !== 0) return;
+    if (canvas.scene?.id !== scene.id) return cancel();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const point = canvas.canvasCoordinatesFromClient({x:event.clientX,y:event.clientY});
+    const candidates = removableTemplates(scene);
+    const hit = candidates.reverse().find(template=>{
+      const dx = point.x-template.x;
+      const dy = point.y-template.y;
+      return template.object?.visible !== false &&
+        (Math.hypot(dx,dy) <= canvas.grid.size/5 || template.object?.shape?.contains(dx,dy));
+    });
+    if (!hit) return ui.notifications.info("Click inside a removable PTE template or near its origin handle.");
+    cancel();
+    try {
+      await deleteRangeTemplate(scene,hit,candidates);
+    } catch (error) {
+      console.error("PTE template deletion failed.",error);
+      ui.notifications.error("The template could not be deleted.");
+    }
+  },{capture:true,signal});
 }
 
 export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
@@ -110,7 +158,7 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   if (!scene || !board || !canvas.grid.isSquare) return ui.notifications.warn("PTE range placement requires an active square-grid scene.");
   const Template = CONFIG.MeasuredTemplate.documentClass;
   if (!Template.canUserCreate(game.user)) return ui.notifications.warn("You need permission to create measured templates.");
-  if (!token && (shape.kind === "centeredZone" || (!manual && !["zone","zoneCells"].includes(shape.kind)))) return ui.notifications.warn("Select the move’s source token on the map.");
+  if (!token && (["centeredZone","burst","closeBlast","rangedBlast"].includes(shape.kind) || (!manual && !["zone","zoneCells"].includes(shape.kind)))) return ui.notifications.warn("Select the move’s source token on the map.");
   const size = canvas.grid.size;
   let origin = token && tokenRangeOrigin(token,size);
   const units = scene.grid.distance;

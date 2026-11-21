@@ -218,11 +218,16 @@
     <label>Gained or modified capabilities
       <textarea name="system.capabilityNotes" rows="2" {{#unless editable}}readonly{{/unless}}>{{system.capabilityNotes}}</textarea>
     </label>
+    {{#if editable}}{{#if actorCapabilities}}
+      <div class="pte-buttons" aria-label="Use capabilities">
+        {{#each actorCapabilities}}<button type="button" data-action="capability" data-capability="{{name}}">{{name}}</button>{{/each}}
+      </div>
+    {{/if}}{{/if}}
     <details><summary>Capability rules</summary>
       {{#each capabilityGroups}}
         <h3>{{name}}</h3>
         <dl>{{#each entries}}
-          <dt><strong>{{name}}</strong></dt><dd>{{summary}} <small>PTE Rule Book, p. {{page}}</small></dd>
+          <dt><strong>{{name}}</strong> {{#if @root.editable}}<button type="button" data-action="capability" data-capability="{{name}}">Use</button>{{/if}}</dt><dd>{{summary}} <small>PTE Rule Book, p. {{page}}</small></dd>
         {{/each}}</dl>
       {{/each}}
     </details>

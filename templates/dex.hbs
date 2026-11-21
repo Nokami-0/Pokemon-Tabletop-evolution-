@@ -1,13 +1,35 @@
 <div class="pte-body pte-dex-body">
   <header class="pte-banner"><div><h2>Pokédex</h2><span>PTE FIELD DATABASE</span></div></header>
-  <input type="search" aria-label="Search Pokédex" placeholder="Search species or type">
-  <div class="pte-results">
-    {{#each entries}}
-    <div class="pte-row pte-dexrow" data-search="{{name}} {{typing}}">
-      <div><strong>{{name}}</strong> <small>p. {{page}}</small><p>{{typing}}{{#if moves}} · {{moves}}{{/if}}</p></div>
-      <button type="button" data-action="profile" data-page="{{page}}">Details</button>
-      <button type="button" data-action="importEntry" data-page="{{page}}">{{#if ../applying}}Use Stats{{else}}Create Actor{{/if}}</button>
+  <input type="search" aria-label="Search Pokédex" placeholder="Search species or type" value="{{query}}">
+  <div class="pte-dex-layout">
+    <div class="pte-results" aria-label="Species">
+      {{#each entries}}
+      <div class="pte-dexrow" data-search="{{name}} {{typing}}">
+        <button type="button" data-action="selectSpecies" data-page="{{page}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}">
+          <strong>{{name}}</strong><small>{{typing}}</small>
+        </button>
+      </div>
+      {{/each}}
     </div>
-    {{/each}}
+    {{#if selected}}
+    <section class="pte-dex-selection" aria-label="Selected Pokémon">
+      <h2>{{selected.name}}</h2>
+      <p>{{selected.typing}} · Pokédex p. {{selected.page}}</p>
+      <div class="pte-dex-art">
+        {{#if selected.portrait}}
+        <figure><img src="{{selected.portrait}}" alt="{{selected.name}} portrait"><figcaption>Portrait</figcaption></figure>
+        {{/if}}
+        {{#if selected.token}}
+        <figure><img src="{{selected.token}}" alt="{{selected.name}} map token"><figcaption>Map token</figcaption></figure>
+        {{/if}}
+      </div>
+      {{#unless selected.portrait}}<p>Install the PTE portrait and token pack to preview the artwork.</p>{{/unless}}
+      {{#if selected.moves}}<p><strong>Starting attacks</strong> · {{selected.moves}}</p>{{/if}}
+      <div class="pte-buttons">
+        <button type="button" data-action="profile" data-page="{{selected.page}}">Details</button>
+        <button type="button" data-action="importEntry" data-page="{{selected.page}}">{{#if applying}}Use Stats &amp; Artwork{{else}}Create Actor{{/if}}</button>
+      </div>
+    </section>
+    {{/if}}
   </div>
 </div>

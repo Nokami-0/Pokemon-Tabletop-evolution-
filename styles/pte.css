@@ -36,6 +36,13 @@
 .pte .pte-itemrow,.pte .pte-dexrow {padding:6px 0; border-top:1px solid var(--pte-line)}
 .pte .pte-skills {grid-template-columns:repeat(auto-fit,minmax(143px,1fr))}
 .pte .pte-dex-body {height:100%; overflow:hidden}
+.pte .pte-dex-layout {display:grid; grid-template-columns:minmax(112px,1fr) minmax(0,1.55fr); gap:10px; min-height:0; flex:1}
+.pte .pte-dexrow button {display:flex; flex-direction:column; align-items:flex-start; width:100%; text-align:left}
+.pte .pte-dex-selection {min-width:0; overflow:auto}
+.pte .pte-dex-art {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:8px 0}
+.pte .pte-dex-art figure {min-width:0; margin:0; text-align:center}
+.pte .pte-dex-art img {display:block; width:100%; aspect-ratio:1; object-fit:contain}
+.pte .pte-dex-art figcaption {color:var(--pte-navy); font-size:12px}
 .pte .pte-results {overflow:auto; min-height:0; flex:1}
 .pte [hidden] {display:none!important}
 .pte p {margin:4px 0; color:var(--pte-muted)}

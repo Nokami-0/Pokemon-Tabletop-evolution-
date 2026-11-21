@@ -128,9 +128,13 @@ async function applySpeciesArtwork(actor) {
   const art = await tokenArtwork(actor.system.dexPage);
   if (!art.token) return ui.notifications.warn("Install the portrait and token pack in the configured Foundry Data folder.");
   await actor.update(tokenArtworkUpdates(art));
+  await syncSceneTokens(actor,{"texture.src":art.token});
+}
+
+async function syncSceneTokens(actor,changes) {
   const scene = globalThis.canvas?.scene;
   const updates = Array.from(scene?.tokens ?? []).filter(token=>token.actor?.uuid === actor.uuid && token.isOwner)
-    .map(token=>({_id:token.id,"texture.src":art.token}));
+    .map(token=>({_id:token.id,...changes}));
   if (updates.length) await scene.updateEmbeddedDocuments("Token",updates);
 }
 
@@ -1609,7 +1613,12 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
 class Dex extends HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
   static DEFAULT_OPTIONS = {classes:["pte","pte-dex"],position:{width:580,height:580},window:{title:"Pokédex",resizable:true},
-    actions:{profile(event,target) { return showProfile(Number(target.dataset.page)); }, async importEntry(event,target) {
+    actions:{
+    selectSpecies(event,target) {
+      this.selectedPage = Number(target.dataset.page);
+      return this.render({parts:["body"]});
+    },
+    profile(event,target) { return showProfile(Number(target.dataset.page)); }, async importEntry(event,target) {
       const entry = this.entries.find(row => row.page === Number(target.dataset.page));
       if (!entry) return;
       const system = {species:entry.name,dexPage:entry.page,stats:entry.stats,type1:entry.types[0] ?? "",type2:entry.types[1] ?? ""};
@@ -1619,6 +1628,9 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
       if (this.destination?.isOwner) {
         system.health = {value:maxHP(this.destination.system.level,entry.stats.hp,true)};
         await this.destination.update({system,...prototypeFootprintUpdates(footprint),...tokenArtworkUpdates(art)});
+        if (art.token || footprint) {
+          await syncSceneTokens(this.destination,{...footprint,...(art.token ? {"texture.src":art.token} : {})});
+        }
       } else {
         if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need permission to create an Actor.");
         const actor = await Actor.create({type:"pokemon",name:entry.name,system,items:startingMoveData(entry),
@@ -1632,19 +1644,31 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
   constructor({destination,...options} = {}) {
     super(options);
     this.destination = destination;
+    this.selectedPage = destination?.system.dexPage;
+    this.query = "";
   }
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     this.entries ??= await dex();
-    return {...context,entries:this.entries.map(entry => ({...entry,typing:entry.types.join(" / "),moves:entry.starting.join(", ")})),applying:Boolean(this.destination)};
+    const selection = this.entries.find(entry=>entry.page === this.selectedPage) ?? this.entries[0];
+    this.selectedPage = selection?.page;
+    const art = selection ? await tokenArtwork(selection.page) : {};
+    const entries = this.entries.map(entry=>({...entry,typing:entry.types.join(" / "),selected:entry.page === this.selectedPage}));
+    return {...context,entries,applying:Boolean(this.destination),query:this.query,
+      selected:selection ? {...selection,typing:selection.types.join(" / "),portrait:art.portrait,token:art.token,
+        moves:selection.starting.join(", ")} : null};
   }
   _onRender(context,options) {
     super._onRender(context,options);
     const input = this.element.querySelector("input[type=search]");
-    input.addEventListener("input", () => {
-      const query = input.value.trim().toLowerCase();
+    const filter = () => {
+      this.query = input.value;
+      const query = this.query.trim().toLowerCase();
       for (const row of this.element.querySelectorAll("[data-search]")) row.hidden = !row.dataset.search.toLowerCase().includes(query);
-    });
+    };
+    input.addEventListener("input",filter);
+    filter();
+    this.element.querySelector('[data-action="selectSpecies"][aria-pressed="true"]')?.scrollIntoView({block:"nearest"});
   }
 }
 

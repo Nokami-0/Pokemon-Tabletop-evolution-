@@ -201,7 +201,7 @@ export function placeRangeTemplate(shape, token, name, {manual = false} = {}) {
   };
   const instruction = shape.kind === "zoneCells" ?
     `Click ${shape.targetLimit} edge-connected squares. Press Esc to cancel.` : shape.kind === "target" ?
-    `Click up to ${shape.targetLimit} target square(s) within ${shape.reach} m. Press Enter to finish early.` : directional ? (manual ? "Click the starting square, then click to aim." : "Click a square to aim.") :
+    `Click up to ${shape.targetLimit} target square(s) within ${shape.reach} m. Press Enter to finish early.` : directional ? (manual && !token ? "Click the starting square, then click to aim." : "Click a square to aim from the source token.") :
     shape.kind === "circle" ? "Click the center square." : "Click the upper-left square.";
   ui.notifications.info(`${instruction} Press Esc to cancel.`);
   window.addEventListener("keydown",event=>{

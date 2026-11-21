@@ -2047,7 +2047,7 @@ async function placeManualRange() {
     ![length,width,reach].every(value=>Number.isSafeInteger(value) && value > 0)) {
     return ui.notifications.warn("Choose a shape and enter positive whole-meter dimensions.");
   }
-  const source = ["centeredZone","closeBlast","rangedBlast","burst"].includes(kind) ? canvas.tokens.controlled[0] : null;
+  const source = ["centeredZone","closeBlast","rangedBlast","burst","line"].includes(kind) ? canvas.tokens.controlled[0] : null;
   return placeRangeTemplate({kind,length,width:["closeBlast","rangedBlast"].includes(kind) ? length : width,reach,targetLimit:length,label:"Manual template"},source,"Manual template",{manual:true});
 }
 

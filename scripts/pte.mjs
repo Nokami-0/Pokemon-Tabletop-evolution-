@@ -2,7 +2,7 @@ import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
 import {maneuvers, riposteDamageResult} from "./maneuvers.mjs";
 import {entrySource, catalogItemData, catalogEffect, linkedEffectPlaceholder, categoryEffectPlaceholder} from "../data/item-data.mjs";
-import {capabilityGroups} from "../data/capabilities.mjs";
+import {capabilityGroups, capabilityUses} from "../data/capabilities.mjs";
 import {normalizeRequirement, requirementResult, speciesRequirement, normalizeAbilityName, speciesAbilityNames, evolutionOptions, normalizeMoveName} from "./prerequisites.mjs";
 import {catalog as bookCatalog} from "../data/catalog.mjs";
 import {attackCatalog} from "../data/attacks.mjs";
@@ -215,7 +215,10 @@ async function changeSpirit(actor,delta,label) {
   try {
     const current = actor.system.spirit;
     const balance = spiritBalance(current,delta);
-    if (balance === null) return ui.notifications.warn("This combatant does not have enough Spirit Points.");
+    if (balance === null) {
+      ui.notifications.warn("This combatant does not have enough Spirit Points.");
+      return false;
+    }
     if (balance === current) return ui.notifications.info("Spirit Points are already full.");
     await actor.update({"system.spirit":balance});
     if (label) await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),
@@ -224,6 +227,42 @@ async function changeSpirit(actor,delta,label) {
   } finally {
     pendingGear.delete(actor.uuid);
   }
+}
+
+const capabilityEntries = capabilityGroups.flatMap(group=>group.entries);
+const actorCapabilityUses = (actor,name) => capabilityUses(name,tier(actor.system.level,pokemon(actor)),actor.system.afflictions);
+
+async function useCapability(actor,name) {
+  if (!actor.isOwner || actor.system.health.value <= 0) return;
+  const entry = capabilityEntries.find(capability=>capability.name === name);
+  if (!entry) return;
+  const options = actorCapabilityUses(actor,name);
+  const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:name},
+    content:`<p>${escape(entry.summary)}</p><p>${actor.system.spirit} / ${maxSpiritPoints} SP available.</p>
+      <label>Use <select name="use">${options.map(({label,cost},index)=>
+        `<option value="${index}">${escape(label)} · ${cost === null ? "Variable SP" : `${cost} SP`}</option>`).join("")}</select></label>
+      ${options.some(option=>option.cost === null) ? `<label>Amount for variable SP use <input name="amount" type="number" min="1" max="${maxSpiritPoints}" value="1"></label>` : ""}
+      <p>Confirm this actor has the capability and meets its trigger. Resolve action costs, checks and effects at the table.</p>`,
+    ok:{label:"Use Capability",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
+  if (!form || !actor.isOwner || actor.system.health.value <= 0) return;
+  const option = actorCapabilityUses(actor,name)[Number(form.get("use"))];
+  if (!option) return;
+  const cost = option.cost ?? Number(form.get("amount"));
+  if (!Number.isInteger(cost) || cost < 0 || (option.cost === null && (cost < 1 || cost > maxSpiritPoints))) {
+    return ui.notifications.warn("Enter a valid SP amount.");
+  }
+  if (cost && !await changeSpirit(actor,-cost)) return;
+  return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:
+    `<strong>${escape(name)}</strong> · ${escape(option.label)} · ${cost} SP spent · ${actor.system.spirit} / ${maxSpiritPoints} SP<p>${escape(entry.summary)}</p>`});
+}
+
+function actorCapabilityButtons(speciesCapabilities,notes) {
+  const text = normalizeRequirement(`${speciesCapabilities || ""} ${notes || ""}`);
+  return capabilityEntries.filter(({name})=>{
+    const key = normalizeRequirement(name);
+    const expression = new RegExp(`(?:^|[^a-z])${key}(?:$|[^a-z])`);
+    return expression.test(text);
+  });
 }
 
 async function adjustSpirit(actor, mode) {
@@ -1434,6 +1473,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         const loss = afflictionTickDamage(actor.system.health.max,active,form.has("moved"));
         return actor.update(combatDamageUpdate(actor.system,loss));
       },
+      capability(event,target) { return useCapability(this.document,target.dataset.capability); },
       spirit(event,target) { return adjustSpirit(this.document,target.dataset.mode); },
       initiative(event,target) { return rollInitiative(this.document,target.dataset.party === "true"); },
       luck() { return new Roll("1d20").toMessage({speaker:ChatMessage.getSpeaker({actor:this.document}),flavor:"Luck Check"}); },
@@ -1577,6 +1617,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const teamTrainer = pokemon(actor) ? trainer : actor;
     return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tier(system.level,pokemon(actor)),
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
+      actorCapabilities:actorCapabilityButtons(speciesProfile?.capabilities,system.capabilityNotes),
       speciesAbilities:speciesAbilityNames(speciesProfile).map(name=>abilitiesByName.get(normalizeAbilityName(name))?.name || name).join(", "),
       ownedAbilities:pokemon(actor) ? actor.items.filter(isAbilityItem).map(item=>({id:item.id,name:item.name,spiritCost:item.system.spiritCost})) : [],
       speciesCapabilities:speciesProfile?.capabilities.split(/\s+(?=(?:Combat|Narrative)\s*[-–:])/),

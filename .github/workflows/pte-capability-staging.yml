@@ -1,0 +1,29 @@
+name: Package PTE 0.1.47
+on:
+  push:
+    branches: [pte-package-capabilities-0-1-47]
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = 'ed28b830c5deb916b394a93c23be9cc23c8ac085'
+          unzip -q dist/pokemon-tabletop-evolution-0.1.46.zip 'assets/pte-tokens/*'
+          for f in scripts/*.mjs; do node --check "$f"; done
+          zip -qr dist/pokemon-tabletop-evolution-0.1.47.zip system.json scripts styles templates data packs assets README.md
+          unzip -tq dist/pokemon-tabletop-evolution-0.1.47.zip
+          test "$(unzip -Z1 dist/pokemon-tabletop-evolution-0.1.47.zip | grep -c '\.webp$')" -eq 2004
+          git reset --soft 'ed28b830c5deb916b394a93c23be9cc23c8ac085'
+          git rm --cached .github/workflows/pte-capability-staging.yml
+          git add dist/pokemon-tabletop-evolution-0.1.47.zip
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Add capability buttons with automatic Spirit Point costs'
+          git push origin HEAD:main

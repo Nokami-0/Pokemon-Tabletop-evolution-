@@ -63,3 +63,28 @@ export const capabilityGroups = [
     ["X-Ray Vision",180,"Focus for one minute to see blurry shapes beyond blocking terrain within 2m."]
   ]}
 ].map(group=>({...group,entries:group.entries.map(([name,page,summary])=>({name,page,summary}))}));
+
+const mentalAfflictions = ["cursed","dazed","disabled","drowsy","enraged","entranced","suppressed"];
+const free = ["Use the basic effect",0];
+
+export function capabilityUses(name, tier, afflictions = {}) {
+  const impaired = mentalAfflictions.filter(key=>afflictions[key]).length;
+  const tierCost = Math.max(0,3 - tier);
+  const options = ({
+    Flier:[["Become Airborne",0],["Stay Airborne at turn end",1]],
+    Phaser:[["Phase through terrain",impaired]],
+    Teleporter:[["Teleport",impaired]],
+    Blindsense:[free,["Enhance a sense for up to 30 minutes",1]],
+    Groundshaper:[["Change terrain within 2m",0],["Extend terrain shaping",1],["Create fragile blocking terrain",2]],
+    Invisibility:[["Become invisible or visible",0],["Maintain concentration instead of a Focus check",1]],
+    "Shadow Meld":[free,["Spend SP for additional hours outside combat",null]],
+    Telekinetic:[free,["Gain +2 Power for one hour",1]],
+    "Dream Reader":[free,["Shape or project a touched sleeper’s dreams",1]],
+    Empath:[free,["Sense deeper emotions with a Focus check",1]],
+    Illusionist:[free,["Lift one illusion restriction",tierCost]],
+    "Mind Weaver":[free,["Spend SP to reach older memories after the check",2]],
+    Premonition:[free,["Spend SP to clarify the vision",null]],
+    Telepath:[free,["Attempt to read deeper thoughts after a successful read",tierCost]]
+  })[name];
+  return (options ?? [free]).map(([label,cost])=>({label,cost}));
+}

@@ -13,30 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish backpacks and slot expanders folder
+      - name: Publish ready-to-use weapons
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.90
+          version=0.1.91
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.89 --pattern pokemon-tabletop-evolution-0.1.89.zip --output "$package"
+          gh release download v0.1.90 --pattern pokemon-tabletop-evolution-0.1.90.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.90";
+          manifest.version = "0.1.91";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
           npm install --no-save --no-package-lock classic-level@3.0.0
           unzip -oq "$package" 'packs/gear/*'
-          node tools/organize-capacity-gear.mjs
+          node tools/add-weapon-presets.mjs
           rm -f packs/gear/{LOCK,LOG,LOG.old}
           zip -qd "$package" 'packs/gear/*'
-          zip -qr "$package" system.json packs/gear
+          node --check scripts/pte.mjs
+          zip -qr "$package" system.json packs/gear scripts/pte.mjs data/weapon-presets.mjs
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Groups backpacks and slot-expanding gear in a dedicated compendium folder."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds 16 drag-and-drop weapons across four qualities with linked weapon attacks."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

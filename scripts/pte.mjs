@@ -1,3 +1,4 @@
+import {weaponPresets} from "../data/weapon-presets.mjs";
 import {itemKeywords, equipmentEligible, itemSlotLabel, slotTotals} from "../data/item-slots.mjs";
 import {equipment} from "../data/equipment.mjs";
 import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
@@ -504,7 +505,9 @@ async function useMove(actor, item, pool = null) {
   const move = item.system;
   if (move.weaponId) {
     const weapon = actor.items.get(move.weaponId);
-    if (!weapon?.system.equipped) return ui.notifications.warn("Equip the weapon that grants this attack.");
+    if (!weapon?.system.equipped || weapon.system.inStorage || weapon.system.impaired || weapon.system.quantity < 1) {
+      return ui.notifications.warn("Equip the usable weapon that grants this attack.");
+    }
     if (weapon.system.weaponRank > (actor.system.skills[weapon.system.weaponSkill] ?? 0)) {
       return ui.notifications.warn("The holder does not meet this weapon’s qualifying skill rank.");
     }
@@ -1990,7 +1993,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       async remove(event,target) {
         const item = this.document.items.get(target.dataset.id);
-        if (item && await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
+        if (item && await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) {
+          const linked = item.type === "gear" ? this.document.items.filter(move=>move.type === "move" && move.system.weaponId === item.id) : [];
+          await this.document.deleteEmbeddedDocuments("Item",[item.id,...linked.map(move=>move.id)]);
+        }
       },
       createWeapon() { return createWeapon(this.document); },
       async raiseShield() {
@@ -2096,6 +2102,29 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       (item.type === "feature" && !pokemonCatalogFeature(catalogListing(item))))) {
       ui.notifications.warn("Use Pokémon Roles and Abilities on Pokémon sheets.");
       return null;
+    }
+    const preset = item.pack === `${ID}.gear` && weaponPresets.get(item.getFlag(ID,"weaponPreset"));
+    if (preset) {
+      if (!this.isEditable || pendingGear.has(actor.uuid)) return null;
+      if (pokemon(actor)) return ui.notifications.warn("These Trainer weapons lack the Pokémon equipment keyword.");
+      pendingGear.add(actor.uuid);
+      try {
+        const id = foundry.utils.randomID();
+        const [gear] = await actor.createEmbeddedDocuments("Item",[{...preset.gear,_id:id}],{keepId:true});
+        if (!gear) return null;
+        try {
+          const moves = await actor.createEmbeddedDocuments("Item",preset.moves.map(move=>
+            ({...move,system:{...move.system,weaponId:gear.id}})));
+          if (moves.length !== preset.moves.length) throw Error("Some weapon attacks could not be added.");
+        } catch (error) {
+          const added = actor.items.filter(move=>move.type === "move" && move.system.weaponId === gear.id);
+          await actor.deleteEmbeddedDocuments("Item",[gear.id,...added.map(move=>move.id)]);
+          throw error;
+        }
+        return gear;
+      } finally {
+        pendingGear.delete(actor.uuid);
+      }
     }
     if (!item.pack?.startsWith(`${ID}.`) || item.type === "gear") return super._onDropItem(event,item);
     if (!this.isEditable || (pokemon(actor) && item.type === "class")) return null;

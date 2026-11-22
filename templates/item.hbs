@@ -20,6 +20,7 @@
       </select></label>{{/if}}
       <label>Unit Price <input name="system.price" value="{{price}}"></label>
       <label>Quantity <input type="number" min="0" name="system.quantity" value="{{system.quantity}}"></label>
+      <label>Item Size <select name="system.slotSize">{{#each slotSizes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{#if value}}{{value}}{{else}}From item keywords{{/if}}</option>{{/each}}</select></label>
       <label>Slot keyword override <input name="system.slotKeywords" value="{{system.slotKeywords}}" placeholder="e.g. Medium, Equipment - Armor, Pokémon"></label>
       <small>Item keywords · {{gearKeywords}}</small>
       {{#if ownedGear}}<label class="pte-check">Impaired <input type="checkbox" name="system.impaired" {{#if system.impaired}}checked{{/if}}></label>{{/if}}

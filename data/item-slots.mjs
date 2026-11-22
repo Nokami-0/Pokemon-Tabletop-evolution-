@@ -10,7 +10,7 @@ const large = names("Air Balloon|Dodge Scarf|Focus Sash|Rocky Helmet|Pokemon Sad
 const small = names("Basic Pokefood|Typed Pokefood|Pokepuff|Pokeball|Shard|Hazard Bag|Simple Poultice|Greater Poultice|Jewelry|Berserk Belt|Rare Candy|Ability Capsule|Gemstone");
 const consumable = names("Pokeball|Basic Pokefood|Typed Pokefood|Pokepuff|Shard|Simple Poultice|Greater Poultice|Hazard Bag|Trap Set|Small Gadget|Ability Capsule|Elemental Catalyst|Elemental Enchantment|Evolution Stone|Harnessed Attack|Rare Candy|Tutor Record");
 
-export function itemKeywords(item) {
+function inferredKeywords(item) {
   const {name,system} = item;
   if (system.slotKeywords?.trim()) return names(system.slotKeywords.split(/[,;\[\]]+/)
     .map(value=>value.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"")).filter(Boolean).join("|"));
@@ -26,6 +26,36 @@ export function itemKeywords(item) {
   if (consumable.has(name) || / Potion$/.test(name)) keys.add("consumable");
   if (/ Potion$/.test(name) || ["Basic Pokefood","Typed Pokefood"].includes(name)) keys.add("throwable");
   return keys;
+}
+
+export function itemKeywords(item) {
+  const keys = inferredKeywords(item);
+  const size = item.system.slotSize?.toLowerCase();
+  if (["small","medium","large"].includes(size)) {
+    for (const keyword of ["small","medium","large"]) keys.delete(keyword);
+    keys.add(size);
+  }
+  return keys;
+}
+
+export function itemSlotUsage(item) {
+  const {system} = item;
+  const keys = itemKeywords(item);
+  const size = keys.has("large") ? 2 : 1;
+  const quantity = system.quantity ?? 1;
+  const equipped = quantity > 0 && system.equipped && !system.inStorage ? size : 0;
+  const carried = system.inStorage ? 0 : quantity - Number(Boolean(equipped));
+  if (!carried || keys.has("essential") || keys.has("trinket")) return {equipped,regular:0,small:0};
+  if (keys.has("resource")) return {equipped,regular:1,small:0};
+  if (keys.has("small")) return {equipped,regular:0,small:carried};
+  return {equipped,regular:size * carried,small:0};
+}
+
+export function itemSlotLabel(item) {
+  if (item.system.inStorage) return "Storage · 0 carried slots";
+  const {equipped,regular,small} = itemSlotUsage(item);
+  return [equipped && `Equipment: ${equipped}`, regular && `Inventory: ${regular}`,
+    small && `Inventory: ${small} Small (3 per slot)`].filter(Boolean).join(" · ") || "0 slots";
 }
 
 const equippedKeyword = keys => [...keys].some(key=>key === "equipment" || key.startsWith("equipment - "));
@@ -63,11 +93,10 @@ export function slotTotals(items,pokemon) {
         if (!pokemon && name === "Heavy Backpack") backpack += 6;
       }
     }
-    const carried = quantity - Number(Boolean(system.equipped));
-    if (!carried || keys.has("essential") || keys.has("trinket")) continue;
-    if (keys.has("resource")) smallCount += 3;
-    else if (keys.has("small")) smallCount += carried;
-    else regular += size * carried;
+    const usage = itemSlotUsage(item);
+    if (keys.has("resource")) smallCount += usage.regular * 3;
+    else regular += usage.regular;
+    smallCount += usage.small;
   }
   const base = pokemon ? 0 : 6;
   const pack = Math.min(backpack,12 - base);

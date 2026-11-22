@@ -1,4 +1,4 @@
-import {itemKeywords, equipmentEligible, slotTotals} from "../data/item-slots.mjs";
+import {itemKeywords, equipmentEligible, itemSlotLabel, slotTotals} from "../data/item-slots.mjs";
 import {equipment} from "../data/equipment.mjs";
 import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
@@ -2133,6 +2133,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
     const groups = Object.entries(itemTypes).filter(([type]) => !pokemon(actor) || (type !== "class" && type !== "feature")).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
         id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",canEquip:type === "gear" && !i.system.inStorage && i.system.quantity > 0 && (i.system.equipped || equipmentEligible(i,pokemon(actor))),
+        slotLabel:type === "gear" ? itemSlotLabel(i) : "",
         itemKeywords:type === "gear" ? [...itemKeywords(i)].map(titleCase).join(" · ") : "",
         usable:!i.system.inStorage && !i.system.impaired && (!pokemon(actor) || i.type !== "gear" || itemKeywords(i).has("pokemon")) && Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
@@ -2308,6 +2309,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.document;
     const listing = catalogListing(item);
+    const slotSizes = choices(["","Small","Medium","Large"],item.system.slotSize);
     const gearKeywords = item.type === "gear" ? [...itemKeywords(item)].map(titleCase).join(", ") : "";
     const variants = Object.keys(boostListing(item) || maladyListing(item) || {}).map(value=>({value,label:potionVariants[value] || afflictions[value],selected:item.system.variant===value}));
     const description = itemDescription(item,listing);
@@ -2327,7 +2329,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         rows:section.rows.map(row=>({...row,applies:selectedTerrains?.has(normalizeRequirement(row.name)),source:referenceSource(row.source)}))
       }));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
-    return {...context,item,system:item.system,gearKeywords,ownedGear:item.type === "gear" && Boolean(item.parent),price:item.type === "gear" ? gearPrice(item) : "",
+    return {...context,item,system:item.system,gearKeywords,slotSizes,ownedGear:item.type === "gear" && Boolean(item.parent),price:item.type === "gear" ? gearPrice(item) : "",
       canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
       classFeatures:classFeatureEntries(listing,item.parent),classCharts,
       parentClass:featureClass(listing)?.name,
@@ -2434,7 +2436,7 @@ Hooks.on("preUpdateItem", (item,changes) => {
   const actor = item.parent;
   if (item.type !== "gear" || !["trainer","pokemon"].includes(actor?.type)) return;
   const update = foundry.utils.expandObject(changes);
-  const relevant = ["equipped","quantity","slotKeywords","inStorage"];
+  const relevant = ["equipped","quantity","slotKeywords","slotSize","inStorage"];
   if (!relevant.some(key=>Object.hasOwn(update.system || {},key)) && !Object.hasOwn(update,"name")) return;
   const before = slotTotals(actorGear(actor),pokemon(actor));
   const gear = actorGear(actor).map(row=>row._id === item.id ?

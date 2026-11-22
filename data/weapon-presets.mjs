@@ -42,7 +42,15 @@ const presets = [
   ["precision-rifle","Precision Rifle","Fine","Martial","Long Ranged","Large","Perception",["Ammo","Piercing"],["Take Aim","Bullseye","Deadly Strike","Trick Shot"]],
   ["magitech-pistol","Magitech Pistol","Fine","Arcane","Short Ranged","Medium","Technology Education",["Ammo","Homing"],["Energy Blast","Rapid Shot","Missile Shot"]],
   ["vanguard-rifle","Vanguard Rifle","Legendary","Martial","Long Ranged","Large","Perception",["Ammo","Sundering"],["Bullseye","Rapid Shot","Trick Shot","Deadly Strike","Deadly Volley","Triple Strike"]],
-  ["astral-blaster","Astral Blaster","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Empowerment","Spirit Lance","Limit Break"]]
+  ["astral-blaster","Astral Blaster","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Empowerment","Spirit Lance","Limit Break"]],
+  ["practice-hexcaster","Practice Hexcaster","Training","Arcane","Short Ranged","Medium","Technology Education",[],["Energy Blast"]],
+  ["training-pulse-projector","Training Pulse Projector","Training","Arcane","Long Ranged","Large","Technology Education",[],["Energy Blast","Resonance Beam"]],
+  ["spellshot-sidearm","Spellshot Sidearm","Simple","Arcane","Short Ranged","Medium","Technology Education",["Homing"],["Bane","Energy Blast"]],
+  ["resonance-carbine","Resonance Carbine","Simple","Arcane","Long Ranged","Large","Technology Education",["Enhancing"],["Resonance Beam","Take Aim","Empowerment"]],
+  ["field-mender-projector","Field Mender Projector","Fine","Arcane","Short Ranged","Medium","Medicine Education",["Mending","Enhancing"],["Healing Aura","Energy Blast","Heal Pulse (Weapon)"]],
+  ["runic-arc-rifle","Runic Arc Rifle","Fine","Arcane","Long Ranged","Large","Technology Education",["Homing","Sundering"],["Energy Blast","Resonance Beam","Missile Shot","Magical Burst"]],
+  ["eclipse-hexcaster","Eclipse Hexcaster","Legendary","Arcane","Short Ranged","Medium","Occult Education",["Homing","Enhancing"],["Bane","Arcane Fury","Missile Shot","Mystic Curse"]],
+  ["aegis-pulse-cannon","Aegis Pulse Cannon","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Mystic Ward","Arcane Storm","Limit Break"]]
 ];
 
 const attacks = new Map(attackCatalog.filter(entry=>entry.category === "Weapon Attacks").map(entry=>[entry.name,entry]));

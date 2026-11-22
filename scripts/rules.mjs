@@ -1,30 +1,20 @@
-export const stats = {hp:"HP", atk:"Attack", def:"Defense", spa:"Special Attack", spd:"Special Defense", spe:"Speed"};
-export const skills = ["Acrobatics","Athletics","Combat","Intimidate","Stealth","Charm","Command","Focus","Guile","Intuition","Perception","General Education","Medicine Education","Nature Education","Occult Education","Pokémon Education","Technology Education"];
-export const ranks = ["Pathetic","Untrained","Novice","Adept","Expert","Master / Virtuoso"];
-export const types = "Normal Fire Water Electric Grass Ice Fighting Poison Ground Flying Psychic Bug Rock Ghost Dragon Dark Steel Fairy".split(" ");
-const strong = ["","Grass Ice Bug Steel","Fire Ground Rock","Water Flying","Water Ground Rock","Grass Ground Flying Dragon","Normal Ice Rock Dark Steel","Grass Fairy","Fire Electric Poison Rock Steel","Grass Fighting Bug","Fighting Poison","Grass Psychic Dark","Fire Ice Flying Bug","Psychic Ghost","Dragon","Psychic Ghost","Ice Rock Fairy","Fighting Dragon Dark"];
-const weak = ["Rock Steel","Fire Water Rock Dragon","Water Grass Dragon","Electric Grass Dragon","Fire Grass Poison Flying Bug Dragon Steel","Fire Water Ice Steel","Poison Flying Psychic Bug Fairy","Poison Ground Rock Ghost","Grass Bug","Electric Rock Steel","Psychic Steel","Fire Fighting Poison Flying Ghost Steel Fairy","Fighting Ground Steel","Dark","Steel","Fighting Dark Fairy","Fire Water Electric Steel","Fire Poison Steel"];
-const immune = ["Ghost","","","Ground","","","Ghost","Steel","Flying","","Dark","","","Normal","Fairy","","",""];
-const bases = [
-  [1,6,1],[1,6,3],[1,6,5],[1,8,6],[1,8,8],[2,6,8],[2,6,10],
-  [2,8,10],[2,10,10],[3,8,10],[3,10,10],[3,12,10],[4,10,10],[4,10,15],
-  [4,10,20],[5,10,20],[5,12,25],[6,12,25],[6,12,30],[6,12,35],[6,12,40],
-  [6,12,45],[6,12,50],[6,12,55],[6,12,60],[7,12,65],[8,12,70],[8,12,80]
-];
+import settings from "../data/rule-settings.json" with {type:"json"};
+
+export const stats = settings.stats;
+export const skills = settings.skills;
+export const ranks = settings.ranks;
+export const types = settings.types;
 export function effectiveness(type, defenders, {basic = false} = {}) {
-  const index = types.indexOf(type);
-  if (index < 0) return 1;
-  const has = (row, defender) => row[index].split(" ").includes(defender);
+  if (!types.includes(type)) return 1;
+  const {strong, weak, immune} = settings.typeMatchups[type];
+  const has = (row, defender) => row.includes(defender);
   const ghostException = defender => basic && defender === "Ghost" && has(immune,defender);
   if (defenders.some(defender => has(immune,defender) && !ghostException(defender))) return 0;
   const steps = defenders.reduce((sum,defender) => sum + Number(has(strong,defender)) -
     Number(has(weak,defender) || ghostException(defender)),0);
   return [0.25, 0.5, 1, 1.5, 2][2 + Math.max(-2, Math.min(2, steps))];
 }
-const matchupLabels = {
-  0:"Immune", 0.25:"Doubly resisted", 0.5:"Resisted",
-  1:"Neutral", 1.5:"Super effective", 2:"Doubly super effective"
-};
+const matchupLabels = settings.matchupLabels;
 
 export const matchupLabel = factor => `${matchupLabels[factor]} (×${factor})`;
 
@@ -33,7 +23,7 @@ export const maxHP = (level, hp, pokemon) => level * (pokemon ? 1 : 5) + hp * 3 
 export const evasion = value => Math.max(0, Math.min(6, Math.floor(value / 5)));
 export const successes = (dice, threshold) => dice.reduce((total, value) => total + (value === 6 ? 2 : Number(value >= threshold)), 0);
 export function damageFormula(db, crit, offense, modifier) {
-  const [dice, faces, flat] = bases[Math.max(1, Math.min(28, db)) - 1];
+  const {dice, faces, flat} = settings.damageBases[Math.max(1, Math.min(settings.damageBases.length, db)) - 1];
   const multiplier = crit ? 2 : 1;
   const bonus = flat * multiplier + offense + modifier;
   return `${dice * multiplier}d${faces} ${bonus < 0 ? "-" : "+"} ${Math.abs(bonus)}`;
@@ -46,10 +36,7 @@ export function stagedStat(base, stage = 0) {
 }
 
 
-export const conditions = {
-  blinded:"Blinded", marked:"Marked", vulnerable:"Vulnerable", provoked:"Provoked",
-  trapped:"Trapped", tripped:"Tripped", untargetable:"Untargetable", weakened:"Weakened"
-};
+export const conditions = settings.conditions;
 
 export function grantedCondition(system, key) {
   if (system.health.value <= 0) return false;
@@ -58,25 +45,16 @@ export function grantedCondition(system, key) {
   return key === "weakened" && Boolean(system.afflictions.chilled);
 }
 
-export const afflictions = {
-  burned:"Burned", chilled:"Chilled", paralyzed:"Paralyzed", poisoned:"Poisoned", slowed:"Slowed", wounded:"Wounded",
-  cursed:"Cursed", dazed:"Dazed", disabled:"Disabled", drowsy:"Drowsy", enraged:"Enraged",
-  entranced:"Entranced", suppressed:"Suppressed"
-};
+export const afflictions = settings.afflictions;
 
-export const afflictionImmunities = {burned:["Fire"],chilled:["Ice"],paralyzed:["Electric"],poisoned:["Poison","Steel"]};
+export const afflictionImmunities = settings.afflictionImmunities;
 
 export function afflictionTickDamage(maxHP, active, movedFar) {
   const ticks = Number(Boolean(active.burned)) + Number(Boolean(active.poisoned)) + (active.wounded ? (movedFar ? 2 : 1) : 0);
   return Math.floor(maxHP / 10) * ticks;
 }
 
-export const recoveryGear = {
-  "Basic Healing Potion": {heal:[3,50], revive:[1,20], cure:1},
-  "Greater Healing Potion": {heal:[5,100], revive:[3,50], cure:2},
-  "Simple Poultice": {heal:[2,50], cure:1},
-  "Greater Poultice": {heal:[4,100], cure:2}
-};
+export const recoveryGear = settings.recoveryGear;
 
 export function recoveryPlan(system, gear, mode, chosen = []) {
   const {value,max} = system.health;
@@ -100,17 +78,9 @@ export function recoveryPlan(system, gear, mode, chosen = []) {
     message:mode === "revive" ? `revived at ${restored} HP` : `recovered ${restored - value} HP`};
 }
 
-export const potionVariants = {
-  atk:"Attack", spa:"Special Attack", def:"Defense", spd:"Special Defense",
-  crit:"Critical Range", accuracy:"Accuracy", evasion:"Evasion", save:"Save Checks"
-};
+export const potionVariants = settings.potionVariants;
 
-export const boostGear = {
-  "Basic Strength Potion": {atk:2,spa:2,crit:2,accuracy:2},
-  "Greater Strength Potion": {atk:3,spa:3,crit:3,accuracy:3},
-  "Basic Vitality Potion": {def:2,spd:2,evasion:3,save:2},
-  "Greater Vitality Potion": {def:3,spd:3,evasion:6,save:4}
-};
+export const boostGear = settings.boostGear;
 
 export const capCombatModifier = value => Math.max(-6,Math.min(6,value));
 
@@ -129,10 +99,7 @@ export function boostPlan(system, gear, variant, currentStage = system.stages[va
     `gained +${increase} ${potionVariants[variant]}${stage ? " combat stages" : ""} for the scene`};
 }
 
-export const maladyGear = {
-  "Basic Malady Potion": {burned:true,poisoned:true,enraged:true,entranced:true,suppressed:true,wounded:true},
-  "Greater Malady Potion": {chilled:true,paralyzed:true,cursed:true,dazed:true}
-};
+export const maladyGear = settings.maladyGear;
 
 export function maladyPlan(system, gear, variant, types, hit) {
   if (!Object.hasOwn(gear,variant)) return {error:"Choose an affliction on the potion’s item sheet first."};
@@ -192,12 +159,7 @@ export function restPlan(system, mode) {
 }
 
 
-export const basicAttackProfiles = {
-  unarmed:{label:"Melee",range:"Melee, 1 Target",db:4},
-  melee:{label:"Melee weapon",range:"Melee, 1 Target",db:6},
-  short:{label:"Short-ranged weapon or Ranger role",range:"6 m, 1 Target",db:4},
-  long:{label:"Long-ranged weapon",range:"12 m, 1 Target, no adjacent targets",db:4}
-};
+export const basicAttackProfiles = settings.basicAttackProfiles;
 
 export function basicAttackData(category, element, profile, actorTypes) {
   if (!["Physical","Special"].includes(category) || !["Normal",...actorTypes].includes(element) ||
@@ -252,7 +214,7 @@ export function trainerLevelPlan(system, {skill, milestoneSkills}) {
   return {updates};
 }
 
-export const pokemonTutorTiers = {10:[1],20:[1,2],30:[1,2],40:[2,3],50:[2,3]};
+export const pokemonTutorTiers = settings.pokemonTutorTiers;
 
 export function pokemonSkillTrainingDice(system,key) {
   return 2 * (Number(system.trainedSkill1 === key) + Number(system.trainedSkill20 === key));
@@ -319,7 +281,7 @@ export function walletBalance(balance, amount, mode) {
   return {balance:next};
 }
 
-const speciesFootprints = {small:1,medium:1,large:2,huge:3,gigantic:4};
+const speciesFootprints = settings.speciesFootprints;
 
 export function pokemonTokenFootprint(profile) {
   const size = /\((small\s*-\s*medium|small|smal|medium|large|huge|gigantic)(?=\s*(?:\)|weight\b|$))/i.exec(profile || "")?.[1].toLowerCase();
@@ -329,7 +291,7 @@ export function pokemonTokenFootprint(profile) {
 }
 
 
-export const maxSpiritPoints = 6;
+export const maxSpiritPoints = settings.maxSpiritPoints;
 
 export function spiritBalance(current, delta) {
   if (!Number.isInteger(current) || current < 0 || current > maxSpiritPoints || !Number.isInteger(delta)) return null;

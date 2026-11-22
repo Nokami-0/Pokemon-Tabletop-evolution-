@@ -13,31 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish ready-to-use weapons
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish editable system data
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.98
+          version=0.1.99
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.97 --pattern pokemon-tabletop-evolution-0.1.97.zip --output "$package"
+          gh release download v0.1.98 --pattern pokemon-tabletop-evolution-0.1.98.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.98";
+          manifest.version = "0.1.99";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          npm install --no-save --no-package-lock classic-level@3.0.0
-          unzip -oq "$package" 'packs/gear/*'
-          node tools/add-weapon-presets.mjs
-          rm -f packs/gear/{LOCK,LOG,LOG.old}
-          zip -qd "$package" 'packs/gear/*'
-          node --check scripts/pte.mjs
-          zip -qr "$package" system.json packs/gear scripts/pte.mjs data/weapon-presets.mjs data/weapon-builds.json templates/item.hbs
+          for script in data/attacks.mjs data/catalog.mjs data/class-effects.mjs data/effects.mjs data/journal-reference.mjs data/token-art.mjs data/gear-rules.mjs data/equipment.mjs data/capabilities.mjs data/class-grants.mjs scripts/rules.mjs scripts/maneuvers.mjs scripts/weapons.mjs tools/edit-dex-profiles.mjs tools/refresh-catalog-packs.mjs; do node --check "$script"; done
+          node --input-type=module -e 'import "./data/weapon-presets.mjs"; import "./data/class-grants.mjs"; import "./data/journal-reference.mjs";'
+          zip -q "$package" system.json data/attacks.json data/catalog.json data/class-effects.json data/effects.json data/journal-reference.json data/token-art.json data/gear-rules.json data/equipment.json data/capabilities.json data/class-grants.json data/maneuvers.json data/weapon-qualities.json data/rule-settings.json data/attacks.mjs data/catalog.mjs data/class-effects.mjs data/effects.mjs data/journal-reference.mjs data/token-art.mjs data/gear-rules.mjs data/equipment.mjs data/capabilities.mjs data/class-grants.mjs scripts/rules.mjs scripts/maneuvers.mjs scripts/weapons.mjs tools/edit-dex-profiles.mjs tools/refresh-catalog-packs.mjs EDITING.md tools/add-weapon-presets.mjs
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Moves the 51 weapon builds into an editable JSON file with named fields and keeps their generated data unchanged."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Separates editable system data from JavaScript rules and adds an editing guide and data maintenance tools."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

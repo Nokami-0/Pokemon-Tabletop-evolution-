@@ -1,0 +1,1504 @@
+{
+  "elementalAttackTiers": {
+    "Bug Elementalist": [
+      [
+        "Bug Bite",
+        "Defend Order",
+        "Fell Stinger",
+        "Fury Cutter",
+        "Insect Cleave",
+        "Pheromone Spray",
+        "Skitter Dance",
+        "Skitter Smack",
+        "Silver Wind",
+        "Sticky Web",
+        "String Shot",
+        "U-Turn",
+        "Web Shot"
+      ],
+      [
+        "Attack Order",
+        "Bug Buzz",
+        "Infestation",
+        "Leech Life",
+        "Locust Swarm",
+        "Lunge",
+        "Pheromone Haze",
+        "Powder",
+        "Quiver Dance",
+        "Rage Powder",
+        "Silk Weave",
+        "Signal Beam",
+        "X-Scissor"
+      ],
+      [
+        "Giga Leech",
+        "Heal Order",
+        "Lance Stinger",
+        "Megahorn",
+        "Powder Storm",
+        "Silver Cyclone",
+        "Spider Web",
+        "Silk Trap"
+      ]
+    ],
+    "Dark Elementalist": [
+      [
+        "Assurance",
+        "Backlash",
+        "Bite",
+        "Blindside",
+        "Brutal Swing",
+        "Fake Tears",
+        "Feint Attack",
+        "Flatter",
+        "Hone Claws",
+        "Nasty Plot",
+        "Night Slash",
+        "Payback",
+        "Pursuit",
+        "Shadow Strike",
+        "Snarl",
+        "Sucker Punch",
+        "Switcheroo",
+        "Taunt",
+        "Thief"
+      ],
+      [
+        "Beat Up",
+        "Cackle",
+        "Crunch",
+        "Dark Pulse",
+        "Gash",
+        "Knock Off",
+        "Lash Out",
+        "New Moon",
+        "Power Trip",
+        "Punishment",
+        "Ripping Abyss",
+        "Savage Roar",
+        "Shadow Snare",
+        "Shadow Veil",
+        "Siphon Life",
+        "Throat Chop",
+        "Torment"
+      ],
+      [
+        "Chaos Strike",
+        "Foul Play",
+        "Lunar Beam",
+        "Scornful Vortex",
+        "Shadow Bolt"
+      ]
+    ],
+    "Dragon Elementalist": [
+      [
+        "Breaking Swipe",
+        "Breath Blast",
+        "Draconic Roar",
+        "Dragon Dance",
+        "Dragon Spirit",
+        "Dragon Rage",
+        "Dragon Tail",
+        "Dual Chop",
+        "Scale Shot",
+        "Twister"
+      ],
+      [
+        "Ancestral Fury",
+        "Draconic Aura",
+        "Dragon Claw",
+        "Dragon Force",
+        "Dragon Hammer",
+        "Dragon Pulse",
+        "Imposing Stare",
+        "Mystic Aura",
+        "Primal Storm",
+        "Primal Energy",
+        "Rending Swipe",
+        "Scorching Breath"
+      ],
+      [
+        "Draco Meteor",
+        "Dragon Axe",
+        "Dragon Rush",
+        "Outrage",
+        "Scale Shield",
+        "Scorched Earth"
+      ]
+    ],
+    "Electric Elementalist": [
+      [
+        "Charge",
+        "Charge Beam",
+        "Eerie Impulse",
+        "Electroweb",
+        "Shock Wave",
+        "Spark",
+        "THunder Fang",
+        "Thunder Spear",
+        "Thunder Wave",
+        "Volt Switch"
+      ],
+      [
+        "Charged Velocity",
+        "Discharge",
+        "Electric Terrain",
+        "Electrify",
+        "Electro Ball",
+        "Electro Burst",
+        "Ion Capture",
+        "Ion Deluge",
+        "Magnetic Flux",
+        "Plasma Storm",
+        "Rising Voltage",
+        "Thunder Punch",
+        "Thunderbolt",
+        "Thunderstorm",
+        "Volt Crush",
+        "Wild Charge"
+      ],
+      [
+        "Electro Shot",
+        "Energy Bomb",
+        "Gigavolt",
+        "Lightning Lance",
+        "Magnet Rise",
+        "Plasma Fists",
+        "Plasma Tail",
+        "Thunder",
+        "Volt Tackle",
+        "Zap Cannon"
+      ]
+    ],
+    "Fairy Elementalist": [
+      [
+        "Aromatic Mist",
+        "Baby-Doll Eyes",
+        "Charm",
+        "Cosmic Curse",
+        "Disarming Voice",
+        "Draining Kiss",
+        "Enchanting Aria",
+        "Fae Blessing",
+        "Glitter Darts",
+        "Love Bite",
+        "Star Slash",
+        "Star Strike"
+      ],
+      [
+        "Alluring Voice",
+        "Dazzling Gleam",
+        "Fey Storm",
+        "Floral Healing",
+        "Misty Eruption",
+        "Misty Guard",
+        "Misty Terrain",
+        "Moonlight",
+        "Moral Support",
+        "Play Rough",
+        "Sweet Kiss",
+        "Spellbind",
+        "Spirit Break",
+        "Stardust",
+        "Strange Steam",
+        "Sweet Splash"
+      ],
+      [
+        "Flower Shield",
+        "Glitter Bomb",
+        "Healing Wish",
+        "Light of Ruin",
+        "Magical Bomb",
+        "Moonblast",
+        "Mystic Circle",
+        "Sparkling Slam",
+        "Starfall",
+        "Starlight Spark",
+        "Wish"
+      ]
+    ],
+    "Fighting Elementalist": [
+      [
+        "Arm Thrust",
+        "Aura Blast",
+        "Bulk Up",
+        "Circle Throw",
+        "Coaching",
+        "Concentration",
+        "Double Kick",
+        "Force Palm",
+        "Karate Chop",
+        "Lotus Palm",
+        "Low Kick",
+        "Low Sweep",
+        "Mach Punch",
+        "Power-Up Punch",
+        "Reversal",
+        "Rolling Kick",
+        "Vital Throw"
+      ],
+      [
+        "Adrenaline Boost",
+        "Aura Sphere",
+        "Aura Tempest",
+        "Body Press",
+        "Brick Break",
+        "Counter",
+        "Detect",
+        "Drain Punch",
+        "Intense Aura",
+        "Pressure Point",
+        "Sacred Sword",
+        "Seismic Toss",
+        "Sky Uppercut",
+        "Submission"
+      ],
+      [
+        "Aura Burst",
+        "Close Combat",
+        "Cross Chop",
+        "Dynamic Punch",
+        "Focus Blast",
+        "Focus Punch",
+        "Hammer Arm",
+        "High Jump Kick",
+        "Mat Block",
+        "Quick Guard",
+        "Superpower"
+      ]
+    ],
+    "Fire Elementalist": [
+      [
+        "Fire Spin",
+        "Fire Wall",
+        "Flame Burst",
+        "Flame Charge",
+        "Flame Wheel",
+        "Heat Veil",
+        "Incinerate",
+        "Kindle",
+        "Sunny Day",
+        "Twin Flames",
+        "Wildfire",
+        "Will-o-Wisp"
+      ],
+      [
+        "Blaze Kick",
+        "Blazing Sun",
+        "Burning Jealousy",
+        "Fire Lash",
+        "Fire Punch",
+        "Fire Pledge",
+        "Flame Rush",
+        "Flamethrower",
+        "Ignition",
+        "Lava Plume",
+        "Raging Fire",
+        "Temper Flare"
+      ],
+      [
+        "Blast Burn",
+        "Eruption",
+        "Fire Blast",
+        "Firestorm",
+        "Flare Blitz",
+        "Heat Wave",
+        "Lava Armor",
+        "Overheat"
+      ]
+    ],
+    "Flying Elementalist": [
+      [
+        "Acrobatics",
+        "Aerial Ace",
+        "Air Cutter",
+        "Concussive Burst",
+        "Dual Wingbeat",
+        "Feather Dance",
+        "Gale Force",
+        "Pluck",
+        "Quick Strike",
+        "Wind Blades",
+        "Wing Attack"
+      ],
+      [
+        "Air Slash",
+        "Bounce",
+        "Cyclone",
+        "Defog",
+        "Drill Peck",
+        "Heavy Winds",
+        "Mach Speed",
+        "Razor Wind",
+        "Roost",
+        "Wind Storm",
+        "Wind Wall",
+        "Whirlwind"
+      ],
+      [
+        "Aerial Combat",
+        "Brave Bird",
+        "Feather Storm",
+        "Hurricane",
+        "Molt Feathers",
+        "Sky Attack",
+        "Sky Bomb",
+        "Tailwind",
+        "Tempest",
+        "Wind Shift"
+      ]
+    ],
+    "Ghost Elementalist": [
+      [
+        "Astonish",
+        "Confuse Ray",
+        "Devious Strike",
+        "Ghastly Scream",
+        "Malice",
+        "Ominous Wind",
+        "Phantom Fright",
+        "Shadow Claw",
+        "Shadow Punch",
+        "Shadow Sneak",
+        "Soul Drain",
+        "Spiteful Fury"
+      ],
+      [
+        "Curse",
+        "Dark Fog",
+        "Haunting Aura",
+        "Hex",
+        "Nightmare",
+        "Poltergeist",
+        "Shadow Ball",
+        "Shadow Realm",
+        "Spite",
+        "Terrify",
+        "Tormenting Spirits",
+        "Vengeance"
+      ],
+      [
+        "Deathly Wail",
+        "Deception",
+        "Destiny Bond",
+        "Grudge",
+        "Haunting Visage",
+        "Phantom Force",
+        "Phantom Fury",
+        "Spectral Storm",
+        "Wrathful Blitz"
+      ]
+    ],
+    "Grass Elementalist": [
+      [
+        "Bullet Seed",
+        "Cotton Spore",
+        "Grass Knot",
+        "Grassy Glide",
+        "Leaf Tornado",
+        "Magical Leaf",
+        "Mega Drain",
+        "Needle Arm",
+        "Razor Leaf",
+        "Syrup Bomb"
+      ],
+      [
+        "Aromatherapy",
+        "Burn Powder",
+        "Cotton Cloak",
+        "Cotton Shower",
+        "Energy Ball",
+        "Floral Burst",
+        "Forest’s Curse",
+        "Giga Drain",
+        "Grass Pledge",
+        "Grass Whistle",
+        "Grassy Terrain",
+        "Ingrain",
+        "Leaf Blade",
+        "Leech Seed",
+        "Mystic Powder",
+        "Petal Blizzard",
+        "Pollen Storm",
+        "Seed Bomb",
+        "Sleep Powder",
+        "Stun Spore",
+        "Synthesis",
+        "Wild Growth",
+        "Worry Seed"
+      ],
+      [
+        "Chloroblast",
+        "Cotton Guard",
+        "Frenzy Plant",
+        "Ivy Leech",
+        "Leaf Storm",
+        "Petal Dance",
+        "Power Whip",
+        "Solar Beam",
+        "Solar Blade",
+        "Spiky Shield",
+        "Spore",
+        "Wood Hammer",
+        "Vine Shield"
+      ]
+    ],
+    "Ground Elementalist": [
+      [
+        "Bulldoze",
+        "Dust Cloud",
+        "Earth Shard",
+        "Mud Bomb",
+        "Mud Shot",
+        "Mud Sport",
+        "Sand Attack",
+        "Sand Pit",
+        "Sinkhole",
+        "Spikes"
+      ],
+      [
+        "Aftershock",
+        "Drill Run",
+        "Dual Quake",
+        "Dust Storm",
+        "Dusty Day",
+        "Earth Power",
+        "Landslide",
+        "Magnitude",
+        "Quicksand",
+        "Rototiller",
+        "Sand Cannon",
+        "Sand Tomb",
+        "Sandy Terrain",
+        "Scorching Sands",
+        "Shore Up",
+        "Stomping Tantrum"
+      ],
+      [
+        "Earthquake",
+        "Headlong Rush",
+        "Shifting Soil",
+        "Tectonic Burst",
+        "Terraform"
+      ]
+    ],
+    "Ice Elementalist": [
+      [
+        "Aurora Beam",
+        "Freeze-Dry",
+        "Frost Breath",
+        "Ice Fang",
+        "Ice Shard",
+        "Ice Spinner",
+        "Icicle Spear",
+        "Icy Wind",
+        "Thermodrain"
+      ],
+      [
+        "Avalanche",
+        "Cleansing Aurora",
+        "Crystal Slash",
+        "Frostbite",
+        "Frost Blast",
+        "Frozen Claw",
+        "Frozen Dash",
+        "Frozen Terrain",
+        "Hail",
+        "Haze",
+        "Ice Beam",
+        "Ice Punch",
+        "Icicle Crash",
+        "Mist",
+        "Snowstorm"
+      ],
+      [
+        "Arctic Quake",
+        "Aurora Veil",
+        "Blizzard",
+        "Frost Typhoon",
+        "Ice Hammer",
+        "Icicle Storm"
+      ]
+    ],
+    "Normal Elementalist": [
+      [
+        "Block",
+        "Camouflage",
+        "Chip Away",
+        "Comet Punch",
+        "Conversion",
+        "Copycat",
+        "Crush Claw",
+        "Cut",
+        "Echoed Voice",
+        "Flash",
+        "Focus Energy",
+        "Headbutt",
+        "Helping Hand",
+        "Luster Shock",
+        "Metronome",
+        "Round",
+        "Shining Shroud",
+        "Starbeam",
+        "Stomp",
+        "Sunburst",
+        "Sunspot",
+        "Swift",
+        "Swords Dance",
+        "Work Up"
+      ],
+      [
+        "Blinding Radiance",
+        "Body Slam",
+        "Burning Light",
+        "Extreme Speed",
+        "Facade",
+        "Flashbang",
+        "Hold Hands",
+        "Hyper Voice",
+        "Laser Focus",
+        "Lucky Chant",
+        "Mega Punch",
+        "Morning Sun",
+        "Prismatic Shot",
+        "Radiant Beam",
+        "Recover",
+        "Refresh",
+        "Retaliate",
+        "Safeguard",
+        "Sing",
+        "Slack Off",
+        "Slam",
+        "Slash",
+        "Solar Flare",
+        "Solstice Dance",
+        "Sonic Boom",
+        "Strength",
+        "Take Down",
+        "Terrain Pulse",
+        "Tri Attack",
+        "Uproar",
+        "Weather Ball",
+        "Yawn"
+      ],
+      [
+        "Boomburst",
+        "Double-Edge",
+        "Endure",
+        "Feint",
+        "Final Flash",
+        "Head Charge",
+        "Heal Bell",
+        "Hyper Beam",
+        "Last Resort",
+        "Mega Kick",
+        "Mimic",
+        "Protect",
+        "Skull Bash",
+        "Supernova",
+        "Thrash"
+      ]
+    ],
+    "Poison Elementalist": [
+      [
+        "Acid",
+        "Acid Breath",
+        "Acid Spray",
+        "Cross Poison",
+        "Noxious Gas",
+        "Poison Dart",
+        "Poison Fang",
+        "Poison Gas",
+        "Poison Tail",
+        "Sludge",
+        "Smog",
+        "Toxic Spikes",
+        "Venom Drench"
+      ],
+      [
+        "Acid Rain",
+        "Assassinate",
+        "Blighted Touch",
+        "Clear Smog",
+        "Corrosive Gas",
+        "Numbing Venom",
+        "Plague Breath",
+        "Poison Jab",
+        "Poison Powder",
+        "Sludge Bomb",
+        "Smog Cloud",
+        "Sulfur Plume",
+        "Toxic Mist",
+        "Toxic Threads",
+        "Toxin Rain",
+        "Venom Claw",
+        "Venoshock"
+      ],
+      [
+        "Acid Armor",
+        "Acidic Impact",
+        "Baneful Bunker",
+        "Belch",
+        "Gastro Acid",
+        "Gunk Shot",
+        "Purify",
+        "Sludge Wave",
+        "Toxic",
+        "Toxin Drain"
+      ]
+    ],
+    "Psychic Elementalist": [
+      [
+        "Amnesia",
+        "Calm Mind",
+        "Cognition Strike",
+        "Cosmic Power",
+        "Force Dash",
+        "Psionic Boost",
+        "Psybeam",
+        "Psychic Noise",
+        "Psycho Cut"
+      ],
+      [
+        "Barrier",
+        "Eerie Spell",
+        "Expanding Force",
+        "Extrasensory",
+        "Force Punch",
+        "Gravity",
+        "Heal Pulse",
+        "Hypnosis",
+        "Imprison",
+        "Kinesis",
+        "Light Screen",
+        "Magic Coat",
+        "Magic Powder",
+        "Meditate",
+        "Mind Crush",
+        "Psionic Surge",
+        "Psychic",
+        "Psychic Fangs",
+        "Psychic Storm",
+        "Psychic Terrain",
+        "Psyshock",
+        "Reflect",
+        "Stored Power",
+        "Telekinesis",
+        "Trick Room",
+        "Wonder Room",
+        "Zen Headbutt"
+      ],
+      [
+        "Dream Eater",
+        "Dream Illusion",
+        "Future Sight",
+        "Magic Room",
+        "Migraine",
+        "Mind Flay",
+        "Mirror Coat",
+        "Mystical Overload",
+        "Psycho Boost",
+        "Psycho Shift",
+        "Psycho Slash",
+        "Teleport",
+        "Trick"
+      ]
+    ],
+    "Rock Elementalist": [
+      [
+        "Accelerock",
+        "Ancient Power",
+        "Crystal Daggers",
+        "Crystal Rupture",
+        "Crystalize",
+        "Rock Polish",
+        "Rock Tomb",
+        "Rollout",
+        "Smack Down",
+        "Terra Burst",
+        "Terra Charge"
+      ],
+      [
+        "Ancient Strike",
+        "Diamond Dust",
+        "Fossilize",
+        "Geode Beam",
+        "Gleaming Ore",
+        "Power Gem",
+        "Rock Blast",
+        "Rock Slide",
+        "Sandstorm",
+        "Stealth Rock",
+        "Stone Pillar",
+        "Subterranean Strike",
+        "Tar Shot"
+      ],
+      [
+        "Cave Collapse",
+        "Crystal Cyclone",
+        "Crystal Prison",
+        "Head Smash",
+        "Meteor Beam",
+        "Meteor Shower",
+        "Rock Wrecker",
+        "Stone Edge",
+        "Tar Blast",
+        "Wide Guard"
+      ]
+    ],
+    "Steel Elementalist": [
+      [
+        "Bullet Punch",
+        "Gear Grind",
+        "Inertial Throw",
+        "Iron Defense",
+        "Iron Spikes",
+        "Magnet Bomb",
+        "Magnetic Pulse",
+        "Metal Claw",
+        "Metal Sound",
+        "Metal Swipe",
+        "Mirror Shot",
+        "Shrapnel Shot",
+        "Smart Strike"
+      ],
+      [
+        "Autotomize",
+        "Execution",
+        "Flash Cannon",
+        "Gear Up",
+        "Gyro Ball",
+        "Heavy Slam",
+        "Iron Blade",
+        "Iron Coating",
+        "Iron Head",
+        "Magnetic Grip",
+        "Magnetic Storm",
+        "Magnetic Surge",
+        "Metallurgy",
+        "Meteor Mash",
+        "Overclock",
+        "Plasma Beam",
+        "Scrap Shield",
+        "Steel Wing"
+      ],
+      [
+        "Ferrous Flash",
+        "Iron Tail",
+        "Kinetic Strike",
+        "King’s Shield",
+        "Metal Burst",
+        "Shift Gear",
+        "Steel Beam",
+        "Steel Roller"
+      ]
+    ],
+    "Water Elementalist": [
+      [
+        "Aqua Cutter",
+        "Aqua Jet",
+        "Bubblebeam",
+        "Chilling Water",
+        "Fin Swipe",
+        "Flip Turn",
+        "Slipstream",
+        "Spiral Drain",
+        "Steam Cloud",
+        "Water Gun",
+        "Water Pulse",
+        "Water Sport",
+        "Withdraw"
+      ],
+      [
+        "Aqua Fist",
+        "Aqua Infusion",
+        "Aqua Ring",
+        "Aqua Tail",
+        "Brine",
+        "Life Dew",
+        "Liquidation",
+        "Muddy Water",
+        "Rain Dance",
+        "Razor Shell",
+        "Scald",
+        "Soak",
+        "Steam Blast",
+        "Surf",
+        "Torpedo Smash",
+        "Torrential Typhoon",
+        "Water Pledge",
+        "Water Shuriken",
+        "Waterfall",
+        "Wave Crash",
+        "Whirlpool"
+      ],
+      [
+        "Crabhammer",
+        "Geyser Surge",
+        "Hydro Cannon",
+        "Hydro Cleanse",
+        "Hydro Pump",
+        "Riptide"
+      ]
+    ]
+  },
+  "reviewedGrants": {
+    "Esper": [
+      {
+        "id": "starting",
+        "label": "Choose starting attacks",
+        "count": 2,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Cognition Strike"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Hypnosis"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psybeam"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psychic Terrain"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      },
+      {
+        "id": "advanced",
+        "label": "Choose advanced attacks",
+        "count": 2,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Psycho Cut"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psychic"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psychic Storm"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psionic Surge"
+            }
+          ]
+        ],
+        "minFeatures": 4
+      }
+    ],
+    "Psionic Prowess": [
+      {
+        "id": "capability",
+        "label": "Choose a capability and attack",
+        "count": 1,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Dream Reader"
+            },
+            {
+              "kind": "move",
+              "name": "Dream Illusion"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Empath"
+            },
+            {
+              "kind": "move",
+              "name": "Psycho Shift"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mender"
+            },
+            {
+              "kind": "move",
+              "name": "Heal Pulse"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mindlock"
+            },
+            {
+              "kind": "move",
+              "name": "Calm Mind"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mind Weaver"
+            },
+            {
+              "kind": "move",
+              "name": "Disable"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Premonition"
+            },
+            {
+              "kind": "move",
+              "name": "Mind Reader"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telepath"
+            },
+            {
+              "kind": "move",
+              "name": "Imprison"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telekinetic"
+            },
+            {
+              "kind": "move",
+              "name": "Telekinesis"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Teleporter"
+            },
+            {
+              "kind": "move",
+              "name": "Teleport"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Wallshaper"
+            },
+            {
+              "kind": "move",
+              "name": "Barrier"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      }
+    ],
+    "Metaphysical Mastery": [
+      {
+        "id": "mastery",
+        "label": "Choose mastery attacks",
+        "count": 2,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Psycho Boost"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psycho Slash"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Psionic Boost"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Mirror Coat"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      },
+      {
+        "id": "capability",
+        "label": "Choose another capability and attack",
+        "count": 1,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Dream Reader"
+            },
+            {
+              "kind": "move",
+              "name": "Dream Illusion"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Empath"
+            },
+            {
+              "kind": "move",
+              "name": "Psycho Shift"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mender"
+            },
+            {
+              "kind": "move",
+              "name": "Heal Pulse"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mindlock"
+            },
+            {
+              "kind": "move",
+              "name": "Calm Mind"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mind Weaver"
+            },
+            {
+              "kind": "move",
+              "name": "Disable"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Premonition"
+            },
+            {
+              "kind": "move",
+              "name": "Mind Reader"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telepath"
+            },
+            {
+              "kind": "move",
+              "name": "Imprison"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telekinetic"
+            },
+            {
+              "kind": "move",
+              "name": "Telekinesis"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Teleporter"
+            },
+            {
+              "kind": "move",
+              "name": "Teleport"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Wallshaper"
+            },
+            {
+              "kind": "move",
+              "name": "Barrier"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      }
+    ],
+    "Aura Guardian": [
+      {
+        "id": "starting",
+        "label": "Choose starting attacks",
+        "count": 2,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Aura Blast"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Detect"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Force Bullet"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Vacuum Wave"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      },
+      {
+        "id": "advanced",
+        "label": "Choose advanced attacks",
+        "count": 2,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Aura Burst"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Aura Sphere"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Focus Blast"
+            }
+          ],
+          [
+            {
+              "kind": "move",
+              "name": "Heal Pulse"
+            }
+          ]
+        ],
+        "minFeatures": 4
+      }
+    ],
+    "Mind Mage": [
+      {
+        "id": "path",
+        "label": "Choose a path",
+        "count": 1,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Emotion Stoker"
+            },
+            {
+              "kind": "move",
+              "name": "Torment"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mind Weaver"
+            },
+            {
+              "kind": "move",
+              "name": "Disable"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Aura Reader"
+            },
+            {
+              "kind": "move",
+              "name": "Focus Energy"
+            }
+          ]
+        ],
+        "minFeatures": 0
+      },
+      {
+        "id": "advanced",
+        "label": "Choose an advanced capability",
+        "count": 1,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Empath"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Mindlock"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telepath"
+            }
+          ],
+          [
+            {
+              "kind": "capability",
+              "name": "Telekinetic"
+            }
+          ]
+        ],
+        "minFeatures": 4
+      }
+    ],
+    "Debonair": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Cute Charm"
+            }
+          ]
+        ]
+      }
+    ],
+    "Hunter": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Pack Hunt"
+            },
+            {
+              "kind": "feature",
+              "name": "Battle Commander"
+            }
+          ]
+        ]
+      }
+    ],
+    "Herbalist": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "gear",
+              "name": "Seed Bag"
+            }
+          ]
+        ]
+      }
+    ],
+    "Imposter": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Makeshift Artisan"
+            },
+            {
+              "kind": "move",
+              "name": "Copycat"
+            }
+          ]
+        ]
+      }
+    ],
+    "Motivator": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Battle Commander"
+            }
+          ]
+        ]
+      }
+    ],
+    "Ranger": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "gear",
+              "name": "Ranger Styler"
+            }
+          ]
+        ]
+      }
+    ],
+    "Burst Warrior": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Burst Form"
+            }
+          ]
+        ]
+      }
+    ],
+    "Chaos Mage": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Chaotic"
+            },
+            {
+              "kind": "move",
+              "name": "Metronome"
+            }
+          ]
+        ]
+      }
+    ],
+    "Death Bringer": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "feature",
+              "name": "Soulstealer"
+            }
+          ]
+        ]
+      }
+    ],
+    "Dreamwalker": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "move",
+              "name": "Hypnosis"
+            }
+          ]
+        ]
+      }
+    ],
+    "Lifeweaver": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Mender"
+            },
+            {
+              "kind": "move",
+              "name": "Heal Pulse"
+            }
+          ]
+        ]
+      }
+    ],
+    "Warper": [
+      {
+        "id": "fixed",
+        "label": "Grant benefits",
+        "count": 0,
+        "options": [
+          [
+            {
+              "kind": "capability",
+              "name": "Teleporter"
+            },
+            {
+              "kind": "move",
+              "name": "Teleport"
+            }
+          ]
+        ]
+      }
+    ]
+  }
+}

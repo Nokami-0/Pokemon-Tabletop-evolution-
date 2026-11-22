@@ -1,0 +1,302 @@
+[
+  {
+    "name": "Movement",
+    "entries": [
+      {
+        "name": "Quick",
+        "page": 176,
+        "summary": "Base Movement is 8m."
+      },
+      {
+        "name": "Slow",
+        "page": 176,
+        "summary": "Base Movement is 4m."
+      },
+      {
+        "name": "Burrower",
+        "page": 176,
+        "summary": "Spend a Swift action with Movement to reach a space through connected diggable ground without triggering reactions."
+      },
+      {
+        "name": "Climber",
+        "page": 176,
+        "summary": "Climb vertical surfaces without movement penalties or checks. You may stop on the surface below 4m."
+      },
+      {
+        "name": "Flier",
+        "page": 176,
+        "summary": "Spend a Swift action when moving to become Airborne, generally up to 4m. At the end of each turn, pay 1 SP to remain airborne or land. Includes Glider."
+      },
+      {
+        "name": "Glider",
+        "page": 176,
+        "summary": "Avoid falling damage when able to glide."
+      },
+      {
+        "name": "Grounded",
+        "page": 176,
+        "summary": "Cannot use the Jump maneuver."
+      },
+      {
+        "name": "Jumper",
+        "page": 176,
+        "summary": "Jump up to full Movement."
+      },
+      {
+        "name": "Phaser",
+        "page": 177,
+        "summary": "Spend a Swift action when moving to travel through blocking terrain without ending there. Mental afflictions cost 1 SP each to bypass."
+      },
+      {
+        "name": "Swimmer",
+        "page": 177,
+        "summary": "Treat Ocean terrain as basic terrain in water or underwater."
+      },
+      {
+        "name": "Teleporter",
+        "page": 177,
+        "summary": "Spend Swift and Movement to reach a visible spot within Movement range without triggering reactions. Land on a surface unless you have Flier. Mental afflictions cost 1 SP each to bypass."
+      }
+    ]
+  },
+  {
+    "name": "Combat",
+    "entries": [
+      {
+        "name": "Blender",
+        "page": 177,
+        "summary": "Hide as a Swift action and gain a Stealth Boon when you can blend in."
+      },
+      {
+        "name": "Blindsense",
+        "page": 177,
+        "summary": "Gain Darkvision and immunity to Blinded. Spend 1 SP to enhance a relevant sense for up to 30 minutes."
+      },
+      {
+        "name": "Darkvision",
+        "page": 177,
+        "summary": "See through darkness and ignore its accuracy penalties."
+      },
+      {
+        "name": "Form Change",
+        "page": 177,
+        "summary": "Use separate sheets for forms. Keep total HP stat and external base-stat changes consistent across forms."
+      },
+      {
+        "name": "Groundshaper",
+        "page": 177,
+        "summary": "As a Swift action change nearby terrain within 2m. SP can extend the area or add fragile blocking terrain."
+      },
+      {
+        "name": "Invisibility",
+        "page": 177,
+        "summary": "Spend Swift and Movement to become invisible. Enemies take −4 accuracy and a Perception Bane. Actions are limited to movement or ending invisibility. Threats to concentration require Focus or 1 SP."
+      },
+      {
+        "name": "Living Weapon",
+        "page": 177,
+        "summary": "Possess the Trainer’s weapon as an Extended action. While equipped, the Pokémon leaves the party and its damaging weapon attacks become Ghost type."
+      },
+      {
+        "name": "Mountable",
+        "page": 177,
+        "summary": "An adjacent creature can mount or dismount a willing active Pokémon as a Swift action. Both share space and move together using the mount’s movement capabilities."
+      },
+      {
+        "name": "Naturewalk",
+        "page": 178,
+        "summary": "Ignore Slowed and rough terrain penalties in the listed environments."
+      },
+      {
+        "name": "Reach",
+        "page": 178,
+        "summary": "Extend melee attacks and maneuvers to 2m for Small or Medium users and 3m for Large or bigger users. Attack of Opportunity is excluded."
+      },
+      {
+        "name": "Shadow Meld",
+        "page": 178,
+        "summary": "Merge into a shadow as a Standard or Extended action, becoming untargetable with limited actions. Emerge adjacent as a Movement action. Outside combat, the first 10 minutes are free and each additional hour costs 1 SP."
+      },
+      {
+        "name": "Telekinetic",
+        "page": 178,
+        "summary": "Lift objects within 10m with Focus and spend 1 SP for +2 Power for an hour. Disarm, Hinder, Push, and Trip can use Focus at 6m."
+      },
+      {
+        "name": "Threaded",
+        "page": 178,
+        "summary": "Create thread or vine appendages. Most Tactic maneuvers can target from 5m, with Push pulling toward you."
+      },
+      {
+        "name": "Truant",
+        "page": 178,
+        "summary": "Standard-action damaging attacks take a Full action."
+      },
+      {
+        "name": "Underdog",
+        "page": 178,
+        "summary": "Identifies Pokémon with a base stat total of 45 or less, with exceptions."
+      },
+      {
+        "name": "Wallshaper",
+        "page": 178,
+        "summary": "Concentrate to create blocking walls within 5m, using a Standard or Extended action. Walls ignore physical damage but cannot support Weight Class 4 or higher."
+      },
+      {
+        "name": "Wielder",
+        "page": 178,
+        "summary": "Equip a weapon of the listed type and gain its attacks and keywords. Spend a Swift action to use a damaging attack as a weapon attack at the weapon’s range."
+      }
+    ]
+  },
+  {
+    "name": "Narrative",
+    "entries": [
+      {
+        "name": "Alluring",
+        "page": 178,
+        "summary": "Emit a pleasant scent."
+      },
+      {
+        "name": "Amorphous",
+        "page": 178,
+        "summary": "Reshape your body to squeeze through tight spaces."
+      },
+      {
+        "name": "Aura Reader",
+        "page": 178,
+        "summary": "Read a living creature’s aura for clues about personality, mood, and intent."
+      },
+      {
+        "name": "Breathless",
+        "page": 179,
+        "summary": "You do not need to breathe and cannot suffocate."
+      },
+      {
+        "name": "Chilled",
+        "page": 179,
+        "summary": "Emit cold that helps creatures in range ignore Harsh Heat."
+      },
+      {
+        "name": "Dream Reader",
+        "page": 179,
+        "summary": "View adjacent sleepers’ dreams. Spend 1 SP to shape a touched sleeper’s dream or project it."
+      },
+      {
+        "name": "Dead Silent",
+        "page": 179,
+        "summary": "Move silently while concentrating."
+      },
+      {
+        "name": "Empath",
+        "page": 179,
+        "summary": "Sense surface emotions within 10m. Spend 1 SP and roll Focus to read deeper emotions within 5m."
+      },
+      {
+        "name": "Engine",
+        "page": 179,
+        "summary": "Merge with a motor or vehicle. Varoom and Revavroom may gain compatible traits or attacks."
+      },
+      {
+        "name": "Gilled",
+        "page": 179,
+        "summary": "Avoid suffocation damage underwater."
+      },
+      {
+        "name": "Glow",
+        "page": 179,
+        "summary": "Emit light and offset Low Lighting within a radius based on your size."
+      },
+      {
+        "name": "Heater",
+        "page": 179,
+        "summary": "Emit warmth that offsets Harsh Cold within a radius based on your size."
+      },
+      {
+        "name": "Illusionist",
+        "page": 179,
+        "summary": "Create small visual illusions as a Swift or Extended action. Spend 3 SP minus Tier Level and concentrate to lift one restriction."
+      },
+      {
+        "name": "Magnetic",
+        "page": 179,
+        "summary": "Attract or repel iron and steel, detect disturbances within 50m, and communicate with other Magnetic users."
+      },
+      {
+        "name": "Mender",
+        "page": 179,
+        "summary": "Produce a medicinal substance that works like a First Aid Kit."
+      },
+      {
+        "name": "Mindlock",
+        "page": 179,
+        "summary": "Gain a Boon on opposed Focus checks and detect attempts to affect your mind or spirit. Winning the opposition reveals clues and blocks further attempts by that user this scene."
+      },
+      {
+        "name": "Mind Weaver",
+        "page": 179,
+        "summary": "Touch a creature’s head to read or erase memories through opposed Focus unless willing. Additional effort can reach older memories."
+      },
+      {
+        "name": "Pack Mon",
+        "page": 180,
+        "summary": "Trainers gain a Command Boon with Pokémon. Social checks against a Pokémon with this capability gain a Boon if it has no leader or a Bane if it respects its leader."
+      },
+      {
+        "name": "Premonition",
+        "page": 180,
+        "summary": "Sense an impending disaster with clarity depending on proximity and method. Spend SP for more detail."
+      },
+      {
+        "name": "Repulsive",
+        "page": 180,
+        "summary": "Emit an unpleasant scent."
+      },
+      {
+        "name": "Shapeshifter",
+        "page": 180,
+        "summary": "Change shape as a Standard or Extended action within 50% of your mass. Copies do not gain the original’s traits or complex functions."
+      },
+      {
+        "name": "Soul Seer",
+        "page": 180,
+        "summary": "Observe souls for clues about injury and disposition. Close range and sustained attention reveal more detail."
+      },
+      {
+        "name": "Telepath",
+        "page": 180,
+        "summary": "Project and read thoughts within 10m through opposed Focus if unwilling. Spending SP and making a Focus check can reveal deeper thoughts."
+      },
+      {
+        "name": "Thermal Vision",
+        "page": 180,
+        "summary": "Focus for at least one minute to see in infrared."
+      },
+      {
+        "name": "Tremorsense",
+        "page": 180,
+        "summary": "Detect objects in or on the ground within 10m. Unusual surfaces may require a CR 2 Focus or Intuition check."
+      },
+      {
+        "name": "Tracker",
+        "page": 180,
+        "summary": "Follow a known scent on a CR 2 Perception check or recall past scents on a CR 4 check."
+      },
+      {
+        "name": "True Sight",
+        "page": 180,
+        "summary": "See through illusions and invisibility."
+      },
+      {
+        "name": "Wired",
+        "page": 180,
+        "summary": "Travel instantly between devices linked by cables. Rotom may possess a device and gain an attack."
+      },
+      {
+        "name": "X-Ray Vision",
+        "page": 180,
+        "summary": "Focus for one minute to see blurry shapes beyond blocking terrain within 2m."
+      }
+    ]
+  }
+]

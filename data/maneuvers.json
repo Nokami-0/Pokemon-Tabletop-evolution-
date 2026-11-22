@@ -1,0 +1,295 @@
+{
+  "defend": {
+    "name": "Defend",
+    "cost": [
+      [
+        "swift"
+      ],
+      [
+        "reaction"
+      ],
+      [
+        "movement"
+      ]
+    ],
+    "target": true
+  },
+  "disengage": {
+    "name": "Disengage",
+    "cost": [
+      [
+        "movement"
+      ]
+    ]
+  },
+  "help": {
+    "name": "Help",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true
+  },
+  "hide": {
+    "name": "Hide",
+    "cost": [
+      [
+        "movement"
+      ]
+    ]
+  },
+  "intercept": {
+    "name": "Intercept",
+    "cost": [
+      [
+        "reaction"
+      ],
+      [
+        "reaction",
+        "standard"
+      ]
+    ],
+    "target": true
+  },
+  "jump": {
+    "name": "Jump",
+    "cost": [
+      [
+        "movement"
+      ]
+    ]
+  },
+  "respite": {
+    "name": "Respite",
+    "cost": [
+      [
+        "standard",
+        "swift"
+      ]
+    ]
+  },
+  "sprint": {
+    "name": "Sprint",
+    "cost": [
+      [
+        "standard"
+      ],
+      [
+        "swift"
+      ]
+    ]
+  },
+  "riposte": {
+    "name": "Riposte",
+    "cost": [
+      [
+        "standard",
+        "reaction"
+      ]
+    ],
+    "target": true,
+    "ac": 4
+  },
+  "analyze": {
+    "name": "Analyze",
+    "cost": [
+      [
+        "swift"
+      ],
+      []
+    ],
+    "target": true
+  },
+  "distract": {
+    "name": "Distract",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 6,
+    "opposed": {
+      "acting": [
+        "Guile",
+        "Stealth"
+      ],
+      "defending": [
+        "Focus",
+        "Perception"
+      ]
+    }
+  },
+  "intrigue": {
+    "name": "Intrigue",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 6,
+    "opposed": {
+      "acting": [
+        "Charm",
+        "Command"
+      ],
+      "defending": [
+        "Focus",
+        "Intuition"
+      ]
+    }
+  },
+  "provoke": {
+    "name": "Provoke",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 2
+  },
+  "terrorize": {
+    "name": "Terrorize",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 6,
+    "opposed": {
+      "acting": [
+        "Command",
+        "Intimidate"
+      ],
+      "defending": [
+        "Intimidate",
+        "Focus"
+      ]
+    }
+  },
+  "opportunity": {
+    "name": "Attack of Opportunity",
+    "cost": [
+      [
+        "reaction"
+      ]
+    ],
+    "target": true
+  },
+  "disarm": {
+    "name": "Disarm",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 4,
+    "opposed": {
+      "acting": [
+        "Combat",
+        "Stealth"
+      ],
+      "defending": [
+        "Combat",
+        "Stealth"
+      ]
+    }
+  },
+  "grapple": {
+    "name": "Grapple",
+    "cost": [
+      [
+        "standard"
+      ]
+    ],
+    "target": true,
+    "opposed": {
+      "acting": [
+        "Combat",
+        "Athletics"
+      ],
+      "defending": [
+        "Combat",
+        "Athletics"
+      ]
+    }
+  },
+  "hinder": {
+    "name": "Hinder",
+    "cost": [
+      [
+        "swift"
+      ]
+    ],
+    "target": true,
+    "ac": 4,
+    "opposed": {
+      "acting": [
+        "Combat",
+        "Athletics"
+      ],
+      "defending": [
+        "Combat",
+        "Athletics"
+      ]
+    }
+  },
+  "push": {
+    "name": "Push",
+    "cost": [
+      [
+        "swift"
+      ],
+      [
+        "movement"
+      ]
+    ],
+    "target": true,
+    "ac": 2,
+    "opposed": {
+      "acting": [
+        "Combat",
+        "Athletics"
+      ],
+      "defending": [
+        "Combat",
+        "Athletics"
+      ]
+    }
+  },
+  "throw": {
+    "name": "Throw",
+    "cost": [
+      [
+        "standard"
+      ]
+    ],
+    "target": true,
+    "ac": 4
+  },
+  "trip": {
+    "name": "Trip",
+    "cost": [
+      [
+        "standard"
+      ]
+    ],
+    "target": true,
+    "ac": 4,
+    "opposed": {
+      "acting": [
+        "Combat",
+        "Acrobatics"
+      ],
+      "defending": [
+        "Combat",
+        "Acrobatics"
+      ]
+    }
+  }
+}

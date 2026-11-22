@@ -1,0 +1,62 @@
+{
+  "Training": {
+    "rank": 0,
+    "price": 1000,
+    "keywords": 0,
+    "Medium": [
+      1,
+      0,
+      0
+    ],
+    "Large": [
+      2,
+      0,
+      0
+    ]
+  },
+  "Simple": {
+    "rank": 4,
+    "price": 5000,
+    "keywords": 1,
+    "Medium": [
+      2,
+      0,
+      0
+    ],
+    "Large": [
+      2,
+      1,
+      0
+    ]
+  },
+  "Fine": {
+    "rank": 5,
+    "price": 10000,
+    "keywords": 2,
+    "Medium": [
+      2,
+      1,
+      0
+    ],
+    "Large": [
+      2,
+      2,
+      0
+    ]
+  },
+  "Legendary": {
+    "rank": 6,
+    "price": 20000,
+    "keywords": 2,
+    "Medium": [
+      2,
+      1,
+      1
+    ],
+    "Large": [
+      2,
+      2,
+      2
+    ]
+  }
+}

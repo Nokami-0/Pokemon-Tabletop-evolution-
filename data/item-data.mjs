@@ -1,3 +1,4 @@
+import {gearRules} from "./gear-rules.mjs";
 import {equipmentDescription} from "./equipment.mjs";
 import {classEffects} from "./class-effects.mjs";
 import {referenceEffects} from "./effects.mjs";
@@ -5,7 +6,7 @@ import {referenceEffects} from "./effects.mjs";
 export const entrySource = entry => entry.source || `${entry.book}, p. ${entry.page}`;
 export const linkedEffectPlaceholder = "See the linked reference for this entry’s effects.";
 export const classEffect = entry => classEffects[[entry.kind,entry.book,entry.page,entry.name].join("|")];
-export const catalogEffect = entry => (entry.kind === "gear" && equipmentDescription(entry.name)) || classEffect(entry) || referenceEffects[entrySource(entry)] || entry.rules;
+export const catalogEffect = entry => (entry.kind === "gear" && ((Object.hasOwn(gearRules,entry.name) && gearRules[entry.name]) || equipmentDescription(entry.name))) || classEffect(entry) || referenceEffects[entrySource(entry)] || entry.rules;
 export const categoryEffectPlaceholder = entry => `${entry.category}. See the cited page for prerequisites and effects.`;
 
 export function catalogItemData(entry) {

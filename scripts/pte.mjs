@@ -1,3 +1,4 @@
+import {itemKeywords, equipmentEligible, slotTotals} from "../data/item-slots.mjs";
 import {equipment} from "../data/equipment.mjs";
 import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
@@ -30,7 +31,7 @@ const titleCase = str => str[0].toUpperCase() + str.slice(1);
 const afflicted = (actor,key) => Boolean(actor.system.afflictions?.[key]);
 const equipmentProfile = item => item?.type === "gear" && Object.hasOwn(equipment,item.name) ? equipment[item.name] : null;
 const equippedGear = actor => actor.items.filter(item=>item.type === "gear" && item.system.equipped &&
-  item.system.quantity > 0 && actor.system.level >= (equipmentProfile(item)?.level || 0));
+  item.system.quantity > 0 && !item.system.inStorage && !item.system.impaired && equipmentEligible(item,actor.type === "pokemon") && actor.system.level >= (equipmentProfile(item)?.level || 0));
 const gearBonus = (actor,key) => equippedGear(actor).reduce((total,item)=>total + (equipmentProfile(item)?.[key] || 0),0);
 const gearStage = (actor,key) => equippedGear(actor).some(item=>equipmentProfile(item)?.stage === key) ?
   1 - (actor.system.defaultStages?.[key] ?? 0) : 0;
@@ -1470,7 +1471,7 @@ async function createWeapon(actor) {
       weapon.range === "Long Ranged" ? "Cannot target adjacent enemies." : "",
       "Resolve keyword options and special effects at the table. PTE Rule Book, pp. 220–223."].filter(Boolean).join("\n");
     await actor.createEmbeddedDocuments("Item",[{_id:id,name,type:"gear",system:{price,description,
-      source:"PTE Rule Book, p. 220",weaponSkill:`s${skillIndex}`,weaponRank:quality.rank,weaponRange:weapon.range}},
+      source:"PTE Rule Book, p. 220",slotKeywords:`${weapon.size}, Equipment - Weapon`,weaponSkill:`s${skillIndex}`,weaponRank:quality.rank,weaponRange:weapon.range}},
       ...selected.map(entry=>{
         const data = catalogItemData(entry);
         data.system = {...data.system,...weaponAttackStats(weapon,data.system),weaponId:id,slotExempt:true};
@@ -1482,12 +1483,45 @@ async function createWeapon(actor) {
   }
 }
 
+const actorGear = actor=>actor.items.filter(item=>item.type === "gear").map(item=>item.toObject());
+function proposedSlots(actor,item,changes) {
+  const gear = actorGear(actor).filter(row=>!item.id || row._id !== item.id);
+  gear.push({...item.toObject(),system:{...item.system.toObject(),...changes}});
+  return slotTotals(gear,pokemon(actor));
+}
+
+async function changeGearLocation(actor,item,changes,swift = false) {
+  const after = proposedSlots(actor,item,changes);
+  const before = slotTotals(actorGear(actor),pokemon(actor));
+  const error = after.problems.find(problem=>!before.problems.includes(problem));
+  if (error || (after.inventory > before.inventory && after.inventory > after.inventoryMax) ||
+    (after.equipment > before.equipment && after.equipment > after.equipmentMax)) {
+    return ui.notifications.warn(error || "This change exceeds the available slots.");
+  }
+  const pool = actionPool(actor);
+  const track = swift && game.combat?.started && game.combat.combatants.some(combatant=>combatant.actor?.uuid === actor.uuid);
+  if (track) {
+    const error = maneuverCostError(pool,["swift"]);
+    if (error) return ui.notifications.warn(error);
+    await pool.owner.update(maneuverActionUpdates(pool,["swift"],true));
+  }
+  try {
+    const result = await item.update({system:changes});
+    if (!result && track) await pool.owner.update(maneuverActionUpdates(pool,["swift"],false));
+    return result;
+  } catch (error) {
+    if (track) await pool.owner.update(maneuverActionUpdates(pool,["swift"],false));
+    throw error;
+  }
+}
+
 async function useGear(actor,id) {
   const item = actor.items.get(id);
   const gear = recoveryListing(item);
   const boost = boostListing(item);
   const malady = maladyListing(item);
-  if (!actor.isOwner || item?.type !== "gear" || item.system.quantity < 1) return;
+  if (!actor.isOwner || item?.type !== "gear" || item.system.quantity < 1 || item.system.inStorage || item.system.impaired ||
+    (pokemon(actor) && !itemKeywords(item).has("pokemon"))) return;
   if (pokeballListing(item)) return capturePokemon(actor,item);
   if (!gear && !boost && !malady) return;
   if ((boost || malady) && !Object.hasOwn(boost || malady,item.system.variant)) return ui.notifications.warn("Choose a variant on the potion’s item sheet first.");
@@ -1524,7 +1558,7 @@ async function useGear(actor,id) {
       ok:{label:"Use One",callback:(event,button)=>new FormData(button.form)},
       rejectClose:false
     });
-    if (!form || !actor.items.has(id) || item.system.quantity < 1 || !target.isOwner) return;
+    if (!form || !actor.items.has(id) || item.system.quantity < 1 || item.system.inStorage || item.system.impaired || !target.isOwner) return;
     if ((boost || malady) && item.system.variant !== variant) return ui.notifications.warn("The potion variant changed. Reopen the use dialog.");
     const result = malady ? form.get("result") : null;
     if (malady && !["roll","adjacent","hit","miss"].includes(result)) return;
@@ -1976,9 +2010,17 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         }
       },
       useGear(event,target) { return useGear(this.document,target.dataset.id); },
+      storeGear(event,target) {
+        const item = this.document.items.get(target.dataset.id);
+        if (!this.isEditable || item?.type !== "gear") return;
+        return changeGearLocation(this.document,item,{inStorage:!item.system.inStorage,equipped:false},item.system.equipped);
+      },
       equip(event,target) {
         const item = this.document.items.get(target.dataset.id);
-        if (!item || !this.isEditable) return;
+        if (item?.type !== "gear" || !this.isEditable || item.system.inStorage || item.system.quantity < 1) return;
+        if (!item.system.equipped && !equipmentEligible(item,pokemon(this.document))) {
+          return ui.notifications.warn("This item lacks an eligible Equipment keyword.");
+        }
         if (!item.system.equipped && item.system.weaponRank > (this.document.system.skills[item.system.weaponSkill] ?? 0)) {
           return ui.notifications.warn("The holder does not meet this weapon’s qualifying skill rank.");
         }
@@ -1986,7 +2028,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (!item.system.equipped && this.document.system.level < minimum) {
           return ui.notifications.warn(`This equipment requires level ${minimum}.`);
         }
-        return item.update({"system.equipped":!item.system.equipped});
+        return changeGearLocation(this.document,item,{equipped:!item.system.equipped},true);
       },
       async spendAction(event,target) {
         const {owner:pool,key:name} = actionPool(this.document,target.dataset.pool);
@@ -2090,7 +2132,9 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const pools = trainer ? [pool("Shared Pokémon Actions","team",trainer)] : [pool(pokemon(actor) ? "Round Actions" : "Trainer Actions","own",actor)];
     if (!pokemon(actor)) pools.push(pool("Shared Pokémon Actions","team",actor));
     const groups = Object.entries(itemTypes).filter(([type]) => !pokemon(actor) || (type !== "class" && type !== "feature")).map(([type,label]) => ({type,label,items:actor.items.filter(i => i.type === type && (!pokemon(actor) || (!isRoleItem(i) && !isAbilityItem(i)))).map(i => ({
-        id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",usable:Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
+        id:i.id,name:i.name,knownOnly:i.type === "move" && i.system.knownOnly,sceneUses:i.system.useScene===system.attackScene ? i.system.sceneUses : 0,move:type === "move",gear:type === "gear",canEquip:type === "gear" && !i.system.inStorage && i.system.quantity > 0 && (i.system.equipped || equipmentEligible(i,pokemon(actor))),
+        itemKeywords:type === "gear" ? [...itemKeywords(i)].map(titleCase).join(" · ") : "",
+        usable:!i.system.inStorage && !i.system.impaired && (!pokemon(actor) || i.type !== "gear" || itemKeywords(i).has("pokemon")) && Boolean(recoveryListing(i) || boostListing(i) || maladyListing(i) || pokeballListing(i)) && i.system.quantity > 0,price:type === "gear" ? gearPrice(i) : "",system:i.system
       }))}));
     const features = groups.find(group=>group.type === "feature");
     const featureGroups = features ? trainerFeatureGroups.map(category=>({
@@ -2106,7 +2150,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const tierLevel = tier(system.level,pokemon(actor));
     const tierValue = [5,10,20][tierLevel - 1];
     const teamTrainer = pokemon(actor) ? trainer : actor;
-    return {...context, actor, system, editable:this.isEditable, pokemon:pokemon(actor), tier:tierLevel,tierValue,
+    return {...context, actor, system, slots:slotTotals(actorGear(actor),pokemon(actor)), editable:this.isEditable, pokemon:pokemon(actor), tier:tierLevel,tierValue,
       speciesProfile,speciesProfileUnavailable,capabilityGroups,
       classCapabilities:grantedCapabilities(actor),
       actorCapabilities:actorCapabilityButtons(speciesProfile?.capabilities,[system.capabilityNotes,...grantedCapabilities(actor)].join(" ")),
@@ -2264,6 +2308,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.document;
     const listing = catalogListing(item);
+    const gearKeywords = item.type === "gear" ? [...itemKeywords(item)].map(titleCase).join(", ") : "";
     const variants = Object.keys(boostListing(item) || maladyListing(item) || {}).map(value=>({value,label:potionVariants[value] || afflictions[value],selected:item.system.variant===value}));
     const description = itemDescription(item,listing);
     const [sourceName,pageNumber] = item.system.source.split(", p. ");
@@ -2282,7 +2327,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         rows:section.rows.map(row=>({...row,applies:selectedTerrains?.has(normalizeRequirement(row.name)),source:referenceSource(row.source)}))
       }));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
-    return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
+    return {...context,item,system:item.system,gearKeywords,ownedGear:item.type === "gear" && Boolean(item.parent),price:item.type === "gear" ? gearPrice(item) : "",
       canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
       classFeatures:classFeatureEntries(listing,item.parent),classCharts,
       parentClass:featureClass(listing)?.name,
@@ -2373,6 +2418,34 @@ Hooks.once("init", () => {
   game.settings.register(ID,"token-directory",{name:"Pokémon artwork folder",
     hint:"Foundry Data folder containing Portraits and Ringed Tokens, or the older page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
   game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks};
+});
+
+Hooks.on("preCreateItem", (item) => {
+  const actor = item.parent;
+  if (item.type !== "gear" || !["trainer","pokemon"].includes(actor?.type)) return;
+  const totals = proposedSlots(actor,item,{});
+  if (totals.problems.length) {
+    item.updateSource({"system.inStorage":true,"system.equipped":false});
+    ui.notifications.info(`${item.name} went to Storage because the carried or equipped load would violate the slot rules.`);
+  }
+});
+
+Hooks.on("preUpdateItem", (item,changes) => {
+  const actor = item.parent;
+  if (item.type !== "gear" || !["trainer","pokemon"].includes(actor?.type)) return;
+  const update = foundry.utils.expandObject(changes);
+  const relevant = ["equipped","quantity","slotKeywords","inStorage"];
+  if (!relevant.some(key=>Object.hasOwn(update.system || {},key)) && !Object.hasOwn(update,"name")) return;
+  const before = slotTotals(actorGear(actor),pokemon(actor));
+  const gear = actorGear(actor).map(row=>row._id === item.id ?
+    {...row,name:update.name ?? row.name,system:{...row.system,...update.system}} : row);
+  const after = slotTotals(gear,pokemon(actor));
+  const problem = after.problems.find(message=>!before.problems.includes(message));
+  if (problem || (after.inventory > before.inventory && after.inventory > after.inventoryMax) ||
+    (after.equipment > before.equipment && after.equipment > after.equipmentMax)) {
+    ui.notifications.warn(problem || "This change exceeds the available slots.");
+    return false;
+  }
 });
 
 Hooks.on("updateActor", (actor, changes) => {

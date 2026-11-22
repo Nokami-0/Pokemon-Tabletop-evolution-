@@ -60,7 +60,7 @@ export class MoveData extends ItemData {
 }
 export class GearData extends ItemData {
   static defineSchema() {
-    return {...super.defineSchema(),quantity:count(1),price:text(),variant:text(),weaponSkill:text(),weaponRank:count(0,0,6),weaponRange:text(),equipped:new BooleanField({initial:false})};
+    return {...super.defineSchema(),quantity:count(1),slotKeywords:text(),inStorage:new BooleanField({initial:false}),impaired:new BooleanField({initial:false}),price:text(),variant:text(),weaponSkill:text(),weaponRank:count(0,0,6),weaponRange:text(),equipped:new BooleanField({initial:false})};
   }
 }
 export class FeatureData extends ItemData {

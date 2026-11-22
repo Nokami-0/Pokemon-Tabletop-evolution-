@@ -19,13 +19,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.92
+          version=0.1.93
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.91 --pattern pokemon-tabletop-evolution-0.1.91.zip --output "$package"
+          gh release download v0.1.92 --pattern pokemon-tabletop-evolution-0.1.92.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.92";
+          manifest.version = "0.1.93";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
@@ -35,9 +35,9 @@ jobs:
           rm -f packs/gear/{LOCK,LOG,LOG.old}
           zip -qd "$package" 'packs/gear/*'
           node --check scripts/pte.mjs
-          zip -qr "$package" system.json packs/gear scripts/pte.mjs data/weapon-presets.mjs
+          zip -qr "$package" system.json packs/gear scripts/pte.mjs data/weapon-presets.mjs templates/item.hbs
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds eight named weapon variants, including Barbed Mace and Serrated Saber."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds editable weapon builds and six additional Arcane weapon presets."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

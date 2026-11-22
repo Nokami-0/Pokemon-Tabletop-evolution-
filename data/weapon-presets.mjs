@@ -28,12 +28,18 @@ const presets = [
   ["extended-glaive","Extended Glaive","Fine","Martial","Melee","Large","Athletics",["Extended","Sharp"],["Pierce","Braced Strike","Sweeping Strike","Slicing Strike"]],
   ["sundering-maul","Sundering Maul","Legendary","Martial","Melee","Large","Athletics",["Sundering","Blunt"],["Beatdown","Braced Strike","Backswing","Reckless Strike","Titanic Slam","Grand Rupture"]],
   ["throwing-hatchet","Throwing Hatchet","Simple","Martial","Melee","Medium","Combat",["Throwable"],["Quick Draw","Wounding Strike"]],
-  ["homing-scepter","Homing Scepter","Fine","Arcane","Short Ranged","Medium","Occult Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot"]]
+  ["homing-scepter","Homing Scepter","Fine","Arcane","Short Ranged","Medium","Occult Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot"]],
+  ["spark-orb","Spark Orb","Simple","Arcane","Short Ranged","Medium","Occult Education",["Homing"],["Energy Blast","Resonance Beam"]],
+  ["warding-tome","Warding Tome","Fine","Arcane","Short Ranged","Medium","Occult Education",["Enhancing","Sundering"],["Bane","Energy Blast","Mystic Ward"]],
+  ["restoration-rod","Restoration Rod","Legendary","Arcane","Short Ranged","Large","Medicine Education",["Mending","Enhancing"],["Healing Aura","Energy Blast","Heal Pulse (Weapon)","Empowerment","Recover (Weapon)","Limit Break"]],
+  ["runic-blade","Runic Blade","Fine","Arcane","Melee","Medium","Occult Education",["Enhancing","Sundering"],["Arcane Fury","Braced Strike","Magical Burst"]],
+  ["aether-lantern","Aether Lantern","Training","Arcane","Short Ranged","Medium","Occult Education",[],["Healing Aura"]],
+  ["astral-focus","Astral Focus","Legendary","Arcane","Long Ranged","Medium","Occult Education",["Enhancing","Homing"],["Arcane Fury","Resonance Beam","Missile Shot","Spirit Lance"]]
 ];
 
 const attacks = new Map(attackCatalog.filter(entry=>entry.category === "Weapon Attacks").map(entry=>[entry.name,entry]));
 
-export function weaponPreset([key,name,qualityName,type,range,size,skill,keywords,attackNames]) {
+function weaponPreset([key,name,qualityName,type,range,size,skill,keywords,attackNames]) {
   const weapon = {type,range,size,keywords};
   const quality = weaponQualities[qualityName];
   const selected = attackNames.map(name=>attacks.get(name));
@@ -52,7 +58,7 @@ export function weaponPreset([key,name,qualityName,type,range,size,skill,keyword
     range === "Long Ranged" ? "Cannot target adjacent enemies." : "",
     "Weapon construction and keyword rules: PTE Rule Book, pp. 220–223."
   ].filter(Boolean).join("\n");
-  return {key,qualityName,gear:{name,type:"gear",flags:{"pokemon-tabletop-evolution":{weaponPreset:key}},
+  return {key,qualityName,gear:{name,type:"gear",flags:{"pokemon-tabletop-evolution":{weaponPreset:key,weaponBuild:{quality:qualityName,...weapon}}},
     system:{price:`$${price.toLocaleString("en-US")}`,description,source:"PTE Rule Book, pp. 220–223",
       slotKeywords:`${size}, Equipment - Weapon`,weaponSkill:`s${skills.indexOf(skill)}`,weaponRank:quality.rank,weaponRange:range}},
     moves:selected.map(entry=>{

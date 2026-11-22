@@ -1416,18 +1416,27 @@ async function selectItemRecipient(actor,item,selected) {
 
 const weaponAttackEntries = attackCatalog.filter(entry=>entry.category === "Weapon Attacks");
 
-async function createWeapon(actor) {
-  if (!actor.isOwner || pendingGear.has(actor.uuid)) return;
+async function createWeapon(actor, existing = null) {
+  if (!actor?.isOwner || pendingGear.has(actor.uuid)) return;
   pendingGear.add(actor.uuid);
   try {
-    const options = values=>values.map(value=>`<option>${escape(value)}</option>`).join("");
-    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Create Weapon"},
-      content:`<label>Name <input name="name" required maxlength="100"></label>
-        <label>Quality <select name="quality">${options(Object.keys(weaponQualities))}</select></label>
-        <label>Type <select name="type">${options(["Martial","Arcane"])}</select></label>
-        <label>Range <select name="range">${options(["Melee","Short Ranged","Long Ranged"])}</select></label>
-        <label>Size <select name="size">${options(["Medium","Large"])}</select></label>
-        <label>Qualifying skill <select name="skill"><option value="">Default for weapon type</option>${options(skills)}</select></label>
+    const original = existing?.system.description || "";
+    const [qualityLabel,typeLabel,rangeLabel,sizeLabel] = original.split("\n")[0].split(" · ");
+    const {quality:oldQuality = qualityLabel,type:oldType = typeLabel,range:oldRange = rangeLabel,
+      size:oldSize = sizeLabel,keywords:oldKeywords = /^Keywords: (.+?)\.?$/m.exec(original)?.[1].split(", ") || []} =
+      existing?.getFlag(ID,"weaponBuild") ?? weaponPresets.get(existing?.getFlag(ID,"weaponPreset"))?.gear.flags[ID].weaponBuild ?? {};
+    const oldNotes = existing?.getFlag(ID,"weaponNotes") ?? original.split("\n").slice(2)
+      .filter(line=>!/^(Keywords:|Grants:|Cannot target adjacent|Resolve keyword|Weapon construction)/.test(line)).join("\n").trim();
+    const oldSkill = existing ? skills[Number(existing.system.weaponSkill.slice(1))] : "";
+    const linked = existing ? actor.items.filter(item=>item.type === "move" && item.system.weaponId === existing.id) : [];
+    const options = (values,current)=>values.map(value=>`<option ${value === current ? "selected" : ""}>${escape(value)}</option>`).join("");
+    const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:existing ? "Edit Weapon" : "Create Weapon"},
+      content:`<label>Name <input name="name" value="${escape(existing?.name)}" required maxlength="100"></label>
+        <label>Quality <select name="quality">${options(Object.keys(weaponQualities),oldQuality)}</select></label>
+        <label>Type <select name="type">${options(["Martial","Arcane"],oldType)}</select></label>
+        <label>Range <select name="range">${options(["Melee","Short Ranged","Long Ranged"],oldRange)}</select></label>
+        <label>Size <select name="size">${options(["Medium","Large"],existing?.system.slotSize || oldSize)}</select></label>
+        <label>Qualifying skill <select name="skill"><option value="">Default for weapon type</option>${options(skills,oldSkill)}</select></label>
         <p>PTE Rule Book, pp. 220–223. Confirm how the weapon was acquired with your GM.</p>`,
       ok:{label:"Choose Keywords",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
     if (!form) return;
@@ -1441,8 +1450,8 @@ async function createWeapon(actor) {
     const allowed = Object.keys(weaponKeywords).filter(key=>weaponKeywords[key](weapon));
     const selections = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Weapon Keywords"},
       content:`<p>Choose up to ${quality.keywords} keywords. Cursed does not count toward the limit.</p>
-        <div style="max-height:40vh;overflow:auto">${allowed.map(key=>`<label><input type="checkbox" name="keyword" value="${key}"> ${key}</label>`).join("")}</div>
-        <label>Blessed or Elemental type choices, Defensive mode, curse, and other keyword details <textarea name="notes"></textarea></label>`,
+        <div style="max-height:40vh;overflow:auto">${allowed.map(key=>`<label><input type="checkbox" name="keyword" value="${key}" ${oldKeywords.includes(key) ? "checked" : ""}> ${key}</label>`).join("")}</div>
+        <label>Blessed or Elemental type choices, Defensive mode, curse, and other keyword details <textarea name="notes">${escape(oldNotes)}</textarea></label>`,
       ok:{label:"Choose Attacks",callback:(event,button)=>new FormData(button.form)},rejectClose:false});
     if (!selections) return;
     weapon.keywords = [...new Set(selections.getAll("keyword"))];
@@ -1458,14 +1467,14 @@ async function createWeapon(actor) {
     const picked = await DialogV2.prompt({classes:["pte-dialog"],window:{title:"Weapon Attacks"},
       content:`<p>Choose up to ${limits[0]} Novice, ${limits[1]} Advanced, and ${limits[2]} Master attacks.</p>
         <div style="max-height:54vh;overflow:auto">${attacks.map((entry,index)=>
-          `<label><input type="checkbox" name="attack" value="${index}"> ${escape(entry.name)} · ${entry.tier === "Basic Weapon" ? "Novice" : escape(entry.tier)}</label>`).join("")}</div>`,
-      ok:{label:"Create Weapon",callback:(event,button)=>new FormData(button.form).getAll("attack")},rejectClose:false});
+          `<label><input type="checkbox" name="attack" value="${index}" ${linked.some(move=>move.system.source === entry.source) ? "checked" : ""}> ${escape(entry.name)} · ${entry.tier === "Basic Weapon" ? "Novice" : escape(entry.tier)}</label>`).join("")}</div>`,
+      ok:{label:existing ? "Save Weapon" : "Create Weapon",callback:(event,button)=>new FormData(button.form).getAll("attack")},rejectClose:false});
     if (!picked) return;
     const selected = [...new Set(picked)].map(index=>attacks[Number(index)]);
     if (selected.some(entry=>!entry) || weaponTiers.some((tier,index)=>selected.filter(entry=>entry.tier === tier).length > limits[index])) {
       return ui.notifications.warn("The selected attacks exceed this weapon’s limits.");
     }
-    const id = foundry.utils.randomID();
+    const id = existing?.id ?? foundry.utils.randomID();
     const price = formatMoney(quality.price / (weapon.size === "Medium" ? 2 : 1));
     const description = [`${qualityName} · ${weapon.type} · ${weapon.range} · ${weapon.size}`,
       quality.rank ? `Qualifying skill: ${skill}, ${ranks[quality.rank-1]} or higher.` : "No qualifying rank required.",
@@ -1473,14 +1482,46 @@ async function createWeapon(actor) {
       selected.length ? `Grants: ${selected.map(entry=>entry.name).join(", ")}` : "",
       weapon.range === "Long Ranged" ? "Cannot target adjacent enemies." : "",
       "Resolve keyword options and special effects at the table. PTE Rule Book, pp. 220–223."].filter(Boolean).join("\n");
-    await actor.createEmbeddedDocuments("Item",[{_id:id,name,type:"gear",system:{price,description,
-      source:"PTE Rule Book, p. 220",slotKeywords:`${weapon.size}, Equipment - Weapon`,weaponSkill:`s${skillIndex}`,weaponRank:quality.rank,weaponRange:weapon.range}},
-      ...selected.map(entry=>{
-        const data = catalogItemData(entry);
-        data.system = {...data.system,...weaponAttackStats(weapon,data.system),weaponId:id,slotExempt:true};
-        data.name = `${entry.name} (${name})`;
-        return data;
-      })],{keepId:true});
+    const unchangedPrice = existing && oldQuality === qualityName && oldSize === weapon.size;
+    const system = {price:unchangedPrice ? existing.system.price : price,description,
+      source:existing?.system.source || "PTE Rule Book, p. 220",slotSize:"",
+      slotKeywords:`${weapon.size}, Equipment - Weapon`,weaponSkill:`s${skillIndex}`,weaponRank:quality.rank,weaponRange:weapon.range};
+    const moves = selected.map(entry=>{
+      const data = catalogItemData(entry);
+      return {...data,name:`${entry.name} (${name})`,
+        system:{...weaponAttackStats(weapon,data.system),weaponId:id,slotExempt:true}};
+    });
+    const flags = {[ID]:{weaponNotes:notes,weaponBuild:{quality:qualityName,...weapon}}};
+    if (!existing) {
+      return await actor.createEmbeddedDocuments("Item",[{_id:id,name,type:"gear",system,flags},...moves],{keepId:true});
+    }
+    if (!actor.items.has(id)) return;
+    if (existing.system.equipped && actor.system.skills[system.weaponSkill] < quality.rank) {
+      return ui.notifications.warn("Unequip the weapon before saving a build above your qualifying skill rank.");
+    }
+    const saved = await existing.update({name,system,flags});
+    if (!saved) return;
+    const kept = new Set();
+    const updates = [];
+    const additions = [];
+    const mechanicsChanged = oldType !== weapon.type || oldRange !== weapon.range ||
+      oldKeywords.includes("Extended") !== weapon.keywords.includes("Extended") ||
+      oldKeywords.includes("Sharp") !== weapon.keywords.includes("Sharp");
+    for (const move of moves) {
+      const old = linked.find(item=>item.system.source === move.system.source);
+      if (!old) additions.push(move);
+      else {
+        kept.add(old.id);
+        updates.push({_id:old.id,name:move.name,...(mechanicsChanged ? {
+          system:Object.fromEntries(["category","range","db","crit"].filter(key=>key === "crit" || move.system[key] !== undefined)
+            .map(key=>[key,move.system[key] ?? 20]))
+        } : {})});
+      }
+    }
+    if (additions.length) await actor.createEmbeddedDocuments("Item",additions);
+    if (updates.length) await actor.updateEmbeddedDocuments("Item",updates);
+    const removed = linked.filter(item=>!kept.has(item.id)).map(item=>item.id);
+    if (removed.length) await actor.deleteEmbeddedDocuments("Item",removed);
   } finally {
     pendingGear.delete(actor.uuid);
   }
@@ -2308,6 +2349,7 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     form:{submitOnChange:true,closeOnSubmit:false},
     actions:{
       moveRange() { return placeMoveRange(this.document); },
+      editWeapon() { return createWeapon(this.document.parent,this.document); },
       async claimGrant(event,target) {
         await claimGrant(this.document,target.dataset.grant);
         return this.render({parts:["body"]});
@@ -2358,7 +2400,8 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         rows:section.rows.map(row=>({...row,applies:selectedTerrains?.has(normalizeRequirement(row.name)),source:referenceSource(row.source)}))
       }));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
-    return {...context,item,system:item.system,gearKeywords,slotSizes,ownedGear:item.type === "gear" && Boolean(item.parent),price:item.type === "gear" ? gearPrice(item) : "",
+    return {...context,item,system:item.system,gearKeywords,slotSizes,
+      canEditWeapon:this.isEditable && item.parent?.type === "trainer" && item.type === "gear" && Boolean(item.system.weaponSkill),ownedGear:item.type === "gear" && Boolean(item.parent),price:item.type === "gear" ? gearPrice(item) : "",
       canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
       classFeatures:classFeatureEntries(listing,item.parent),classCharts,
       parentClass:featureClass(listing)?.name,

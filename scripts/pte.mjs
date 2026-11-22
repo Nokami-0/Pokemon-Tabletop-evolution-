@@ -1,3 +1,4 @@
+import {equipment} from "../data/equipment.mjs";
 import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
 import {classReferences} from "../data/class-references.mjs";
@@ -27,15 +28,79 @@ const choices = (options, selected) => options.map(value => ({value, selected:va
 const actions = ["standard","swift","movement","reaction"];
 const titleCase = str => str[0].toUpperCase() + str.slice(1);
 const afflicted = (actor,key) => Boolean(actor.system.afflictions?.[key]);
+const equipmentProfile = item => item?.type === "gear" && Object.hasOwn(equipment,item.name) ? equipment[item.name] : null;
+const equippedGear = actor => actor.items.filter(item=>item.type === "gear" && item.system.equipped &&
+  item.system.quantity > 0 && actor.system.level >= (equipmentProfile(item)?.level || 0));
+const gearBonus = (actor,key) => equippedGear(actor).reduce((total,item)=>total + (equipmentProfile(item)?.[key] || 0),0);
+const gearStage = (actor,key) => equippedGear(actor).some(item=>equipmentProfile(item)?.stage === key) ?
+  1 - (actor.system.defaultStages?.[key] ?? 0) : 0;
+const effectiveStage = (actor,key) => capCombatModifier((actor.system.stages?.[key] ?? 0) +
+  (actor.system.potionStages?.[key] ?? 0) + gearStage(actor,key));
+
+const equippedShield = actor => equippedGear(actor).find(item=>equipmentProfile(item)?.shield);
+function adjacentTokens(a,b) {
+  if (!a?.bounds || !b?.bounds || a === b) return false;
+  const x = Math.max(a.bounds.left - b.bounds.right,b.bounds.left - a.bounds.right,0);
+  const y = Math.max(a.bounds.top - b.bounds.bottom,b.bounds.top - a.bounds.bottom,0);
+  return x <= 1 && y <= 1;
+}
+
+function effectiveReduction(actor) {
+  const shields = actor.getFlag(ID,"shieldProtection") || [];
+  const protection = shields.reduce((total,row)=>{
+    const scene = globalThis.canvas?.scene;
+    if (row.sceneId !== (scene?.id ?? null)) return total;
+    const tokens = globalThis.canvas?.tokens;
+    const sourceToken = tokens?.get(row.sourceToken);
+    const targetToken = tokens?.get(row.targetToken);
+    const source = row.self ? actor : sourceToken?.actor;
+    if (!source || source.uuid !== row.source || !equippedShield(source) ||
+      source.system.attackScene !== row.scene || source.system.attackTurn !== row.turn ||
+      (row.self && !equippedGear(source).some(item=>item.name === "Heavy Shield"))) return total;
+    if (row.combatId) {
+      const combat = game.combats.get(row.combatId);
+      if (!combat?.started || combat.round > row.expiresRound ||
+        (combat.round === row.expiresRound && combat.turn >= row.expiresTurn)) return total;
+    }
+    if (!row.self && (targetToken?.actor?.uuid !== actor.uuid || !adjacentTokens(sourceToken,targetToken))) return total;
+    return Math.max(total,row.reduction);
+  },0);
+  return actor.system.reduction + gearBonus(actor,"reduction") + protection;
+}
+
+async function protectWithShield(source,target,sourceToken,targetToken) {
+  const previous = target.getFlag(ID,"shieldProtection") || [];
+  const self = source === target;
+  const reduction = [5,10,20][tier(source.system.level,pokemon(source)) - 1];
+  const entry = {source:source.uuid,scene:source.system.attackScene,turn:source.system.attackTurn,
+    sceneId:globalThis.canvas?.scene?.id ?? null,sourceToken:sourceToken?.id,
+    targetToken:targetToken?.id,self,reduction};
+  const combat = game.combat;
+  const index = combat?.started ? combat.turns.findIndex(combatant=>sourceToken ?
+    combatant.tokenId === sourceToken.id : combatant.actor?.uuid === source.uuid) : -1;
+  if (index >= 0) Object.assign(entry,{combatId:combat.id,expiresTurn:index,
+    expiresRound:combat.round + Number(index <= combat.turn)});
+  await target.setFlag(ID,"shieldProtection",[...previous.filter(row=>row.source !== source.uuid),entry]);
+  return reduction;
+}
+
+function clearSceneConsumables(system) {
+  return Object.fromEntries([
+    ...["potionStages","potionBonuses"].flatMap(bucket=>Object.keys(system[bucket]).map(key=>[`system.${bucket}.${key}`,0])),
+    ["system.healingPotionUsed",false],
+    [`flags.${ID}.-=shieldProtection`,null]
+  ]);
+}
+
 function combatStat(actor,key) {
-  const stage = actor.system.stages?.[key] ?? 0;
+  const stage = effectiveStage(actor,key);
   const penalty = (key === "def" && afflicted(actor,"burned")) || (key === "spd" && afflicted(actor,"poisoned"));
   return stagedStat(actor.system.stats[key],stage - (penalty ? 2 : 0));
 }
 const hasCondition = (actor,key) => actor.system.health.value > 0 &&
   (Boolean(actor.system.conditions[key]) || grantedCondition(actor.system,key));
 const potionBonus = (actor,key) => actor.system.potionBonuses?.[key] ?? 0;
-const accuracyModifier = actor => capCombatModifier(actor.system.accuracy +
+const accuracyModifier = actor => capCombatModifier(actor.system.accuracy + gearBonus(actor,"accuracy") +
   potionBonus(actor,"accuracy") - (afflicted(actor,"cursed") ? 3 : 0)) -
   (hasCondition(actor,"blinded") || hasCondition(actor,"tripped") ? 6 : 0);
 function attackEvasion(actor, defense) {
@@ -372,6 +437,7 @@ async function resetAttackScene(actor) {
     const changes = {
       "system.attackScene":actor.system.attackScene + 1,
       "system.attackTurn":0,
+      ...clearSceneConsumables(actor.system),
       ...clearActions("actions")
     };
     if (pool.owner === actor && actor.type === "trainer") Object.assign(changes,clearActions("partnerActions"));
@@ -459,7 +525,7 @@ async function useMove(actor, item, pool = null) {
   const needsAccuracy = move.accuracyRequired !== false;
   const roll = await new Roll("1d20 + @accuracy", {accuracy:accuracyModifier(actor)}).evaluate();
   const natural = roll.dice[0].values[0];
-  const critical = move.category !== "Status" && natural >= Math.max(1,move.crit - capCombatModifier(potionBonus(actor,"crit")));
+  const critical = move.category !== "Status" && natural >= Math.max(1,move.crit - capCombatModifier(potionBonus(actor,"crit") + gearBonus(actor,"crit")));
   const special = move.category === "Special";
   const db = baseDb + (elements(actor).includes(move.element) ? 2 : 0);
   const damage = move.category === "Status" || baseDb === 0 ? null :
@@ -475,11 +541,13 @@ async function useMove(actor, item, pool = null) {
     const manualDamage = !damage && ["Counter","Sonic Boom"].includes(catalogListing(item)?.name);
     const immune = factor === 0 && (damage || manualDamage);
     const hit = !immune && (!needsAccuracy || roll.total >= needed);
-    const amount = hit && damage ? Math.floor(Math.max(0,damage.total-defense-target.system.reduction)*factor) : 0;
+    const amount = hit && damage ? Math.floor(Math.max(0,damage.total-defense-effectiveReduction(target))*factor) : 0;
     const result = immune ? matchupLabel(0) : !hit ? "Miss" : !damage ? "Hit" : `Hit · ${amount} damage`;
     const typing = targetTypes.length ? ` (${targetTypes.map(escape).join(" / ")})` : "";
     const matchup = damage && !immune ? ` · ${matchupLabel(factor)}` : "";
-    return {token,target,amount,line:`<li>${escape(token.name)}${typing} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}${matchup}</li>`};
+    const vest = hit && move.category !== "Status" &&
+      equippedGear(target).some(item=>item.name === (special ? "Psionic Vest" : "Assault Vest"));
+    return {token,target,amount,vest,line:`<li>${escape(token.name)}${typing} · ${needsAccuracy ? `TN ${needed} · ` : ""}${result}${matchup}</li>`};
   });
   let tracked = "";
   if (pool) {
@@ -625,6 +693,7 @@ async function useManeuver(actor,key,rules) {
   if (key === "opportunity") return rollBasicAttack(actor,{opportunity:true});
   const target = maneuver.target ? targets[0].actor : null;
   const targetName = maneuver.target ? targets[0].name : "";
+  const shieldToken = key === "defend" && equippedShield(actor) && actor.getActiveTokens().find(token=>adjacentTokens(token,targets[0]));
   const pool = actionPool(actor);
   const locks = new Set([actor.uuid,pool.owner.uuid]);
   if ([...locks].some(id=>pendingGear.has(id))) return;
@@ -677,6 +746,10 @@ async function useManeuver(actor,key,rules) {
       const error = maneuverCostError(pool,cost);
       if (error) return ui.notifications.warn(error);
       if (cost.length) await pool.owner.update(maneuverActionUpdates(pool,cost,true));
+    }
+    if (shieldToken && target?.isOwner && equippedShield(actor) && adjacentTokens(shieldToken,targets[0])) {
+      const protection = await protectWithShield(actor,target,shieldToken,targets[0]);
+      outcomes.push(`Shield: ${targetName} gains ${protection} Damage Reduction while adjacent until your next turn.`);
     }
     return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls,content:
       `<strong>${maneuver.name}</strong>${targetName ? ` · ${escape(targetName)}` : ""}<br>
@@ -769,7 +842,7 @@ async function rollBasicAttack(actor,{opportunity = false} = {}) {
 async function applyMoveDamage(results) {
   const writable = new Map();
   for (const hit of results) {
-    if (!hit.amount || !hit.target.isOwner) continue;
+    if ((!hit.amount && !hit.vest) || !hit.target.isOwner) continue;
     const prior = writable.get(hit.target.uuid);
     if (!prior || hit.amount > prior.amount) writable.set(hit.target.uuid,hit);
   }
@@ -778,14 +851,21 @@ async function applyMoveDamage(results) {
   const form = await DialogV2.prompt({classes:["pte-dialog"],
     window:{title:"Apply Rolled Damage"},
     content:`<p>Apply to selected targets you can edit. Identical linked actors are listed once. Resolve special defenses at the table.</p>
-      ${eligible.map((hit,index)=>`<label><input type="checkbox" name="target" value="${index}"> ${escape(hit.token.name)} · ${hit.amount} damage</label>`).join("")}`,
+      ${eligible.map((hit,index)=>`<label><input type="checkbox" name="target" value="${index}"> ${escape(hit.token.name)} · ${hit.amount} damage${hit.vest ? " · vest grants temporary HP if still conscious" : ""}</label>`).join("")}`,
     ok:{label:"Apply Selected",callback:(event,button)=>new FormData(button.form)},
     rejectClose:false
   });
   if (!form) return;
   const selected = new Set(form.getAll("target"));
   const changes = await Promise.allSettled(eligible.filter((hit,index)=>selected.has(String(index)) && hit.target.isOwner)
-    .map(hit=>hit.target.update(combatDamageUpdate(hit.target.system,hit.amount))));
+    .map(hit=>{
+      const system = hit.target.system;
+      const updates = combatDamageUpdate(system,hit.amount);
+      if (hit.vest && updates["system.health.value"] > 0) {
+        updates["system.health.temp"] = Math.max(updates["system.health.temp"],Math.floor(system.health.max / 10));
+      }
+      return hit.target.update(updates);
+    }));
   if (changes.some(change=>change.status === "rejected")) ui.notifications.warn("Some target damage could not be applied. Check the target sheets.");
 }
 
@@ -1457,7 +1537,7 @@ async function useGear(actor,id) {
     const throwDC = throwRoll ? 4 + attackEvasion(target,0) : null;
     const hit = throwRoll ? throwRoll.total >= throwDC : result === "hit" || result === "adjacent";
     const plan = malady ? maladyPlan(target.system,malady,variant,elements(target),hit) :
-      boost ? boostPlan(target.system,boost,variant) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
+      boost ? boostPlan(target.system,boost,variant,effectiveStage(target,variant)) : recoveryPlan(target.system,gear,form.get("mode"),form.getAll("cure"));
     if (plan.error) return ui.notifications.warn(plan.error);
     const quantity = item.system.quantity;
     let actionSpent = false;
@@ -1812,8 +1892,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       },
       clearAfflictions() {
         const updates = Object.fromEntries(Object.keys(afflictions).map(key=>[`system.afflictions.${key}`,false]));
-        for (const key of Object.keys(this.document.system.potionBonuses)) updates[`system.potionBonuses.${key}`] = 0;
-        return this.document.update({...updates,"system.healingPotionUsed":false});
+        return this.document.update(updates);
       },
       async endTurnTicks() {
         const actor = this.document;
@@ -1880,12 +1959,32 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         if (item && await DialogV2.confirm({classes:["pte-dialog"],window:{title:"Remove Item"},content:`<p>Remove ${escape(item.name)}?</p>`,rejectClose:false})) await item.delete();
       },
       createWeapon() { return createWeapon(this.document); },
+      async raiseShield() {
+        const actor = this.document;
+        if (!actor.isOwner || !equippedGear(actor).some(item=>item.name === "Heavy Shield")) return;
+        const pool = actionPool(actor);
+        const cost = ["swift"];
+        const error = maneuverCostError(pool,cost);
+        if (error) return ui.notifications.warn(error);
+        await pool.owner.update(maneuverActionUpdates(pool,cost,true));
+        try {
+          const protection = await protectWithShield(actor,actor);
+          ui.notifications.info(`Heavy Shield grants ${protection} Damage Reduction until your next turn.`);
+        } catch (error) {
+          await pool.owner.update(maneuverActionUpdates(pool,cost,false));
+          throw error;
+        }
+      },
       useGear(event,target) { return useGear(this.document,target.dataset.id); },
       equip(event,target) {
         const item = this.document.items.get(target.dataset.id);
         if (!item || !this.isEditable) return;
         if (!item.system.equipped && item.system.weaponRank > (this.document.system.skills[item.system.weaponSkill] ?? 0)) {
           return ui.notifications.warn("The holder does not meet this weapon’s qualifying skill rank.");
+        }
+        const minimum = equipmentProfile(item)?.level || 0;
+        if (!item.system.equipped && this.document.system.level < minimum) {
+          return ui.notifications.warn(`This equipment requires level ${minimum}.`);
         }
         return item.update({"system.equipped":!item.system.equipped});
       },
@@ -2019,8 +2118,10 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       stages:Object.entries(stats).filter(([key])=>key!=="hp").map(([key,label])=>({
         key,label,current:system.stages[key],defaultStage:system.defaultStages[key],effective:combatStat(actor,key)
       })),
-      effectiveMovement:Math.max(0,Math.floor((system.movement + Math.trunc(system.stages.spe / 2)) / (afflicted(actor,"slowed") ? 2 : 1))),
-      potionEffects:Object.entries(system.potionBonuses).filter(([,value])=>value).map(([key,value])=>({label:potionVariants[key],value})),
+      effectiveMovement:Math.max(0,Math.floor((system.movement + gearBonus(actor,"movement") + Math.trunc(effectiveStage(actor,"spe") / 2)) / (afflicted(actor,"slowed") ? 2 : 1))),
+      equipmentReduction:effectiveReduction(actor),
+      canRaiseShield:equippedGear(actor).some(item=>item.name === "Heavy Shield"),
+      potionEffects:[...Object.entries(system.potionBonuses),...Object.entries(system.potionStages)].filter(([,value])=>value).map(([key,value])=>({label:potionVariants[key],value})),
       fainted:system.health.value <= 0,
       conditions:Object.entries(conditions).map(([key,label])=>({
         key,label,active:hasCondition(actor,key),granted:grantedCondition(system,key)
@@ -2279,6 +2380,13 @@ Hooks.on("updateActor", (actor, changes) => {
   for (const partner of game.actors.filter(candidate => linkedTrainer(candidate)?.id === actor.id)) {
     if (partner.sheet?.rendered) partner.sheet.render();
   }
+});
+
+Hooks.on("deleteCombat", async combat => {
+  if (!game.users.activeGM?.isSelf || !combat.started) return;
+  const actors = new Map(combat.combatants.filter(combatant=>combatant.actor)
+    .map(({actor})=>[actor.uuid,actor]));
+  await Promise.allSettled([...actors.values()].map(actor=>actor.update(clearSceneConsumables(actor.system))));
 });
 
 Hooks.once("ready", async () => {

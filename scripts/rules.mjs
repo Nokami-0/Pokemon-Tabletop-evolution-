@@ -114,19 +114,19 @@ export const boostGear = {
 
 export const capCombatModifier = value => Math.max(-6,Math.min(6,value));
 
-export function boostPlan(system, gear, variant) {
+export function boostPlan(system, gear, variant, currentStage = system.stages[variant]) {
   if (!Object.hasOwn(gear,variant)) return {error:"Choose a variant on the potion’s item sheet first."};
   if (system.health.value <= 0) return {error:"A fainted combatant cannot benefit from this potion."};
   if ((variant === "def" && system.afflictions.burned) || (variant === "spd" && system.afflictions.poisoned)) {
     return {error:"The active affliction prevents that combat stage from increasing."};
   }
   const stage = Object.hasOwn(system.stages,variant);
-  const bucket = stage ? "stages" : "potionBonuses";
-  const current = system[bucket][variant];
-  const next = stage ? Math.min(6,current + gear[variant]) : current + gear[variant];
-  if (next === current) return {error:"That combat stage is already at its maximum."};
-  return {updates:{[`system.${bucket}.${variant}`]:next},message:
-    `gained +${next-current} ${potionVariants[variant]}${stage ? " combat stages" : " for the scene"}`};
+  const bucket = stage ? "potionStages" : "potionBonuses";
+  const current = system[bucket]?.[variant] ?? 0;
+  const increase = stage ? Math.min(6 - currentStage,gear[variant]) : gear[variant];
+  if (increase <= 0) return {error:"That combat stage is already at its maximum."};
+  return {updates:{[`system.${bucket}.${variant}`]:current + increase},message:
+    `gained +${increase} ${potionVariants[variant]}${stage ? " combat stages" : ""} for the scene`};
 }
 
 export const maladyGear = {
@@ -174,6 +174,7 @@ export function combatDamageUpdate(system, damage) {
     for (const key of Object.keys(conditions)) update[`system.conditions.${key}`] = false;
     for (const key of Object.keys(afflictions)) update[`system.afflictions.${key}`] = false;
     for (const [key,value] of Object.entries(system.defaultStages || {})) update[`system.stages.${key}`] = value;
+    for (const key of Object.keys(system.potionStages || {})) update[`system.potionStages.${key}`] = 0;
   }
   return update;
 }

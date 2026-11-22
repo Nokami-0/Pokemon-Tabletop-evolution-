@@ -34,7 +34,15 @@ const presets = [
   ["restoration-rod","Restoration Rod","Legendary","Arcane","Short Ranged","Large","Medicine Education",["Mending","Enhancing"],["Healing Aura","Energy Blast","Heal Pulse (Weapon)","Empowerment","Recover (Weapon)","Limit Break"]],
   ["runic-blade","Runic Blade","Fine","Arcane","Melee","Medium","Occult Education",["Enhancing","Sundering"],["Arcane Fury","Braced Strike","Magical Burst"]],
   ["aether-lantern","Aether Lantern","Training","Arcane","Short Ranged","Medium","Occult Education",[],["Healing Aura"]],
-  ["astral-focus","Astral Focus","Legendary","Arcane","Long Ranged","Medium","Occult Education",["Enhancing","Homing"],["Arcane Fury","Resonance Beam","Missile Shot","Spirit Lance"]]
+  ["astral-focus","Astral Focus","Legendary","Arcane","Long Ranged","Medium","Occult Education",["Enhancing","Homing"],["Arcane Fury","Resonance Beam","Missile Shot","Spirit Lance"]],
+  ["training-sidearm","Training Sidearm","Training","Martial","Short Ranged","Medium","Combat",[],["Take Aim"]],
+  ["training-carbine","Training Carbine","Training","Martial","Long Ranged","Large","Perception",[],["Take Aim","Bullseye"]],
+  ["service-pistol","Service Pistol","Simple","Martial","Short Ranged","Medium","Combat",["Ammo"],["Quick Draw","Rapid Shot"]],
+  ["patrol-carbine","Patrol Carbine","Simple","Martial","Long Ranged","Large","Perception",["Ammo"],["Salvo","Rapid Shot","Trick Shot"]],
+  ["precision-rifle","Precision Rifle","Fine","Martial","Long Ranged","Large","Perception",["Ammo","Piercing"],["Take Aim","Bullseye","Deadly Strike","Trick Shot"]],
+  ["magitech-pistol","Magitech Pistol","Fine","Arcane","Short Ranged","Medium","Technology Education",["Ammo","Homing"],["Energy Blast","Rapid Shot","Missile Shot"]],
+  ["vanguard-rifle","Vanguard Rifle","Legendary","Martial","Long Ranged","Large","Perception",["Ammo","Sundering"],["Bullseye","Rapid Shot","Trick Shot","Deadly Strike","Deadly Volley","Triple Strike"]],
+  ["astral-blaster","Astral Blaster","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Empowerment","Spirit Lance","Limit Break"]]
 ];
 
 const attacks = new Map(attackCatalog.filter(entry=>entry.category === "Weapon Attacks").map(entry=>[entry.name,entry]));

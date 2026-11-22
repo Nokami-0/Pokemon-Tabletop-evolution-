@@ -32,7 +32,23 @@ const any = values => values.includes(true) ? true : values.includes(null) ? nul
 export function requirementResult(texts, context) {
   const lines = texts.map(normalizeRequirement);
   function evaluate(text) {
-    const level = /^level (\d+)\+?$/.exec(text);
+    if (text === "none") return true;
+    if (text === "a novice skill" || text === "any novice edu skill") {
+      const names = text === "a novice skill" ? skills.map(normalizeRequirement) : aliases;
+      return names.some(name=>context.skills[`s${skillIds.get(name)}`] >= ranks.novice);
+    }
+    if (text === "you have the naturewalk capability") return context.capabilities?.has("naturewalk") ?? false;
+    if (text === "any elementalist class") return [...context.classes].some(name=>name.endsWith(" elementalist"));
+    if (text === "elemental affinity (any)") return [...context.owned].some(name=>name === "elemental affinity" || name.startsWith("elemental affinity ("));
+    const affinity = /^elemental affinity \(([^)]+)\)$/.exec(text);
+    if (affinity) return affinity[1].split(/\s*,\s*|\s+or\s+/)
+      .some(type=>context.owned.has(`elemental affinity (${type})`));
+    const classOption = /^(.+?) or a \[?class\]? feature with (.+?) as a possible prerequisite$/.exec(text);
+    if (classOption) {
+      const names = classOption[1].split(" or ");
+      return names.some(name=>context.classes.has(name) || context.classPrerequisites?.has(name));
+    }
+    const level = /^(?:you're at least trainer )?level (\d+)\+?$/.exec(text);
     if (level) return context.level >= Number(level[1]);
     const count = /^(\d+) (.+?) features?$/.exec(text);
     if (count && context.classes.has(count[2])) return (context.featureCounts.get(count[2]) || 0) >= Number(count[1]);
@@ -41,6 +57,13 @@ export function requirementResult(texts, context) {
     if (suffix) {
       const list = suffix[1].split(/\s*,\s*(?:or\s+)?|\s+or\s+/);
       if (list.every(name=>skillIds.has(name))) return any(list.map(name=>context.skills[`s${skillIds.get(name)}`] >= ranks[suffix[2]]));
+    }
+    const sharedRank = new RegExp(`^(${rankPattern}) (.+)$`).exec(text);
+    if (sharedRank) {
+      const names = sharedRank[2].split(/\s*,\s*(?:or\s+)?|\s+or\s+/);
+      if (names.every(name=>skillIds.has(name))) {
+        return any(names.map(name=>context.skills[`s${skillIds.get(name)}`] >= ranks[sharedRank[1]]));
+      }
     }
     const and = text.split(/\s*,\s*|\s+and\s+/);
     if (and.length > 1) {

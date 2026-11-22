@@ -13,34 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish organized gear compendium
+      - name: Publish trainer feature eligibility
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.81
+          version=0.1.82
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.80 --pattern pokemon-tabletop-evolution-0.1.80.zip --output "$package"
+          gh release download v0.1.81 --pattern pokemon-tabletop-evolution-0.1.81.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.81";
+          manifest.version = "0.1.82";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          npm install --no-save --no-package-lock classic-level@3.0.0
-          staging=$(mktemp -d)
-          unzip -q "$package" 'packs/gear/*' -d "$staging"
-          node tools/organize-gear.mjs "$staging/packs/gear"
-          rm -f "$staging/packs/gear"/{LOCK,LOG,LOG.old}
-          rm -rf packs/gear
-          mkdir -p packs
-          mv "$staging/packs/gear" packs/gear
-          zip -qd "$package" 'packs/gear/*'
-          zip -qr "$package" system.json packs/gear
+          node --check scripts/pte.mjs
+          node --check scripts/prerequisites.mjs
+          zip -q "$package" system.json scripts/pte.mjs scripts/prerequisites.mjs
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Organizes PTE Gear & Items by weapons, consumables, and equipment. Includes sword, mace, and improvised weapon references."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Trainer feature and talent pickers show eligible entries, with GM confirmation for explicit approval requirements."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

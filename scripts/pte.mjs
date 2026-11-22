@@ -814,12 +814,20 @@ function catalogRequirementContext(actor) {
   const classes = new Set();
   const featureCounts = new Map();
   const counted = new Set();
+  const classPrerequisites = new Set();
   for (const item of actor.items) {
     if (item.type !== "class" && item.type !== "feature") continue;
     const name = normalizeRequirement(item.name);
     owned.add(name);
     if (item.type === "class") classes.add(name);
     const listing = catalogListing(item);
+    if (item.type === "class" || featureClass(listing)) {
+      for (const line of listing?.prerequisites || []) {
+        for (const alternative of normalizeRequirement(line).replace(/\s*\[or\]$/, "").split(" or ")) {
+          classPrerequisites.add(alternative);
+        }
+      }
+    }
     if (item.type !== "feature" || !listing || counted.has(name)) continue;
     counted.add(name);
     const group = normalizeRequirement(listing.category);
@@ -830,11 +838,28 @@ function catalogRequirementContext(actor) {
     classes.add(legacyClass);
     owned.add(legacyClass);
   }
-  return {level:actor.system.level,skills:actor.system.skills,owned,classes,featureCounts,catalogNames};
+  const capabilities = new Set();
+  for (const value of [actor.system.capabilityNotes || "", ...grantedCapabilities(actor)]) {
+    if (/\bnaturewalk\b/i.test(value)) capabilities.add("naturewalk");
+  }
+  return {level:actor.system.level,skills:actor.system.skills,owned,classes,featureCounts,catalogNames,classPrerequisites,capabilities};
 }
 
+const supplementalFeaturePrerequisites = new Map([
+  ["Martial Combat", ["Fighter or a Class Feature with Fighter as a possible Prerequisite"]],
+  ["Elemental Affinity", ["GM Permission"]],
+  ["Elemental Detection", ["Elemental Affinity (Any)"]],
+  ["Elemental Expertise", ["Any Elementalist Class", "Level 5"]],
+  ["Elemental Fabrication", ["Elemental Affinity (Grass, Ground, Poison, Rock, Steel)"]],
+  ["Elemental Immunity", ["Elemental Affinity (Dark, Electric, Fire, Fairy, Ghost, Ice, Poison or Psychic)"]],
+  ["Elemental Manipulation", ["Elemental Affinity (Any)"]],
+  ["Elemental Prowess", ["Elemental Affinity (Any)"]]
+]);
+const catalogPrerequisites = entry => entry.prerequisites ?? supplementalFeaturePrerequisites.get(entry.name) ?? [];
+const requiresGM = /\bGM (?:approval|permission)\b/i;
+const trainerFeature = entry => entry?.kind === "feature" && !pokemonCatalogFeature(entry);
 function catalogRequirementResult(entry, context) {
-  const prerequisites = entry.prerequisites || [];
+  const prerequisites = catalogPrerequisites(entry);
   return requirementResult(entry.kind === "class" ? prerequisites.map(line=>
     line.replace(/ Bind (?:X|\d+) - .* Action$/i,"")) : prerequisites,context);
 }
@@ -860,11 +885,15 @@ async function acquisitionCheck(actor, entry) {
     return {};
   }
   if (!entry) return {review:"A custom class, feature, or move requires GM approval."};
-  const prerequisites = entry.prerequisites || [];
-  const result = catalogRequirementResult(entry, catalogRequirementContext(actor));
+  const prerequisites = catalogPrerequisites(entry);
+  const context = catalogRequirementContext(actor);
+  const result = catalogRequirementResult(entry, context);
+  if (trainerFeature(entry) && prerequisites.some(line=>requiresGM.test(line)) && canReviewFeature(entry,context)) {
+    return {review:"GM approval is required. " + prerequisites.join(" / ")};
+  }
   if (result === false) return {error:"Prerequisites unmet. " + prerequisites.join(" / ")};
-  if (result === null && featureClass(entry)) {
-    return {error:"This class feature’s prerequisites could not be verified. " + prerequisites.join(" / ")};
+  if (result === null && trainerFeature(entry)) {
+    return {error:"This feature’s prerequisites could not be verified. " + prerequisites.join(" / ")};
   }
   if (result === null) return {review:"Confirm the requirements in the Rule Book. " + prerequisites.join(" / ")};
   if (entry.category === "Pokémon Abilities" && !pokemon(actor)) {
@@ -1064,21 +1093,30 @@ function bindCatalogSearch(event,dialog) {
 
 const catalogSearchField = '<label>Search <input type="search" data-catalog-query placeholder="Search by name or category" autofocus></label><p role="status" data-catalog-count></p>';
 
+function canReviewFeature(entry, context) {
+  const prerequisites = catalogPrerequisites(entry).map(line=>line.replace(/,?\s*GM (?:approval|permission)\b/i,"").trim()).filter(Boolean);
+  return requirementResult(prerequisites,context) === true;
+}
+
+function meetsPickerPrerequisites(entry, context) {
+  return catalogRequirementResult(entry,context) === true ||
+    (game.user.isGM && trainerFeature(entry) && catalogPrerequisites(entry).some(line=>requiresGM.test(line)) &&
+      canReviewFeature(entry,context));
+}
+
 async function pickCatalogEntry(type, rolesOnly, actor, featureGroup) {
-  const classFeaturesOnly = type === "feature" && featureGroup?.key === "class";
-  const classContext = type === "class" || classFeaturesOnly ? catalogRequirementContext(actor) : null;
+  const context = type === "class" || (type === "feature" && !rolesOnly) ? catalogRequirementContext(actor) : null;
   const entries = catalog.map((entry,index)=>({...entry,index})).filter(entry=>
     entry.kind === type && (entry.category === roleCategory) === rolesOnly &&
     (!pokemon(actor) || entry.category !== abilityCategory) &&
     (!featureGroup || trainerFeatureGroup(entry) === featureGroup.key) &&
-    (!classContext || catalogRequirementResult(entry,classContext) === true));
-  if (classContext && !entries.length) {
-    ui.notifications.info(classFeaturesOnly ? "No class features match this trainer’s current prerequisites." :
-      "No classes match this trainer’s current prerequisites.");
+    (!context || meetsPickerPrerequisites(entry,context)));
+  if (context && !entries.length && featureGroup?.key !== "other") {
+    ui.notifications.info(`No ${featureGroup?.label.toLowerCase() ?? (type === "class" ? "classes" : "features")} match this trainer’s current prerequisites.`);
     return null;
   }
   const groups = Object.groupBy(entries,entry=>entry.category);
-  const allowCustom = !rolesOnly && !classContext && (!featureGroup || featureGroup.key === "other");
+  const allowCustom = !rolesOnly && type !== "class" && (!featureGroup || featureGroup.key === "other");
   const options = Object.entries(groups).map(([label,entries]) =>
     `<optgroup label="${escape(label)}">${entries.map(entry =>
       `<option value="${entry.index}">${escape(entry.name)}${entry.price ? ` · ${escape(entry.price)}` : ""} ${entry.page ? ` · p. ${entry.page}` : entry.stats ? ` · ${escape(entry.stats.element)}` : ""}</option>`
@@ -1095,8 +1133,8 @@ async function pickCatalogEntry(type, rolesOnly, actor, featureGroup) {
   if (allowCustom && selection === "custom") return {name:`New ${titleCase(type)}`,type};
   const entry = entries.find(entry=>String(entry.index) === selection);
   if (!entry) return null;
-  if (classFeaturesOnly && catalogRequirementResult(entry,catalogRequirementContext(actor)) !== true) {
-    ui.notifications.warn("The trainer no longer meets this class feature’s prerequisites.");
+  if (context && !meetsPickerPrerequisites(entry,catalogRequirementContext(actor))) {
+    ui.notifications.warn("The trainer no longer meets this entry’s prerequisites.");
     return null;
   }
   return catalogItemData(entry);

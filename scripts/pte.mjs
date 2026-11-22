@@ -1,5 +1,6 @@
 import {rangeShapes,placeRangeTemplate,removeLastRangeTemplate,inspectRangeTemplates,removeRangeOnMap} from "./range-templates.mjs";
 import {installJournalLibrary, openJournalLibrary} from "./journal-library.mjs";
+import {classReferences} from "../data/class-references.mjs";
 import {advancementGrants} from "../data/class-grants.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
 import {weaponQualities, weaponKeywords, weaponTiers, eligibleWeaponAttack, weaponAttackStats} from "./weapons.mjs";
@@ -933,12 +934,24 @@ async function acquisitionCheck(actor, entry) {
 
 const grantEntries = new Map(catalog.map(entry=>[`${entry.kind}|${normalizeRequirement(entry.name)}`,entry]));
 const grantEntry = reward => reward.kind === "capability"
-  ? capabilityEntries.find(entry=>normalizeRequirement(entry.name) === normalizeRequirement(reward.name)) ??
+  ? capabilityEntries.find(entry=>normalizeRequirement(entry.name) === normalizeRequirement(reward.name.replace(/^Naturewalk \(.*\)$/i,"Naturewalk"))) ??
     bookCatalog.find(entry=>entry.category === "Occult Capabilities" && normalizeRequirement(entry.name) === normalizeRequirement(reward.name))
   : grantEntries.get(`${reward.kind}|${normalizeRequirement(reward.name)}`);
 const grantedCapabilities = actor => [...new Set(actor.items.contents.flatMap(item=>
   Object.values(item.getFlag(ID,"classGrants") || {}).flatMap(rewards=>
     rewards.filter(reward=>reward.kind === "capability").map(reward=>reward.name))))];
+
+function actorNaturewalks(actor) {
+  const text = normalizeRequirement([actor.system.capabilityNotes || "",...grantedCapabilities(actor)].join(" "));
+  return new Set([...text.matchAll(/\bnaturewalk\s*\(([^)]+)\)/g)]
+    .flatMap(match=>match[1].split(",").map(value=>value.trim())));
+}
+
+function grantOptions(grant, actor) {
+  if (grant.id !== "adaptation") return grant.options;
+  const terrains = actorNaturewalks(actor);
+  return grant.options.filter(list=>list.every(reward=>terrains.has(normalizeRequirement(reward.terrain))));
+}
 
 function grantsFor(item) {
   const entry = catalogListing(item);
@@ -948,7 +961,7 @@ function grantsFor(item) {
     catalogListing(owned)?.category === entry.name).map(owned=>owned.name)).size : 0;
   const claims = item.getFlag(ID,"classGrants") || {};
   return advancementGrants(entry,classEffect(entry),grantEntry).map(grant=>({
-    ...grant,claimed:claims[grant.id],ready:Boolean(actor && featureCount >= (grant.minFeatures || 0) && actor.system.level >= (grant.minLevel || 1) &&
+    ...grant,options:actor ? grantOptions(grant,actor) : grant.options,claimed:claims[grant.id],ready:Boolean(actor && featureCount >= (grant.minFeatures || 0) && actor.system.level >= (grant.minLevel || 1) &&
       (!grant.requiresPrevious || claims[grant.requiresPrevious]))
   }));
 }
@@ -973,7 +986,7 @@ async function claimGrant(item,id) {
     if (grant.count) {
       const picked = await DialogV2.prompt({classes:["pte-dialog"],window:{title:grant.label},
         content:`<p>Choose ${grant.count}.</p>${options.map((list,index)=>
-          `<label><input type="checkbox" name="reward" value="${index}"> ${escape(list.map(reward=>reward.name).join(" + "))}</label>`).join("")}`,
+          `<label><input type="checkbox" name="reward" value="${index}"> ${escape(list.map(reward=>reward.terrain ? `${reward.name} (${reward.terrain})` : reward.name).join(" + "))}</label>`).join("")}`,
         ok:{label:"Grant",callback:(event,button)=>new FormData(button.form).getAll("reward")},rejectClose:false});
       if (picked == null) return;
       const indexes = [...new Set(picked)].map(Number);
@@ -2155,12 +2168,25 @@ class PTEItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const [sourceName,pageNumber] = item.system.source.split(", p. ");
     const sourceKey = Object.keys(books).find(key => books[key] === sourceName ||
       (key === "occultism" && sourceName === "Path of Occultism (draft)"));
+    const referenceSource = source => {
+      if (!source) return null;
+      const key = Object.keys(books).find(key=>books[key] === source.book ||
+        (key === "occultism" && source.book === "Path of Occultism (draft)"));
+      return {label:`${source.book}, p. ${source.page}`,url:key && source.page ? bookLink(key,source.page) : ""};
+    };
+    const selectedTerrains = item.parent && listing?.name === "Wild Adaptation" ? actorNaturewalks(item.parent) : null;
+    const classCharts = classReferences(item.type === "class" ? listing?.name : featureClass(listing)?.name,
+      item.type === "feature" ? listing?.name : null,bookCatalog).map(section=>({...section,
+        source:referenceSource(section.source),
+        rows:section.rows.map(row=>({...row,applies:selectedTerrains?.has(normalizeRequirement(row.name)),source:referenceSource(row.source)}))
+      }));
     const sourceLink = item.system.source.startsWith("PTE Attacks & Ability Reference, ") ? attackReference : sourceKey && /^\d+$/.test(pageNumber) ? bookLink(sourceKey,Number(pageNumber)) : "";
     return {...context,item,system:item.system,price:item.type === "gear" ? gearPrice(item) : "",
       canPaySpirit:item.type !== "move" && item.parent?.isOwner && item.system.spiritCost > 0,
-      classFeatures:classFeatureEntries(listing,item.parent),
+      classFeatures:classFeatureEntries(listing,item.parent),classCharts,
       parentClass:featureClass(listing)?.name,
-      classGrants:grantsFor(item).map(grant=>({...grant,canClaim:item.parent?.isOwner && grant.ready && !grant.claimed,
+      classGrants:grantsFor(item).map(grant=>({...grant,canClaim:item.parent?.isOwner && grant.ready && !grant.claimed && grant.options.length >= Math.max(1,grant.count),
+        needsTerrain:item.parent && grant.id === "adaptation" && !grant.options.length,
         grantedNames:grant.claimed?.map(reward=>reward.name).join(", ")})),
       sourceLink,description,variants,variableDb:item.system.variableDb || listing?.stats?.variableDb,pokemonMove:item.type === "move" && item.parent?.type === "pokemon",prerequisites:listing?.prerequisites,keywords:listing?.keywords, tierName:listing?.tier, requirements:listing?.requirements, versatile:listing?.versatile,
       frequency:item.system.frequency || listing?.frequency,action:item.system.action || listing?.action,

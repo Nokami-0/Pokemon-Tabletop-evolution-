@@ -1,3 +1,5 @@
+import {natureTerrains} from "./class-references.mjs";
+
 const attack = name => ({kind:"move",name});
 const feature = name => ({kind:"feature",name});
 const gear = name => ({kind:"gear",name});
@@ -884,6 +886,10 @@ const reviewedGrants = new Map(Object.entries({
   Imposter:[fixed(feature("Makeshift Artisan"),attack("Copycat"))],
   Motivator:[fixed(feature("Battle Commander"))],
   Ranger:[fixed(gear("Ranger Styler"))],
+  "Nature Researcher":[choices("naturewalk","Choose a Naturewalk terrain",1,natureTerrains.map(([terrain])=>[capability(`Naturewalk (${terrain})`)]))],
+  "Natural Connection":[choices("naturewalk","Choose an additional Naturewalk terrain",1,natureTerrains.map(([terrain])=>[capability(`Naturewalk (${terrain})`)]))],
+  "Wild Adaptation":[choices("adaptation","Choose an ability for a Naturewalk terrain",1,natureTerrains.flatMap(([terrain,abilities])=>
+    abilities.map(name=>[{...feature(name),terrain}])) )],
   "Burst Warrior":[fixed(capability("Burst Form"))],
   "Chaos Mage":[fixed(feature("Chaotic"),attack("Metronome"))],
   "Death Bringer":[fixed(feature("Soulstealer"))],

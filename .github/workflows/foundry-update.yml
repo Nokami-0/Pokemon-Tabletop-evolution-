@@ -13,28 +13,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish class references and Nature Researcher grants
+      - name: Publish organized move compendium
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.83
+          version=0.1.84
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.82 --pattern pokemon-tabletop-evolution-0.1.82.zip --output "$package"
+          gh release download v0.1.83 --pattern pokemon-tabletop-evolution-0.1.83.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.83";
+          manifest.version = "0.1.84";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          node --check scripts/pte.mjs
-          node --check data/class-grants.mjs
-          node --check data/class-references.mjs
-          zip -q "$package" system.json scripts/pte.mjs data/class-grants.mjs data/class-references.mjs templates/item.hbs
+          npm install --no-save --no-package-lock classic-level@3.0.0
+          staging=$(mktemp -d)
+          unzip -q "$package" 'packs/moves/*' -d "$staging"
+          node tools/organize-moves.mjs "$staging/packs/moves"
+          rm -f "$staging/packs/moves"/{LOCK,LOG,LOG.old}
+          rm -rf packs/moves
+          mkdir -p packs
+          mv "$staging/packs/moves" packs/moves
+          zip -qd "$package" 'packs/moves/*'
+          zip -qr "$package" system.json packs/moves
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds class reference lists, Nature Researcher charts, and terrain-aware Naturewalk and Wild Adaptation grants."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Separates Pokémon Moves and Weapon Attacks into folders in the existing moves compendium."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

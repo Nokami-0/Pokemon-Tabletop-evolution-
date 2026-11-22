@@ -2,7 +2,7 @@
   "id": "pokemon-tabletop-evolution",
   "title": "Pokémon Tabletop Evolution",
   "description": "An unofficial Foundry system for Pokémon Tabletop Evolution 1.07.",
-  "version": "0.1.84",
+  "version": "0.1.85",
   "compatibility": {
     "minimum": "13",
     "verified": "14",
@@ -38,7 +38,7 @@
   },
   "url": "https://github.com/Nokami-0/Pokemon-Tabletop-evolution-",
   "manifest": "https://raw.githubusercontent.com/Nokami-0/Pokemon-Tabletop-evolution-/main/system.json",
-  "download": "https://github.com/Nokami-0/Pokemon-Tabletop-evolution-/releases/download/v0.1.84/pokemon-tabletop-evolution-0.1.84.zip",
+  "download": "https://github.com/Nokami-0/Pokemon-Tabletop-evolution-/releases/download/v0.1.85/pokemon-tabletop-evolution-0.1.85.zip",
   "packs": [
     {
       "name": "gear",

@@ -13,30 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish complete gear descriptions
+      - name: Publish backpacks and slot expanders folder
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.89
+          version=0.1.90
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.88 --pattern pokemon-tabletop-evolution-0.1.88.zip --output "$package"
+          gh release download v0.1.89 --pattern pokemon-tabletop-evolution-0.1.89.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.89";
+          manifest.version = "0.1.90";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
           npm install --no-save --no-package-lock classic-level@3.0.0
           unzip -oq "$package" 'packs/gear/*'
-          node tools/fill-gear-rules.mjs
+          node tools/organize-capacity-gear.mjs
           rm -f packs/gear/{LOCK,LOG,LOG.old}
           zip -qd "$package" 'packs/gear/*'
-          zip -qr "$package" system.json packs/gear data/gear-rules.mjs data/item-data.mjs
+          zip -qr "$package" system.json packs/gear
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds usable rule and effect descriptions to all gear compendium entries."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Groups backpacks and slot-expanding gear in a dedicated compendium folder."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

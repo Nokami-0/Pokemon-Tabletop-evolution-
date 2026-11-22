@@ -1,0 +1,893 @@
+[
+  {
+    "id": "practice-sword",
+    "name": "Practice Sword",
+    "quality": "Training",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [],
+    "attacks": [
+      "Double Strike"
+    ]
+  },
+  {
+    "id": "practice-staff",
+    "name": "Practice Staff",
+    "quality": "Training",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Combat",
+    "keywords": [],
+    "attacks": [
+      "Braced Strike",
+      "Beatdown"
+    ]
+  },
+  {
+    "id": "sling",
+    "name": "Sling",
+    "quality": "Training",
+    "type": "Martial",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Perception",
+    "keywords": [],
+    "attacks": [
+      "Take Aim"
+    ]
+  },
+  {
+    "id": "apprentice-wand",
+    "name": "Apprentice Wand",
+    "quality": "Training",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [],
+    "attacks": [
+      "Energy Blast"
+    ]
+  },
+  {
+    "id": "shortsword",
+    "name": "Shortsword",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Sharp"
+    ],
+    "attacks": [
+      "Double Strike",
+      "Quick Draw"
+    ]
+  },
+  {
+    "id": "mace",
+    "name": "Iron Mace",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Blunt"
+    ],
+    "attacks": [
+      "Beatdown",
+      "Braced Strike"
+    ]
+  },
+  {
+    "id": "spear",
+    "name": "Long Spear",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Combat",
+    "keywords": [
+      "Extended"
+    ],
+    "attacks": [
+      "Pierce",
+      "Braced Strike",
+      "Sweeping Strike"
+    ]
+  },
+  {
+    "id": "hunting-bow",
+    "name": "Hunting Bow",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo"
+    ],
+    "attacks": [
+      "Bullseye",
+      "Rapid Shot",
+      "Trick Shot"
+    ]
+  },
+  {
+    "id": "rapier",
+    "name": "Duelist’s Rapier",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Acrobatics",
+    "keywords": [
+      "Finesse",
+      "Piercing"
+    ],
+    "attacks": [
+      "Pierce",
+      "Quick Draw",
+      "Parry"
+    ]
+  },
+  {
+    "id": "battleaxe",
+    "name": "Battleaxe",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Athletics",
+    "keywords": [
+      "Sharp",
+      "Sundering"
+    ],
+    "attacks": [
+      "Beatdown",
+      "Wounding Strike",
+      "Slicing Strike",
+      "Sweeping Strike"
+    ]
+  },
+  {
+    "id": "crossbow",
+    "name": "Barbed Crossbow",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo",
+      "Barbed"
+    ],
+    "attacks": [
+      "Hooked Shot",
+      "Rapid Shot",
+      "Trick Shot",
+      "Deadly Strike"
+    ]
+  },
+  {
+    "id": "mending-wand",
+    "name": "Mending Wand",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Medicine Education",
+    "keywords": [
+      "Mending",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Healing Aura",
+      "Energy Blast",
+      "Heal Pulse (Weapon)"
+    ]
+  },
+  {
+    "id": "greatsword",
+    "name": "Champion’s Greatsword",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Athletics",
+    "keywords": [
+      "Sharp",
+      "Oversized"
+    ],
+    "attacks": [
+      "Braced Strike",
+      "Double Strike",
+      "Slicing Strike",
+      "Sweeping Strike",
+      "Wide Slash",
+      "Fierce Assault"
+    ]
+  },
+  {
+    "id": "warhammer",
+    "name": "Titan’s Warhammer",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Athletics",
+    "keywords": [
+      "Blunt",
+      "Oversized"
+    ],
+    "attacks": [
+      "Beatdown",
+      "Braced Strike",
+      "Reckless Strike",
+      "Cone of Force",
+      "Titanic Slam",
+      "Grand Rupture"
+    ]
+  },
+  {
+    "id": "longbow",
+    "name": "Masterwork Longbow",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo",
+      "Piercing"
+    ],
+    "attacks": [
+      "Take Aim",
+      "Rapid Shot",
+      "Trick Shot",
+      "Deadly Strike",
+      "Deadly Volley",
+      "Impaling Shot"
+    ]
+  },
+  {
+    "id": "sages-staff",
+    "name": "Sage’s Staff",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Occult Education",
+    "keywords": [
+      "Enhancing",
+      "Homing"
+    ],
+    "attacks": [
+      "Arcane Fury",
+      "Energy Blast",
+      "Empowerment",
+      "Missile Shot",
+      "Limit Break",
+      "Arcane Storm"
+    ]
+  },
+  {
+    "id": "barbed-mace",
+    "name": "Barbed Mace",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Barbed",
+      "Blunt"
+    ],
+    "attacks": [
+      "Beatdown",
+      "Braced Strike",
+      "Backswing"
+    ]
+  },
+  {
+    "id": "serrated-saber",
+    "name": "Serrated Saber",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Serrated",
+      "Sharp"
+    ],
+    "attacks": [
+      "Wounding Strike",
+      "Quick Draw",
+      "Slicing Strike"
+    ]
+  },
+  {
+    "id": "concealed-dagger",
+    "name": "Concealed Dagger",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Stealth",
+    "keywords": [
+      "Concealed"
+    ],
+    "attacks": [
+      "Cheap Shot",
+      "Pierce"
+    ]
+  },
+  {
+    "id": "piercing-estoc",
+    "name": "Piercing Estoc",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Piercing",
+      "Sharp"
+    ],
+    "attacks": [
+      "Pierce",
+      "Double Strike",
+      "Parry"
+    ]
+  },
+  {
+    "id": "extended-glaive",
+    "name": "Extended Glaive",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Athletics",
+    "keywords": [
+      "Extended",
+      "Sharp"
+    ],
+    "attacks": [
+      "Pierce",
+      "Braced Strike",
+      "Sweeping Strike",
+      "Slicing Strike"
+    ]
+  },
+  {
+    "id": "sundering-maul",
+    "name": "Sundering Maul",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Athletics",
+    "keywords": [
+      "Sundering",
+      "Blunt"
+    ],
+    "attacks": [
+      "Beatdown",
+      "Braced Strike",
+      "Backswing",
+      "Reckless Strike",
+      "Titanic Slam",
+      "Grand Rupture"
+    ]
+  },
+  {
+    "id": "throwing-hatchet",
+    "name": "Throwing Hatchet",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Throwable"
+    ],
+    "attacks": [
+      "Quick Draw",
+      "Wounding Strike"
+    ]
+  },
+  {
+    "id": "homing-scepter",
+    "name": "Homing Scepter",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Homing",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam",
+      "Missile Shot"
+    ]
+  },
+  {
+    "id": "spark-orb",
+    "name": "Spark Orb",
+    "quality": "Simple",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Homing"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam"
+    ]
+  },
+  {
+    "id": "warding-tome",
+    "name": "Warding Tome",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Enhancing",
+      "Sundering"
+    ],
+    "attacks": [
+      "Bane",
+      "Energy Blast",
+      "Mystic Ward"
+    ]
+  },
+  {
+    "id": "restoration-rod",
+    "name": "Restoration Rod",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Large",
+    "skill": "Medicine Education",
+    "keywords": [
+      "Mending",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Healing Aura",
+      "Energy Blast",
+      "Heal Pulse (Weapon)",
+      "Empowerment",
+      "Recover (Weapon)",
+      "Limit Break"
+    ]
+  },
+  {
+    "id": "runic-blade",
+    "name": "Runic Blade",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Enhancing",
+      "Sundering"
+    ],
+    "attacks": [
+      "Arcane Fury",
+      "Braced Strike",
+      "Magical Burst"
+    ]
+  },
+  {
+    "id": "aether-lantern",
+    "name": "Aether Lantern",
+    "quality": "Training",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [],
+    "attacks": [
+      "Healing Aura"
+    ]
+  },
+  {
+    "id": "astral-focus",
+    "name": "Astral Focus",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Enhancing",
+      "Homing"
+    ],
+    "attacks": [
+      "Arcane Fury",
+      "Resonance Beam",
+      "Missile Shot",
+      "Spirit Lance"
+    ]
+  },
+  {
+    "id": "training-sidearm",
+    "name": "Training Sidearm",
+    "quality": "Training",
+    "type": "Martial",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [],
+    "attacks": [
+      "Take Aim"
+    ]
+  },
+  {
+    "id": "training-carbine",
+    "name": "Training Carbine",
+    "quality": "Training",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [],
+    "attacks": [
+      "Take Aim",
+      "Bullseye"
+    ]
+  },
+  {
+    "id": "service-pistol",
+    "name": "Service Pistol",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Ammo"
+    ],
+    "attacks": [
+      "Quick Draw",
+      "Rapid Shot"
+    ]
+  },
+  {
+    "id": "patrol-carbine",
+    "name": "Patrol Carbine",
+    "quality": "Simple",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo"
+    ],
+    "attacks": [
+      "Salvo",
+      "Rapid Shot",
+      "Trick Shot"
+    ]
+  },
+  {
+    "id": "precision-rifle",
+    "name": "Precision Rifle",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo",
+      "Piercing"
+    ],
+    "attacks": [
+      "Take Aim",
+      "Bullseye",
+      "Deadly Strike",
+      "Trick Shot"
+    ]
+  },
+  {
+    "id": "magitech-pistol",
+    "name": "Magitech Pistol",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Technology Education",
+    "keywords": [
+      "Ammo",
+      "Homing"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Rapid Shot",
+      "Missile Shot"
+    ]
+  },
+  {
+    "id": "vanguard-rifle",
+    "name": "Vanguard Rifle",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo",
+      "Sundering"
+    ],
+    "attacks": [
+      "Bullseye",
+      "Rapid Shot",
+      "Trick Shot",
+      "Deadly Strike",
+      "Deadly Volley",
+      "Triple Strike"
+    ]
+  },
+  {
+    "id": "astral-blaster",
+    "name": "Astral Blaster",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Technology Education",
+    "keywords": [
+      "Homing",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam",
+      "Missile Shot",
+      "Empowerment",
+      "Spirit Lance",
+      "Limit Break"
+    ]
+  },
+  {
+    "id": "practice-hexcaster",
+    "name": "Practice Hexcaster",
+    "quality": "Training",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Technology Education",
+    "keywords": [],
+    "attacks": [
+      "Energy Blast"
+    ]
+  },
+  {
+    "id": "training-pulse-projector",
+    "name": "Training Pulse Projector",
+    "quality": "Training",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Technology Education",
+    "keywords": [],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam"
+    ]
+  },
+  {
+    "id": "spellshot-sidearm",
+    "name": "Spellshot Sidearm",
+    "quality": "Simple",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Technology Education",
+    "keywords": [
+      "Homing"
+    ],
+    "attacks": [
+      "Bane",
+      "Energy Blast"
+    ]
+  },
+  {
+    "id": "resonance-carbine",
+    "name": "Resonance Carbine",
+    "quality": "Simple",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Technology Education",
+    "keywords": [
+      "Enhancing"
+    ],
+    "attacks": [
+      "Resonance Beam",
+      "Take Aim",
+      "Empowerment"
+    ]
+  },
+  {
+    "id": "field-mender-projector",
+    "name": "Field Mender Projector",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Medicine Education",
+    "keywords": [
+      "Mending",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Healing Aura",
+      "Energy Blast",
+      "Heal Pulse (Weapon)"
+    ]
+  },
+  {
+    "id": "runic-arc-rifle",
+    "name": "Runic Arc Rifle",
+    "quality": "Fine",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Technology Education",
+    "keywords": [
+      "Homing",
+      "Sundering"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam",
+      "Missile Shot",
+      "Magical Burst"
+    ]
+  },
+  {
+    "id": "eclipse-hexcaster",
+    "name": "Eclipse Hexcaster",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Homing",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Bane",
+      "Arcane Fury",
+      "Missile Shot",
+      "Mystic Curse"
+    ]
+  },
+  {
+    "id": "aegis-pulse-cannon",
+    "name": "Aegis Pulse Cannon",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Long Ranged",
+    "size": "Large",
+    "skill": "Technology Education",
+    "keywords": [
+      "Homing",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Energy Blast",
+      "Resonance Beam",
+      "Missile Shot",
+      "Mystic Ward",
+      "Arcane Storm",
+      "Limit Break"
+    ]
+  },
+  {
+    "id": "quickdraw-repeater",
+    "name": "Quickdraw Repeater",
+    "quality": "Fine",
+    "type": "Martial",
+    "range": "Short Ranged",
+    "size": "Medium",
+    "skill": "Combat",
+    "keywords": [
+      "Ammo",
+      "Concealed"
+    ],
+    "attacks": [
+      "Quick Draw",
+      "Rapid Shot",
+      "Trick Shot"
+    ]
+  },
+  {
+    "id": "stormguard-blaster",
+    "name": "Stormguard Blaster",
+    "quality": "Legendary",
+    "type": "Martial",
+    "range": "Short Ranged",
+    "size": "Large",
+    "skill": "Perception",
+    "keywords": [
+      "Ammo",
+      "Piercing"
+    ],
+    "attacks": [
+      "Bullseye",
+      "Rapid Shot",
+      "Deadly Strike",
+      "Trick Shot",
+      "Deadly Volley",
+      "Impaling Shot"
+    ]
+  },
+  {
+    "id": "practice-rune-baton",
+    "name": "Practice Rune Baton",
+    "quality": "Training",
+    "type": "Arcane",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [],
+    "attacks": [
+      "Arcane Fury"
+    ]
+  },
+  {
+    "id": "ember-rod",
+    "name": "Ember Rod",
+    "quality": "Simple",
+    "type": "Arcane",
+    "range": "Melee",
+    "size": "Medium",
+    "skill": "Occult Education",
+    "keywords": [
+      "Extended"
+    ],
+    "attacks": [
+      "Arcane Fury",
+      "Braced Strike"
+    ]
+  },
+  {
+    "id": "astral-glaive",
+    "name": "Astral Glaive",
+    "quality": "Legendary",
+    "type": "Arcane",
+    "range": "Melee",
+    "size": "Large",
+    "skill": "Occult Education",
+    "keywords": [
+      "Extended",
+      "Enhancing"
+    ],
+    "attacks": [
+      "Arcane Fury",
+      "Braced Strike",
+      "Magical Burst",
+      "Empowerment",
+      "Spirit Lance",
+      "Limit Break"
+    ]
+  }
+]

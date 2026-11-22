@@ -50,7 +50,12 @@ const presets = [
   ["field-mender-projector","Field Mender Projector","Fine","Arcane","Short Ranged","Medium","Medicine Education",["Mending","Enhancing"],["Healing Aura","Energy Blast","Heal Pulse (Weapon)"]],
   ["runic-arc-rifle","Runic Arc Rifle","Fine","Arcane","Long Ranged","Large","Technology Education",["Homing","Sundering"],["Energy Blast","Resonance Beam","Missile Shot","Magical Burst"]],
   ["eclipse-hexcaster","Eclipse Hexcaster","Legendary","Arcane","Short Ranged","Medium","Occult Education",["Homing","Enhancing"],["Bane","Arcane Fury","Missile Shot","Mystic Curse"]],
-  ["aegis-pulse-cannon","Aegis Pulse Cannon","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Mystic Ward","Arcane Storm","Limit Break"]]
+  ["aegis-pulse-cannon","Aegis Pulse Cannon","Legendary","Arcane","Long Ranged","Large","Technology Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot","Mystic Ward","Arcane Storm","Limit Break"]],
+  ["quickdraw-repeater","Quickdraw Repeater","Fine","Martial","Short Ranged","Medium","Combat",["Ammo","Concealed"],["Quick Draw","Rapid Shot","Trick Shot"]],
+  ["stormguard-blaster","Stormguard Blaster","Legendary","Martial","Short Ranged","Large","Perception",["Ammo","Piercing"],["Bullseye","Rapid Shot","Deadly Strike","Trick Shot","Deadly Volley","Impaling Shot"]],
+  ["practice-rune-baton","Practice Rune Baton","Training","Arcane","Melee","Medium","Occult Education",[],["Arcane Fury"]],
+  ["ember-rod","Ember Rod","Simple","Arcane","Melee","Medium","Occult Education",["Extended"],["Arcane Fury","Braced Strike"]],
+  ["astral-glaive","Astral Glaive","Legendary","Arcane","Melee","Large","Occult Education",["Extended","Enhancing"],["Arcane Fury","Braced Strike","Magical Burst","Empowerment","Spirit Lance","Limit Break"]]
 ];
 
 const attacks = new Map(attackCatalog.filter(entry=>entry.category === "Weapon Attacks").map(entry=>[entry.name,entry]));

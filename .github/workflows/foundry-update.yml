@@ -16,27 +16,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Publish editable system data
+      - name: Publish verified system build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.99
+          version=0.1.100
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.98 --pattern pokemon-tabletop-evolution-0.1.98.zip --output "$package"
+          gh release download v0.1.99 --pattern pokemon-tabletop-evolution-0.1.99.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.99";
+          manifest.version = "0.1.100";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          for script in data/attacks.mjs data/catalog.mjs data/class-effects.mjs data/effects.mjs data/journal-reference.mjs data/token-art.mjs data/gear-rules.mjs data/equipment.mjs data/capabilities.mjs data/class-grants.mjs scripts/rules.mjs scripts/maneuvers.mjs scripts/weapons.mjs tools/edit-dex-profiles.mjs tools/refresh-catalog-packs.mjs; do node --check "$script"; done
-          node --input-type=module -e 'import "./data/weapon-presets.mjs"; import "./data/class-grants.mjs"; import "./data/journal-reference.mjs";'
-          zip -q "$package" system.json data/attacks.json data/catalog.json data/class-effects.json data/effects.json data/journal-reference.json data/token-art.json data/gear-rules.json data/equipment.json data/capabilities.json data/class-grants.json data/maneuvers.json data/weapon-qualities.json data/rule-settings.json data/attacks.mjs data/catalog.mjs data/class-effects.mjs data/effects.mjs data/journal-reference.mjs data/token-art.mjs data/gear-rules.mjs data/equipment.mjs data/capabilities.mjs data/class-grants.mjs scripts/rules.mjs scripts/maneuvers.mjs scripts/weapons.mjs tools/edit-dex-profiles.mjs tools/refresh-catalog-packs.mjs EDITING.md tools/add-weapon-presets.mjs
+          zip -q "$package" system.json data/item-slots.mjs scripts/models.mjs scripts/pte.mjs tools/smoke-test.mjs
           unzip -tq "$package"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Separates editable system data from JavaScript rules and adds an editing guide and data maintenance tools."
+          npm install --no-save --no-package-lock classic-level@3.0.0 handlebars@4.7.8
+          staging=$(mktemp -d -p "$PWD")
+          unzip -q "$package" -d "$staging"
+          node "$staging/tools/smoke-test.mjs"
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds package smoke tests and fixes invalid Trainer links, blank item keyword overrides, and skill sheet schema sizing."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

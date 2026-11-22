@@ -111,7 +111,11 @@ function attackEvasion(actor, defense) {
     actor.system.evasion + potionBonus(actor,"evasion") - (afflicted(actor,"cursed") ? 3 : 0));
 }
 const pokemon = actor => actor.type === "pokemon";
-const linkedTrainer = actor => pokemon(actor) && game.actors.get(actor.system.trainerId);
+function linkedTrainer(actor) {
+  if (!pokemon(actor)) return null;
+  const trainer = game.actors.get(actor.system.trainerId);
+  return trainer?.type === "trainer" ? trainer : null;
+}
 function actionPool(actor,pool) {
   const trainer = linkedTrainer(actor);
   return {owner:trainer || actor,key:trainer || pool === "team" ? "partnerActions" : "actions"};

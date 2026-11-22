@@ -12,8 +12,10 @@ const consumable = names("Pokeball|Basic Pokefood|Typed Pokefood|Pokepuff|Shard|
 
 function inferredKeywords(item) {
   const {name,system} = item;
-  if (system.slotKeywords?.trim()) return names(system.slotKeywords.split(/[,;\[\]]+/)
-    .map(value=>value.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"")).filter(Boolean).join("|"));
+  const overrides = (system.slotKeywords || "").split(/[,;\[\]]+/)
+    .map(value=>value.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,""))
+    .filter(Boolean);
+  if (overrides.length) return new Set(overrides);
   const type = weapons.has(name) || system.weaponSkill ? "weapon" : armor.has(name) ? "armor" : "";
   const existingWeaponSize = system.weaponSkill ? / · (Large|Medium)$/m.exec(system.description || "")?.[1] : undefined;
   const keys = new Set([existingWeaponSize?.toLowerCase() ?? equipment[name]?.size?.toLowerCase() ?? (large.has(name) ? "large" :

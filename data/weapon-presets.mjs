@@ -20,7 +20,15 @@ const presets = [
   ["greatsword","Champion’s Greatsword","Legendary","Martial","Melee","Large","Athletics",["Sharp","Oversized"],["Braced Strike","Double Strike","Slicing Strike","Sweeping Strike","Wide Slash","Fierce Assault"]],
   ["warhammer","Titan’s Warhammer","Legendary","Martial","Melee","Large","Athletics",["Blunt","Oversized"],["Beatdown","Braced Strike","Reckless Strike","Cone of Force","Titanic Slam","Grand Rupture"]],
   ["longbow","Masterwork Longbow","Legendary","Martial","Long Ranged","Large","Perception",["Ammo","Piercing"],["Take Aim","Rapid Shot","Trick Shot","Deadly Strike","Deadly Volley","Impaling Shot"]],
-  ["sages-staff","Sage’s Staff","Legendary","Arcane","Long Ranged","Large","Occult Education",["Enhancing","Homing"],["Arcane Fury","Energy Blast","Empowerment","Missile Shot","Limit Break","Arcane Storm"]]
+  ["sages-staff","Sage’s Staff","Legendary","Arcane","Long Ranged","Large","Occult Education",["Enhancing","Homing"],["Arcane Fury","Energy Blast","Empowerment","Missile Shot","Limit Break","Arcane Storm"]],
+  ["barbed-mace","Barbed Mace","Fine","Martial","Melee","Medium","Combat",["Barbed","Blunt"],["Beatdown","Braced Strike","Backswing"]],
+  ["serrated-saber","Serrated Saber","Fine","Martial","Melee","Medium","Combat",["Serrated","Sharp"],["Wounding Strike","Quick Draw","Slicing Strike"]],
+  ["concealed-dagger","Concealed Dagger","Simple","Martial","Melee","Medium","Stealth",["Concealed"],["Cheap Shot","Pierce"]],
+  ["piercing-estoc","Piercing Estoc","Fine","Martial","Melee","Medium","Combat",["Piercing","Sharp"],["Pierce","Double Strike","Parry"]],
+  ["extended-glaive","Extended Glaive","Fine","Martial","Melee","Large","Athletics",["Extended","Sharp"],["Pierce","Braced Strike","Sweeping Strike","Slicing Strike"]],
+  ["sundering-maul","Sundering Maul","Legendary","Martial","Melee","Large","Athletics",["Sundering","Blunt"],["Beatdown","Braced Strike","Backswing","Reckless Strike","Titanic Slam","Grand Rupture"]],
+  ["throwing-hatchet","Throwing Hatchet","Simple","Martial","Melee","Medium","Combat",["Throwable"],["Quick Draw","Wounding Strike"]],
+  ["homing-scepter","Homing Scepter","Fine","Arcane","Short Ranged","Medium","Occult Education",["Homing","Enhancing"],["Energy Blast","Resonance Beam","Missile Shot"]]
 ];
 
 const attacks = new Map(attackCatalog.filter(entry=>entry.category === "Weapon Attacks").map(entry=>[entry.name,entry]));

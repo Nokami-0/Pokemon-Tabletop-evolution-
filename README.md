@@ -48,7 +48,7 @@ Following the PTE 1.07 Rule Book, p. 152, use either the sum of party skill succ
 
 ## Campaign Clock, Calendar & Weather
 
-In the bundled edition, enable **PTE Campaign Clock, Calendar & Weather** under **Manage Modules**, then click the clock icon in **Token Controls**. The module uses shared world time, the five PTE phases, a Gregorian calendar, and scene weather.
+Click the clock icon in **Token Controls** to open the system’s shared world clock, the five PTE time phases, Gregorian calendar, and scene weather. The GM edits time and field weather. Players can view both and browse the calendar.
 
 ## Rule Library
 

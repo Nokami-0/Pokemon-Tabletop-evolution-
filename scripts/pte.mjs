@@ -1,3 +1,4 @@
+import {registerCampaignClock} from "./campaign-time.mjs";
 import {registerTwoSideCombatTracker} from "./two-side-combat-tracker.mjs";
 import {weaponPresets} from "../data/weapon-presets.mjs";
 import {itemKeywords, equipmentEligible, itemSlotLabel, slotTotals} from "../data/item-slots.mjs";
@@ -2513,10 +2514,22 @@ Hooks.once("init", () => {
   }
   game.settings.register(ID,"token-directory",{name:"Pokémon artwork folder",
     hint:"Foundry Data folder containing Portraits and Ringed Tokens, or the older page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
-  game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks,openClock:() => {
-    const open = game.modules.get("pte-campaign-time")?.api?.open;
-    return open ? open() : ui.notifications.warn("Enable the PTE Campaign Clock, Calendar & Weather module.");
-  }};
+  const openClock = registerCampaignClock(ID);
+  game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks,openClock};
+  Hooks.on("getSceneControlButtons", controls => {
+    const tools = controls.tokens?.tools;
+    if (!tools) return;
+    const name = "pte-campaign-time";
+    tools[name] = {
+      name,
+      title: "Campaign Clock, Calendar & Weather",
+      icon: "fa-solid fa-clock",
+      order: tools[name]?.order ?? Math.max(0, ...Object.values(tools).map(tool => tool.order ?? 0)) + 1,
+      button: true,
+      visible: true,
+      onChange: () => openClock()
+    };
+  });
 });
 
 Hooks.on("preCreateItem", (item) => {

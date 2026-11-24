@@ -63,13 +63,13 @@ export function monthCalendar(date, offset = 0) {
   return {label: formatMonth.format(month), cells};
 }
 
-export function registerCampaignClock(moduleId, weatherScope) {
+export function registerCampaignClock(systemId) {
   const {ApplicationV2, HandlebarsApplicationMixin} = foundry.applications.api;
 
   class CampaignClock extends HandlebarsApplicationMixin(ApplicationV2) {
     static DEFAULT_OPTIONS = {
-      id: moduleId,
-      classes: ["pte-campaign-time-module"],
+      id: "pte-system-campaign-time",
+      classes: ["pte-campaign-time-window"],
       position: {width: 510},
       window: {title: "Campaign Clock & Calendar", resizable: true},
       actions: {
@@ -92,7 +92,7 @@ export function registerCampaignClock(moduleId, weatherScope) {
       }
     };
 
-    static PARTS = {body: {template: `modules/${moduleId}/templates/campaign-time.hbs`, scrollable: [""]}};
+    static PARTS = {body: {template: `systems/${systemId}/templates/campaign-time.hbs`, scrollable: [""]}};
     monthOffset = 0;
     updating = false;
     updatingWeather = false;
@@ -101,7 +101,7 @@ export function registerCampaignClock(moduleId, weatherScope) {
       const now = campaignDate(game.time.worldTime);
       const phase = timePhase(game.time.worldTime);
       const scene = viewedScene();
-      const weather = normalizeWeather(scene?.getFlag(weatherScope, WEATHER_FLAG));
+      const weather = normalizeWeather(scene?.getFlag(systemId, WEATHER_FLAG));
       return {
         ...await super._prepareContext(options),
         dateLabel: formatDate.format(now),
@@ -125,8 +125,8 @@ export function registerCampaignClock(moduleId, weatherScope) {
       if (!scene || scene.id !== renderedSceneId) return;
       this.updatingWeather = true;
       try {
-        const current = scene.getFlag(weatherScope, WEATHER_FLAG);
-        await scene.setFlag(weatherScope, WEATHER_FLAG, changeFieldWeather(current, action, type));
+        const current = scene.getFlag(systemId, WEATHER_FLAG);
+        await scene.setFlag(systemId, WEATHER_FLAG, changeFieldWeather(current, action, type));
       } catch (error) {
         console.error("PTE campaign clock could not update weather", error);
         ui.notifications.error("Could not update the scene’s weather.");

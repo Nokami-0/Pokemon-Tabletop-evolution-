@@ -1,9 +1,16 @@
 <section class="pte-side-initiative">
   {{#if running}}
-    <h3>Side Initiative · Round {{round}}</h3>
+    <h3>{{#if partyMode}}Party / Group Initiative{{else}}Side Initiative{{/if}} · Round {{round}}</h3>
   {{else}}
     <details>
-      <summary>Side Initiative</summary>
+      <summary>Group Initiative</summary>
+      <label>Initiative mode
+        <select name="pte-initiative-mode">
+          <option value="sides">Two Sides</option>
+          <option value="party">Party / Group</option>
+        </select>
+      </label>
+      <div data-pte-side-setup>
       <p>Assign combatants to sides and enter a PTE initiative result for each side.</p>
       <div class="pte-side-scores">
         <label>Players <input type="number" name="pte-player-score" step="any"></label>
@@ -33,6 +40,31 @@
       {{else}}
         <p>Each side needs an undefeated combatant to start.</p>
       {{/if}}
+      </div>
+      <div data-pte-party-setup hidden>
+        <p>Assign combatants to groups. Enter one initiative score for each group. On ties, groups go in the order listed here.</p>
+        {{#each groupOptions}}
+          <fieldset data-party-group="{{id}}" class="pte-side-scores">
+            <label>Group name <input type="text" name="pte-party-name-{{id}}" data-party-label value="{{label}}"></label>
+            <label>Initiative <input type="number" name="pte-party-score-{{id}}" step="any"></label>
+          </fieldset>
+        {{/each}}
+        <button type="button" data-side-action="add-group">Add Group</button>
+        <ul>
+          {{#each partyMembers}}
+            <li>
+              <label>{{name}}{{#if hidden}} (Hidden){{/if}}
+                <select name="pte-party-member-{{id}}">
+                  {{#each groups}}
+                    <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </label>
+            </li>
+          {{/each}}
+        </ul>
+        <button type="button" data-side-action="start-party">Start Group Initiative</button>
+      </div>
     </details>
   {{/if}}
 
@@ -57,7 +89,7 @@
       </div>
     {{/each}}
     {{#if canManage}}
-      <button type="button" data-side-action="advance">End Side Turn</button>
+      <button type="button" data-side-action="advance">{{#if partyMode}}End Group Turn{{else}}End Side Turn{{/if}}</button>
       <button type="button" data-side-action="end">End Combat</button>
     {{/if}}
   {{/if}}

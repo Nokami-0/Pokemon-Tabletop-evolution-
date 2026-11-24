@@ -40,6 +40,12 @@ Side initiative tracks side turns and member checkmarks. Resolve individual star
 
 To edit the feature in VS Code, open the system folder containing `system.json`. The registration is in `scripts/pte.mjs`. The combat rules and controls are in `scripts/two-side-combat-tracker.mjs`, and the layout is in `templates/combat/two-side-tracker.hbs`.
 
+### Party / Group mode
+
+Before starting combat, open **Group Initiative** and choose **Party / Group**. Name each group, enter one initiative score per group, and assign each combatant to a group. Use **Add Group** for additional teams. A trainer and their Pokémon can share a group, and rival trainers or wild Pokémon can have their own groups.
+
+The highest initiative goes first. Ties follow the group setup order. Members can act in any order during their group's turn. The GM marks individual members done and uses **End Group Turn** to advance. Groups without undefeated combatants at setup are excluded from the turn order.
+
 ## Rule Library
 
 Open **Rule Library** from a Trainer or Pokémon sheet. A GM can point each of the six entries at a PDF in Foundry Data or at an HTTPS address under **Configure Settings → Pokémon Tabletop Evolution**. The books themselves are supplied by the GM. Pokédex Details links straight to the species page once the Pokédex PDF is configured.

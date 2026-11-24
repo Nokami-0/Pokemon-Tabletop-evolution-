@@ -1,4 +1,4 @@
-# Pokémon Tabletop Evolution for Foundry VTT
+# Unofficial Pokémon Tabletop Evolution for Foundry VTT
 
 Unofficial Foundry VTT 13–14 adaptation of Pokémon Tabletop Evolution 1.07. Version 0.1.25 adds order and capability references and shows Pokédex details on Pokémon sheets.
 

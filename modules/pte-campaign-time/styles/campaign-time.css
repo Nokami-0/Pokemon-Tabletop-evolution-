@@ -1,0 +1,15 @@
+.pte-campaign-time-module .pte-clock-body {display:grid; gap:12px; padding:16px; overflow:auto}
+.pte-campaign-time-module .pte-clock-header,.pte-campaign-time-module .pte-clock-nav {display:flex; align-items:center; justify-content:space-between; gap:8px}
+.pte-campaign-time-module .pte-clock-time {font-size:1.8rem; font-variant-numeric:tabular-nums}
+.pte-campaign-time-module .pte-clock-phases {list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(75px,1fr)); gap:4px; padding:0; margin:0}
+.pte-campaign-time-module .pte-clock-phases li {padding:5px 3px; text-align:center; border-radius:4px}
+.pte-campaign-time-module .pte-clock-phases span {display:block; font-size:.72rem; white-space:nowrap}
+.pte-campaign-time-module .pte-clock-grid {display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center}
+.pte-campaign-time-module .pte-clock-grid span {min-height:1.75rem; padding:4px}
+.pte-campaign-time-module .pte-clock-body [aria-current] {background:var(--pte-blue,#174977); color:#fff; border-radius:4px}
+.pte-campaign-time-module .pte-clock-controls,.pte-campaign-time-module .pte-clock-set {display:flex; flex-wrap:wrap; align-items:center; gap:6px}
+.pte-campaign-time-module .pte-clock-body button {width:auto; flex:0 1 auto}
+
+.pte-campaign-time-module .pte-clock-weather {padding:8px; border:1px solid var(--pte-line,#cbd9e6); border-radius:4px}
+.pte-campaign-time-module .pte-clock-weather-list {display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-block:5px}
+.pte-campaign-time-module .pte-clock-weather-list button {min-height:1.4rem; line-height:1}

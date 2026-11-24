@@ -46,15 +46,9 @@ Before starting combat, open **Group Initiative** and choose **Party / Group**. 
 
 Following the PTE 1.07 Rule Book, p. 152, use either the sum of party skill successes or the highest individual success count for all parties. Choose up to two unacted combatants each time a party gains initiative. Their actions can interleave. Use **End Party Initiative** to mark them done for the round and pass initiative to the next party with eligible combatants. When only one party has eligible combatants left, it can act again. The next round refreshes tracked actions and starts with the highest-ranked eligible party other than the last to act, when possible. Use **Queue a new party for next round** for new arrivals. Ties use the group setup order.
 
-## Campaign Clock & Calendar
+## Campaign Clock, Calendar & Weather
 
-Open **Clock & Calendar** from a Trainer or Pokémon sheet. The display follows Foundry's shared world time. GMs can advance time, jump to the next phase, or set a date and time. Players can view the clock and browse months.
-
-The five phase boundaries follow PTE Rule Book 1.07, p. 199. **+4 Hours** is the rulebook cost of one downtime action. **Next Phase** moves to the next boundary, so Midnight can last up to eight hours. The calendar uses Gregorian months and starts at January 1, 2000, 08:00 when Foundry world time is zero.
-
-### Field Weather
-
-The clock shows the weather for the currently viewed scene. A GM can add or remove any of the eight PTE weather types. The field holds two active weather types, and adding a third replaces the oldest. Reapplying a type makes it the most recent. Remove a weather condition when the attack or field effect that created it ends. The tracker records conditions for the table to reference during play.
+In the bundled edition, enable **PTE Campaign Clock, Calendar & Weather** under **Manage Modules**, then click the clock icon in **Token Controls**. The module uses shared world time, the five PTE phases, a Gregorian calendar, and scene weather.
 
 ## Rule Library
 

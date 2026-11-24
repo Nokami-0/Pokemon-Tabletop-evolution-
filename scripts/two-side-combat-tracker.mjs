@@ -8,6 +8,35 @@ function combatantSide(combatant, systemId) {
   return combatant.actor?.hasPlayerOwner ? "players" : "opponents";
 }
 
+export function folderPartySetup(members, systemId, groupCount, findActor) {
+  const folderGroups = new Map();
+  const assignments = new Map();
+  for (const member of members) {
+    const actor = member.actor;
+    const trainer = actor?.type === "pokemon" ? findActor(actor.system?.trainerId) : undefined;
+    const folder = actor?.folder?.id ? actor.folder : trainer?.folder;
+    if (!folder?.id) {
+      assignments.set(member.id, combatantSide(member, systemId) === "players" ? "group-1" : "group-2");
+      continue;
+    }
+    const id = `folder-${folder.id}`;
+    assignments.set(member.id, id);
+    if (!folderGroups.has(id)) {
+      const path = [folder.name];
+      for (let parent = folder.folder; parent?.id; parent = parent.folder) path.unshift(parent.name);
+      folderGroups.set(id, {id, label: path.join(" / ")});
+    }
+  }
+
+  const groups = [
+    ...Array.from(folderGroups.values()).sort((a,b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id)),
+    ...Array.from({length: groupCount}, (_, index) => ({
+      id: `group-${index + 1}`, label: [LABELS.players, LABELS.opponents][index] ?? `Group ${index + 1}`
+    }))
+  ];
+  return {groups, assignments};
+}
+
 function initiativeGroup(member, systemId, state) {
   return state?.groups ? state.assignments[member.id] : combatantSide(member, systemId);
 }
@@ -28,7 +57,7 @@ export function nextSideTurn(state, round, eligibleSides) {
 }
 
 function canAct(member) {
-  return !member.isDefeated && (member.actor?.system.health?.value ?? 1) > 0;
+  return !member.isDefeated && (member.actor?.system?.health?.value ?? 1) > 0;
 }
 
 function availableParties(state, members, excluded = new Set()) {
@@ -79,13 +108,13 @@ export function registerTwoSideCombatTracker(systemId, {resetPartyActions = asyn
       const showSetup = canManage && combat && !combat.started && combat.combatants.size;
       const visibleMembers = combat?.combatants.filter(member => isGM || !member.hidden) ?? [];
       const groupCount = combat?.getFlag(systemId, GROUP_COUNT) ?? 2;
-      const groupOptions = Array.from({length: groupCount}, (_, index) => ({
-        id: `group-${index + 1}`, label: `Group ${index + 1}`
-      }));
+      const {groups: groupOptions, assignments: folderAssignments} = showSetup
+        ? folderPartySetup(visibleMembers, systemId, groupCount, id => id ? game.actors.get(id) : undefined)
+        : {groups: [], assignments: new Map()};
       const partyMembers = state ? [] : visibleMembers.map(member => ({
         id: member.id, name: member.name, hidden: member.hidden,
         groups: groupOptions.map(group => ({
-          ...group, selected: group.id === (combatantSide(member, systemId) === "players" ? "group-1" : "group-2")
+          ...group, selected: group.id === folderAssignments.get(member.id)
         }))
       }));
       const labels = state?.groups
@@ -135,7 +164,11 @@ export function registerTwoSideCombatTracker(systemId, {resetPartyActions = asyn
         if (draft) {
           details.open = draft.open;
           for (const control of controls) {
-            if (draft.values.has(control.name)) control.value = draft.values.get(control.name);
+            if (!draft.values.has(control.name)) continue;
+            const value = draft.values.get(control.name);
+            if (control.tagName !== "SELECT" || Array.from(control.options).some(option => option.value === value)) {
+              control.value = value;
+            }
           }
         }
         const mode = details.querySelector('[name="pte-initiative-mode"]');
@@ -149,12 +182,16 @@ export function registerTwoSideCombatTracker(systemId, {resetPartyActions = asyn
             option.textContent = names.get(option.value) || option.value;
           }
         };
-        const saveDraft = () => this.setupDrafts.set(combat.id, {
-          open: details.open, values: new Map(controls.map(control => [control.name, control.value]))
-        });
+        const edited = draft?.values ?? new Map();
+        const saveDraft = () => this.setupDrafts.set(combat.id, {open: details.open, values: edited});
+        const edit = event => {
+          if (controls.includes(event.target)) edited.set(event.target.name, event.target.value);
+          syncSetup();
+          saveDraft();
+        };
         details.addEventListener("toggle", saveDraft);
-        details.addEventListener("input", () => { syncSetup(); saveDraft(); });
-        details.addEventListener("change", () => { syncSetup(); saveDraft(); });
+        details.addEventListener("input", edit);
+        details.addEventListener("change", edit);
         syncSetup();
       } else {
         this.setupDrafts.delete(combat.id);

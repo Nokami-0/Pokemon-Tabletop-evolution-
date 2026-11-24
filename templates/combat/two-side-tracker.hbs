@@ -6,8 +6,8 @@
       <summary>Group Initiative</summary>
       <label>Initiative mode
         <select name="pte-initiative-mode">
-          <option value="sides">Two Sides</option>
           <option value="party">Party / Group</option>
+          <option value="sides">Two Sides</option>
         </select>
       </label>
       <div data-pte-side-setup>
@@ -42,7 +42,7 @@
       {{/if}}
       </div>
       <div data-pte-party-setup hidden>
-        <p>Assign combatants to parties. Enter the total or highest skill successes from Roll Party Initiative, using the same method for all parties. On ties, parties go in the order listed here.</p>
+        <p>Actor folders suggest parties. Change any suggested assignment before starting. Enter the total or highest skill successes from Roll Party Initiative, using the same method for all parties. On ties, parties go in the order listed here.</p>
         {{#each groupOptions}}
           <fieldset data-party-group="{{id}}" class="pte-side-scores">
             <label>Group name <input type="text" name="pte-party-name-{{id}}" data-party-label value="{{label}}"></label>

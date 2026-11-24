@@ -42,7 +42,7 @@ To edit the feature in VS Code, open the system folder containing `system.json`.
 
 ### Party / Group mode
 
-Before starting combat, open **Group Initiative** and choose **Party / Group**. Name each group, enter one initiative score per group, and assign each combatant to a group. Use **Add Group** for additional teams. A trainer and their Pokémon can share a group, and rival trainers or wild Pokémon can have their own groups.
+Before starting combat, open **Group Initiative** and choose **Party / Group**. Actors in the same Actor folder start in that folder’s party. An unfiled Pokémon follows its linked Trainer’s folder when available. Unfiled actors otherwise default to Players or Opponents. Review or change the assignments, and enter one initiative score per party. Use **Add Group** for additional teams. A trainer and their Pokémon can share a group, and rival trainers or wild Pokémon can have their own groups.
 
 Following the PTE 1.07 Rule Book, p. 152, use either the sum of party skill successes or the highest individual success count for all parties. Choose up to two unacted combatants each time a party gains initiative. Their actions can interleave. Use **End Party Initiative** to mark them done for the round and pass initiative to the next party with eligible combatants. When only one party has eligible combatants left, it can act again. The next round refreshes tracked actions and starts with the highest-ranked eligible party other than the last to act, when possible. Use **Queue a new party for next round** for new arrivals. Ties use the group setup order.
 

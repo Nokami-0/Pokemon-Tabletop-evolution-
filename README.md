@@ -52,6 +52,10 @@ Open **Clock & Calendar** from a Trainer or Pokémon sheet. The display follows 
 
 The five phase boundaries follow PTE Rule Book 1.07, p. 199. **+4 Hours** is the rulebook cost of one downtime action. **Next Phase** moves to the next boundary, so Midnight can last up to eight hours. The calendar uses Gregorian months and starts at January 1, 2000, 08:00 when Foundry world time is zero.
 
+### Field Weather
+
+The clock shows the weather for the currently viewed scene. A GM can add or remove any of the eight PTE weather types. The field holds two active weather types, and adding a third replaces the oldest. Reapplying a type makes it the most recent. Remove a weather condition when the attack or field effect that created it ends. The tracker records conditions for the table to reference during play.
+
 ## Rule Library
 
 Open **Rule Library** from a Trainer or Pokémon sheet. A GM can point each of the six entries at a PDF in Foundry Data or at an HTTPS address under **Configure Settings → Pokémon Tabletop Evolution**. The books themselves are supplied by the GM. Pokédex Details links straight to the species page once the Pokédex PDF is configured.

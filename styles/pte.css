@@ -245,3 +245,7 @@
 .pte-clock-body [aria-current] {background:var(--pte-blue,#174977); color:#fff; border-radius:4px}
 .pte-clock-controls,.pte-clock-set {display:flex; flex-wrap:wrap; align-items:center; gap:6px}
 .pte-clock-body button {width:auto; flex:0 1 auto}
+
+.pte-clock-weather {padding:8px; border:1px solid var(--pte-line,#cbd9e6); border-radius:4px}
+.pte-clock-weather-list {display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-block:5px}
+.pte-clock-weather-list button {min-height:1.4rem; line-height:1}

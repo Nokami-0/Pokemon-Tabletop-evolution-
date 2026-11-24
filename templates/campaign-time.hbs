@@ -6,6 +6,29 @@
   <ul class="pte-clock-phases" aria-label="Time phases">
     {{#each phases}}<li {{#if active}}aria-current="time"{{/if}}><strong>{{label}}</strong> <span>{{range}}</span></li>{{/each}}
   </ul>
+  <section class="pte-clock-weather" data-weather-scene="{{sceneId}}" aria-label="Field weather">
+    <strong>Field Weather</strong>{{#if scene}} <span>· {{scene}}</span>{{/if}}
+    {{#if scene}}
+      <div class="pte-clock-weather-list">
+        {{#each weather}}
+          <span>{{this}}{{#if @root.isGM}} <button type="button" data-action="removeWeather" data-weather="{{this}}" aria-label="Remove {{this}}">×</button>{{/if}}</span>
+        {{else}}
+          <span>Clear</span>
+        {{/each}}
+      </div>
+      {{#if isGM}}
+        <div class="pte-clock-controls">
+          <select name="weatherType" aria-label="Weather to add">
+            {{#each weatherTypes}}<option value="{{this}}">{{this}}</option>{{/each}}
+          </select>
+          <button type="button" data-action="addWeather">Add Weather</button>
+          {{#if weather.length}}<button type="button" data-action="clearWeather">Clear Weather</button>{{/if}}
+        </div>
+      {{/if}}
+    {{else}}
+      <div>Open a scene to track weather.</div>
+    {{/if}}
+  </section>
   <nav class="pte-clock-nav" aria-label="Calendar navigation">
     <button type="button" data-action="previousMonth" aria-label="Previous month">‹</button>
     <strong>{{calendar.label}}</strong>

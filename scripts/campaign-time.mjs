@@ -8,6 +8,25 @@ const PHASES = [
   {label: "Evening", hour: 16, range: "16:00–20:00"},
   {label: "Night", hour: 20, range: "20:00–24:00"}
 ];
+const WEATHER_TYPES = ["Windy", "Foggy", "Mystical", "Sunny", "Snowy", "Rainy", "Thunderstorm", "Sandstorm"];
+const WEATHER_FLAG = "fieldWeather";
+
+function normalizeWeather(weather) {
+  return Array.isArray(weather) ? [...new Set(weather.filter(type => WEATHER_TYPES.includes(type)))].slice(-2) : [];
+}
+
+export function changeFieldWeather(weather, action, type) {
+  const current = normalizeWeather(weather);
+  if (action === "clear") return [];
+  if (!WEATHER_TYPES.includes(type)) return current;
+  const remaining = current.filter(entry => entry !== type);
+  return action === "add" ? [...remaining, type].slice(-2) : remaining;
+}
+
+function viewedScene() {
+  return globalThis.canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active;
+}
+
 const formatMonth = new Intl.DateTimeFormat("en", {month: "long", year: "numeric", timeZone: "UTC"});
 const formatDate = new Intl.DateTimeFormat("en", {weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC"});
 
@@ -59,6 +78,11 @@ export function registerCampaignClock(systemId) {
         currentMonth() { this.monthOffset = 0; return this.render(); },
         advanceTime(event, button) { return this.moveTime(Number(button.dataset.seconds)); },
         nextPhase() { return this.moveTime(secondsToNextPhase(game.time.worldTime)); },
+        addWeather() {
+          return this.updateWeather("add", this.element.querySelector('[name="weatherType"]').value);
+        },
+        removeWeather(event, button) { return this.updateWeather("remove", button.dataset.weather); },
+        clearWeather() { return this.updateWeather("clear"); },
         setTime() {
           const value = this.element.querySelector('input[name="campaignTime"]').value;
           const target = campaignTimeForDate(value);
@@ -71,10 +95,13 @@ export function registerCampaignClock(systemId) {
     static PARTS = {body: {template: `systems/${systemId}/templates/campaign-time.hbs`, scrollable: [""]}};
     monthOffset = 0;
     updating = false;
+    updatingWeather = false;
 
     async _prepareContext(options) {
       const now = campaignDate(game.time.worldTime);
       const phase = timePhase(game.time.worldTime);
+      const scene = viewedScene();
+      const weather = normalizeWeather(scene?.getFlag(systemId, WEATHER_FLAG));
       return {
         ...await super._prepareContext(options),
         dateLabel: formatDate.format(now),
@@ -83,8 +110,29 @@ export function registerCampaignClock(systemId) {
         calendar: monthCalendar(now, this.monthOffset),
         phases: PHASES.map(entry => ({...entry, active: entry === phase})),
         phase: phase.label,
+        scene: scene?.name,
+        sceneId: scene?.id,
+        weather,
+        weatherTypes: WEATHER_TYPES,
         isGM: game.user.isGM
       };
+    }
+
+    async updateWeather(action, type) {
+      if (!game.user.isGM || this.updatingWeather) return;
+      const scene = viewedScene();
+      const renderedSceneId = this.element.querySelector("[data-weather-scene]").dataset.weatherScene;
+      if (!scene || scene.id !== renderedSceneId) return;
+      this.updatingWeather = true;
+      try {
+        const current = scene.getFlag(systemId, WEATHER_FLAG);
+        await scene.setFlag(systemId, WEATHER_FLAG, changeFieldWeather(current, action, type));
+      } catch (error) {
+        console.error("PTE campaign clock could not update weather", error);
+        ui.notifications.error("Could not update the scene’s weather.");
+      } finally {
+        this.updatingWeather = false;
+      }
     }
 
     async moveTime(seconds) {
@@ -110,6 +158,12 @@ export function registerCampaignClock(systemId) {
 
   let clock;
   Hooks.on("updateWorldTime", () => {
+    if (clock?.rendered) return clock.render();
+  });
+  Hooks.on("updateScene", scene => {
+    if (clock?.rendered && scene.id === viewedScene()?.id) return clock.render();
+  });
+  Hooks.on("canvasReady", () => {
     if (clock?.rendered) return clock.render();
   });
   return () => (clock ??= new CampaignClock()).render({force: true});

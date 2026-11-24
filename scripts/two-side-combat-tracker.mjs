@@ -27,7 +27,35 @@ export function nextSideTurn(state, round, eligibleSides) {
   return {round: round + 1, state: {...state, activeSide: first, acted: []}};
 }
 
-export function registerTwoSideCombatTracker(systemId) {
+function canAct(member) {
+  return !member.isDefeated && (member.actor?.system.health?.value ?? 1) > 0;
+}
+
+function availableParties(state, members, excluded = new Set()) {
+  return new Set(members.filter(member => canAct(member) && !excluded.has(member.id))
+    .map(member => state.assignments[member.id]));
+}
+
+export function nextPartyTurn(state, round, members) {
+  const selected = new Set(state.selected ?? []);
+  const eligible = members.filter(member => canAct(member) && !state.acted.includes(member.id)
+    && state.assignments[member.id] === state.activeSide && selected.has(member.id)).slice(0, 2);
+  const acted = [...state.acted, ...eligible.map(member => member.id)];
+  const lastParty = eligible.length ? state.activeSide : state.lastParty;
+  const remaining = availableParties(state, members, new Set(acted));
+  const index = state.order.indexOf(state.activeSide);
+  const rotated = [...state.order.slice(index + 1), ...state.order.slice(0, index + 1)];
+  const next = rotated.find(id => remaining.has(id));
+  if (next) return {round, state: {...state, activeSide: next, acted, selected: [], lastParty}};
+
+  const available = availableParties(state, members);
+  const order = Object.keys(state.groups).sort((a, b) => state.scores[b] - state.scores[a]);
+  const first = order.find(id => available.has(id) && id !== lastParty)
+    ?? order.find(id => available.has(id));
+  return first ? {round: round + 1, state: {...state, order, activeSide: first, acted: [], selected: [], lastParty: null}} : null;
+}
+
+export function registerTwoSideCombatTracker(systemId, {resetPartyActions = async () => {}} = {}) {
   const BaseTracker = CONFIG.ui.combat;
   const template = `systems/${systemId}/templates/combat/two-side-tracker.hbs`;
   const statePath = `flags.${systemId}.${FLAG}`;
@@ -70,15 +98,21 @@ export function registerTwoSideCombatTracker(systemId) {
           id: member.id,
           name: member.name,
           hidden: member.hidden,
-          defeated: member.isDefeated,
+          defeated: state?.groups ? !canAct(member) : member.isDefeated,
           done: state?.acted.includes(member.id),
-          canMark: canManage && state?.activeSide === id && !member.isDefeated,
+          selected: state?.selected?.includes(member.id),
+          canSelect: canManage && state?.groups && state.activeSide === id && canAct(member)
+            && !state.acted.includes(member.id),
+          canMark: canManage && !state?.groups && state?.activeSide === id && !member.isDefeated,
           otherSide: id === "players" ? LABELS.opponents : LABELS.players
         }))
       }));
 
       const panel = state || showSetup ? await foundry.applications.handlebars.renderTemplate(template, {
         sides, partyMembers, groupOptions, partyMode: Boolean(state?.groups),
+        reserveMembers: state?.groups && canManage ? visibleMembers.filter(member => !state.assignments[member.id])
+          .map(member => ({id: member.id, name: member.name})) : [],
+        selectionPending: Boolean(state?.selected?.length),
         round: combat.round, running: Boolean(state), canManage,
         canStart: showSetup && readySides(combat, systemId).size === 2
       }) : null;
@@ -94,7 +128,7 @@ export function registerTwoSideCombatTracker(systemId) {
       container.insertAdjacentHTML("afterbegin", panel);
       const section = container.firstElementChild;
       section.dataset.encounterId = combat.id;
-      const details = section.querySelector("details");
+      const details = section.querySelector("[data-pte-initiative-setup]");
       if (details) {
         const controls = Array.from(details.querySelectorAll("input, select"));
         const draft = this.setupDrafts.get(combat.id);
@@ -169,7 +203,7 @@ export function registerTwoSideCombatTracker(systemId) {
         if (Object.values(assignments).some(id => !Object.hasOwn(groups, id))) {
           return ui.notifications.warn("Assign every combatant to a group.");
         }
-        const occupied = readySides(combat, systemId, {groups, assignments});
+        const occupied = availableParties({assignments}, combat.combatants);
         if (!occupied.size) return ui.notifications.warn("Add at least one undefeated combatant.");
         const scores = Object.fromEntries(Array.from(occupied, id => [
           id, panel.querySelector(`[name="pte-party-score-${id}"]`)?.valueAsNumber
@@ -178,9 +212,12 @@ export function registerTwoSideCombatTracker(systemId) {
           return ui.notifications.warn("Enter a name and initiative score for each group with an undefeated combatant.");
         }
         const order = Object.keys(groups).filter(id => occupied.has(id)).sort((a, b) => scores[b] - scores[a]);
+        const activeGroups = Object.fromEntries(order.map(id => [id, groups[id]]));
+        const activeAssignments = Object.fromEntries(Object.entries(assignments).filter(([,id]) => occupied.has(id)));
+        await resetPartyActions(combat.combatants.filter(member => activeAssignments[member.id]));
         return combat.update({
           round: 1, turn: null,
-          [statePath]: {groups, assignments, scores, order, activeSide: order[0], acted: []}
+          [statePath]: {groups: activeGroups, assignments: activeAssignments, scores, order, activeSide: order[0], acted: [], selected: []}
         });
       }
 
@@ -203,9 +240,42 @@ export function registerTwoSideCombatTracker(systemId) {
 
       if (!state) return;
       if (action === "end") return combat.endCombat();
+      if (state.groups && action === "queue-party") {
+        const name = panel.querySelector('[name="pte-late-party-name"]').value.trim();
+        const score = panel.querySelector('[name="pte-late-party-score"]').valueAsNumber;
+        const ids = Array.from(panel.querySelectorAll('[name="pte-late-party-member"]:checked'), input => input.value)
+          .filter(id => combat.combatants.get(id) && !state.assignments[id]);
+        if (!name || !Number.isFinite(score) || !ids.length) {
+          return ui.notifications.warn("Enter a name, score, and at least one entrant.");
+        }
+        const id = `late-${Object.keys(state.groups).length}`;
+        return combat.setFlag(systemId, FLAG, {
+          ...state, groups: {...state.groups, [id]: name}, scores: {...state.scores, [id]: score},
+          assignments: {...state.assignments, ...Object.fromEntries(ids.map(memberId => [memberId, id]))}
+        });
+      }
+      if (state.groups && action === "select" && member && canAct(member) &&
+          state.assignments[member.id] === state.activeSide && !state.acted.includes(member.id)) {
+        const selected = (state.selected ?? []).filter(id => {
+          const candidate = combat.combatants.get(id);
+          return candidate && canAct(candidate);
+        });
+        if (selected.includes(member.id)) {
+          return combat.setFlag(systemId, FLAG, {...state, selected: selected.filter(id => id !== member.id)});
+        }
+        if (selected.length >= 2) return ui.notifications.warn("Only two combatants can take this party’s initiative.");
+        return combat.setFlag(systemId, FLAG, {...state, selected: [...selected, member.id]});
+      }
       if (action === "advance") {
-        const next = nextSideTurn(state, combat.round, readySides(combat, systemId, state));
+        const members = combat.combatants.filter(member => state.assignments?.[member.id]);
+        if (state.groups && !(state.selected ?? []).length && members.some(member =>
+          state.assignments[member.id] === state.activeSide && canAct(member) && !state.acted.includes(member.id))) {
+          return ui.notifications.warn("Select one or two combatants before ending this initiative.");
+        }
+        const next = state.groups ? nextPartyTurn(state, combat.round, members)
+          : nextSideTurn(state, combat.round, readySides(combat, systemId, state));
         if (!next) return ui.notifications.warn("No undefeated combatants are left in the turn order.");
+        if (state.groups && next.round !== combat.round) await resetPartyActions(members);
         return combat.update({round: next.round, turn: null, [statePath]: next.state});
       }
 

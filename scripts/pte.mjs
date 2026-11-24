@@ -121,6 +121,22 @@ function actionPool(actor,pool) {
   const trainer = linkedTrainer(actor);
   return {owner:trainer || actor,key:trainer || pool === "team" ? "partnerActions" : "actions"};
 }
+async function resetPartyActions(members) {
+  const pools = new Map();
+  for (const {actor} of members) {
+    if (!actor || !["trainer", "pokemon"].includes(actor.type)) continue;
+    const {owner, key} = actionPool(actor);
+    const entry = pools.get(owner.uuid) ?? {owner, keys: new Set()};
+    entry.keys.add(key);
+    pools.set(owner.uuid, entry);
+  }
+  for (const {owner, keys} of pools.values()) {
+    await owner.update(Object.fromEntries(Array.from(keys).flatMap(key =>
+      actions.map(action => [`system.${key}.${action}`, false])
+    )));
+  }
+}
+
 const elements = actor => pokemon(actor) ? [...new Set([actor.system.type1,actor.system.type2].filter(Boolean))] : [];
 const dex = () => fetch(foundry.utils.getRoute(`${root}/data/dex.json`)).then(response => {
   if (!response.ok) throw new Error("Could not load the Pokédex.");
@@ -668,7 +684,7 @@ async function rollInitiative(actor, party) {
   }
   const fields = participants.map((member,index)=>
     `<fieldset><legend>${escape(member.name)}</legend>${maneuverSkillField("Initiative skill",`skill${index}`,skills)}
-      <p>Speed modifier +${initiativeSpeedModifier(combatStat(member,"spe"))}</p></fieldset>`).join("");
+      ${party ? "" : `<p>Speed modifier +${initiativeSpeedModifier(combatStat(member,"spe"))}</p>`}</fieldset>`).join("");
   const form = await DialogV2.prompt({classes:["pte-dialog"],window:{title:party ? "Party Initiative" : "Initiative"},
     content:`<p>${party ? "This sheet and targeted tokens are one party. Roll for each opposing party separately." : "Choose the skill that reflects how you enter the encounter."}</p>
       <div style="max-height:60vh;overflow:auto">${fields}</div>`,
@@ -678,7 +694,7 @@ async function rollInitiative(actor, party) {
   if (choices.some(choice=>!skills.includes(choice.skill) || ![3,4,5].includes(choice.mode))) return;
   const results = await Promise.all(choices.map(async ({member,token,requiresToken,skill,mode})=>{
     const check = await maneuverSkill(member,skill,mode);
-    const modifier = initiativeSpeedModifier(combatStat(member,"spe"));
+    const modifier = party ? 0 : initiativeSpeedModifier(combatStat(member,"spe"));
     return {...check,member,token,requiresToken,name:token?.name || member.name,skill,modifier,initiative:check.successes + modifier};
   }));
   const trackerUpdate = initiativeTrackerQueue.then(()=>putInitiativeInTracker(scene,results));
@@ -687,7 +703,7 @@ async function rollInitiative(actor, party) {
   const total = results.reduce((sum,result)=>sum + result.initiative,0);
   const highest = Math.max(...results.map(result=>result.initiative));
   const details = results.map(result=>`<li>${escape(result.name)} · ${escape(result.skill)} · ${result.successes} successes
-    + ${result.modifier} Speed = <strong>${result.initiative}</strong></li>`).join("");
+    ${party ? "" : `+ ${result.modifier} Speed = <strong>${result.initiative}</strong>`}</li>`).join("");
   return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),rolls:results.map(result=>result.roll),
     content:`<strong>${party ? `Party Initiative · Total ${total} · Highest ${highest}` : `Initiative · ${total}`}</strong>
       <ul>${details}</ul><p>${escape(tracker)}</p>${party ? "<p>Compare party totals or highest results using your table’s initiative rule.</p>" : ""}`});
@@ -2483,7 +2499,7 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
 }
 
 Hooks.once("init", () => {
-  registerTwoSideCombatTracker(ID);
+  registerTwoSideCombatTracker(ID, {resetPartyActions});
   CONFIG.Actor.documentClass = PTEActor;
   Object.assign(CONFIG.Actor.dataModels,{trainer:TrainerData,pokemon:PokemonData});
   Object.assign(CONFIG.Item.dataModels,{move:MoveData,gear:GearData,feature:FeatureData,class:FeatureData});

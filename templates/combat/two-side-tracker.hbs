@@ -2,7 +2,7 @@
   {{#if running}}
     <h3>{{#if partyMode}}Party / Group Initiative{{else}}Side Initiative{{/if}} · Round {{round}}</h3>
   {{else}}
-    <details>
+    <details data-pte-initiative-setup>
       <summary>Group Initiative</summary>
       <label>Initiative mode
         <select name="pte-initiative-mode">
@@ -42,7 +42,7 @@
       {{/if}}
       </div>
       <div data-pte-party-setup hidden>
-        <p>Assign combatants to groups. Enter one initiative score for each group. On ties, groups go in the order listed here.</p>
+        <p>Assign combatants to parties. Enter the total or highest skill successes from Roll Party Initiative, using the same method for all parties. On ties, parties go in the order listed here.</p>
         {{#each groupOptions}}
           <fieldset data-party-group="{{id}}" class="pte-side-scores">
             <label>Group name <input type="text" name="pte-party-name-{{id}}" data-party-label value="{{label}}"></label>
@@ -69,6 +69,7 @@
   {{/if}}
 
   {{#if running}}
+    {{#if partyMode}}<p>Choose up to two combatants to act this initiative, then advance.</p>{{/if}}
     {{#each sides}}
       <div class="pte-side{{#if active}} pte-side-active{{/if}}">
         <h4>{{label}} · {{score}}{{#if active}} · Acting now{{/if}}</h4>
@@ -76,6 +77,11 @@
           {{#each members}}
             <li>
               <span>{{name}}{{#if hidden}} (Hidden){{/if}}{{#if defeated}} (Defeated){{else}}{{#if done}} (Done){{/if}}{{/if}}</span>
+              {{#if canSelect}}
+                <button type="button" data-side-action="select" data-member-id="{{id}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}">
+                  {{#if selected}}Acting · Undo{{else}}Choose to Act{{/if}}
+                </button>
+              {{/if}}
               {{#if canMark}}
                 <button type="button" data-side-action="mark" data-member-id="{{id}}">
                   {{#if done}}Undo Done{{else}}Mark Done{{/if}}
@@ -88,8 +94,19 @@
         </ul>
       </div>
     {{/each}}
+    {{#if reserveMembers.length}}
+      <details>
+        <summary>Queue a new party for next round</summary>
+        <label>Party name <input name="pte-late-party-name" type="text"></label>
+        <label>Initiative <input name="pte-late-party-score" type="number" step="any"></label>
+        {{#each reserveMembers}}
+          <label><input name="pte-late-party-member" type="checkbox" value="{{id}}"> {{name}}</label>
+        {{/each}}
+        <button type="button" data-side-action="queue-party">Queue Party</button>
+      </details>
+    {{/if}}
     {{#if canManage}}
-      <button type="button" data-side-action="advance">{{#if partyMode}}End Group Turn{{else}}End Side Turn{{/if}}</button>
+      <button type="button" data-side-action="advance">{{#if partyMode}}End Party Initiative{{else}}End Side Turn{{/if}}</button>
       <button type="button" data-side-action="end">End Combat</button>
     {{/if}}
   {{/if}}

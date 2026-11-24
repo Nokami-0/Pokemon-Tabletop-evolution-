@@ -1,3 +1,4 @@
+import {registerCampaignClock} from "./campaign-time.mjs";
 import {registerTwoSideCombatTracker} from "./two-side-combat-tracker.mjs";
 import {weaponPresets} from "../data/weapon-presets.mjs";
 import {itemKeywords, equipmentEligible, itemSlotLabel, slotTotals} from "../data/item-slots.mjs";
@@ -2135,6 +2136,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return this.document.update(combatDamageUpdate(this.document.system,amount));
       },
       books() { return showBooks(); },
+      campaignClock() { return game.pte.openClock(); },
       speciesTokenSize() { return applySpeciesTokenSize(this.document); },
       speciesArtwork() { return applySpeciesArtwork(this.document); },
       learnSpeciesMove(event,target) { return learnSpeciesMove(this.document,target.dataset.known === "true"); },
@@ -2513,7 +2515,7 @@ Hooks.once("init", () => {
   }
   game.settings.register(ID,"token-directory",{name:"Pokémon artwork folder",
     hint:"Foundry Data folder containing Portraits and Ringed Tokens, or the older page-number PNGs.",scope:"world",config:true,type:String,default:"pte-tokens"});
-  game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks};
+  game.pte = {openDex:() => new Dex().render({force:true}),openBooks:showBooks,openClock:registerCampaignClock(ID)};
 });
 
 Hooks.on("preCreateItem", (item) => {

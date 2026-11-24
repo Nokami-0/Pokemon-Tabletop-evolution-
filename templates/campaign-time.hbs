@@ -1,0 +1,33 @@
+<section class="pte-clock-body">
+  <header class="pte-clock-header">
+    <div><strong>{{dateLabel}}</strong><br><span>{{phase}}</span></div>
+    <strong class="pte-clock-time">{{time}}</strong>
+  </header>
+  <ul class="pte-clock-phases" aria-label="Time phases">
+    {{#each phases}}<li {{#if active}}aria-current="time"{{/if}}><strong>{{label}}</strong> <span>{{range}}</span></li>{{/each}}
+  </ul>
+  <nav class="pte-clock-nav" aria-label="Calendar navigation">
+    <button type="button" data-action="previousMonth" aria-label="Previous month">‹</button>
+    <strong>{{calendar.label}}</strong>
+    <button type="button" data-action="nextMonth" aria-label="Next month">›</button>
+    <button type="button" data-action="currentMonth">Current Month</button>
+  </nav>
+  <div class="pte-clock-grid">
+    <strong>Sun</strong><strong>Mon</strong><strong>Tue</strong><strong>Wed</strong><strong>Thu</strong><strong>Fri</strong><strong>Sat</strong>
+    {{#each calendar.cells}}<span {{#if current}}aria-current="date"{{/if}}>{{day}}</span>{{/each}}
+  </div>
+  {{#if isGM}}
+    <div class="pte-clock-controls">
+      <button type="button" data-action="advanceTime" data-seconds="600">+10 Min</button>
+      <button type="button" data-action="advanceTime" data-seconds="3600">+1 Hour</button>
+      <button type="button" data-action="advanceTime" data-seconds="14400">+4 Hours</button>
+      <button type="button" data-action="advanceTime" data-seconds="86400">+1 Day</button>
+      <button type="button" data-action="nextPhase">Next Phase</button>
+    </div>
+    <div class="pte-clock-set">
+      <label for="pte-campaign-date">Campaign date and time</label>
+      <input id="pte-campaign-date" type="datetime-local" name="campaignTime" value="{{inputTime}}">
+      <button type="button" data-action="setTime">Set</button>
+    </div>
+  {{/if}}
+</section>

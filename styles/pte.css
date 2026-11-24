@@ -189,3 +189,47 @@
 .pte .pte-pokemon-card .pte-trainer-id :is(input,select) {background:#fff8f9}
 .pte .pte-pokemon-card .pte-trainer-id-fields {padding:0; grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
 .pte .pte-pokemon-card .pte-trainer-id-fields label {flex-direction:column; align-items:stretch; gap:2px; padding:4px 6px}
+
+/* Side initiative lives inside the core sidebar and its popout. */
+.pte-side-initiative-active > :not(.pte-side-initiative) {
+  display: none !important;
+}
+
+.pte-side-initiative {
+  padding: 0.5rem;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.pte-side-initiative ul {
+  margin: 0.25rem 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.pte-side-initiative li,
+.pte-side-scores label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.pte-side-scores input {
+  width: 5rem;
+}
+
+.pte-side-initiative button {
+  width: auto;
+}
+
+.pte-side {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-light-tertiary, #777);
+  margin-bottom: 0.5rem;
+}
+
+.pte-side-active {
+  border-color: var(--color-border-highlight, #d98b35);
+}

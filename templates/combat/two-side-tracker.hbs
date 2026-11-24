@@ -1,0 +1,64 @@
+<section class="pte-side-initiative">
+  {{#if running}}
+    <h3>Side Initiative · Round {{round}}</h3>
+  {{else}}
+    <details>
+      <summary>Side Initiative</summary>
+      <p>Assign combatants to sides and enter a PTE initiative result for each side.</p>
+      <div class="pte-side-scores">
+        <label>Players <input type="number" name="pte-player-score" step="any"></label>
+        <label>Opponents <input type="number" name="pte-opponent-score" step="any"></label>
+        <label>On a tie
+          <select name="pte-tie-winner">
+            <option value="players">Players go first</option>
+            <option value="opponents">Opponents go first</option>
+          </select>
+        </label>
+      </div>
+      {{#each sides}}
+        <h4>{{label}}</h4>
+        <ul>
+          {{#each members}}
+            <li>
+              <span>{{name}}{{#if defeated}} (Defeated){{/if}}</span>
+              <button type="button" data-side-action="move" data-member-id="{{id}}">Move to {{otherSide}}</button>
+            </li>
+          {{else}}
+            <li>No combatants</li>
+          {{/each}}
+        </ul>
+      {{/each}}
+      {{#if canStart}}
+        <button type="button" data-side-action="start">Start Side Initiative</button>
+      {{else}}
+        <p>Each side needs an undefeated combatant to start.</p>
+      {{/if}}
+    </details>
+  {{/if}}
+
+  {{#if running}}
+    {{#each sides}}
+      <div class="pte-side{{#if active}} pte-side-active{{/if}}">
+        <h4>{{label}} · {{score}}{{#if active}} · Acting now{{/if}}</h4>
+        <ul>
+          {{#each members}}
+            <li>
+              <span>{{name}}{{#if hidden}} (Hidden){{/if}}{{#if defeated}} (Defeated){{else}}{{#if done}} (Done){{/if}}{{/if}}</span>
+              {{#if canMark}}
+                <button type="button" data-side-action="mark" data-member-id="{{id}}">
+                  {{#if done}}Undo Done{{else}}Mark Done{{/if}}
+                </button>
+              {{/if}}
+            </li>
+          {{else}}
+            <li>No combatants visible</li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/each}}
+    {{#if canManage}}
+      <button type="button" data-side-action="advance">End Side Turn</button>
+      <button type="button" data-side-action="end">End Combat</button>
+    {{/if}}
+  {{/if}}
+</section>

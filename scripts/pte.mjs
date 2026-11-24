@@ -1,3 +1,4 @@
+import {registerTwoSideCombatTracker} from "./two-side-combat-tracker.mjs";
 import {weaponPresets} from "../data/weapon-presets.mjs";
 import {itemKeywords, equipmentEligible, itemSlotLabel, slotTotals} from "../data/item-slots.mjs";
 import {equipment} from "../data/equipment.mjs";
@@ -2482,6 +2483,7 @@ class Dex extends HandlebarsApplicationMixin(foundry.applications.api.Applicatio
 }
 
 Hooks.once("init", () => {
+  registerTwoSideCombatTracker(ID);
   CONFIG.Actor.documentClass = PTEActor;
   Object.assign(CONFIG.Actor.dataModels,{trainer:TrainerData,pokemon:PokemonData});
   Object.assign(CONFIG.Item.dataModels,{move:MoveData,gear:GearData,feature:FeatureData,class:FeatureData});

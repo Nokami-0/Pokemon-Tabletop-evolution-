@@ -30,6 +30,16 @@ Use **Bag → Create Weapon** to build equipment from the Rule Book’s weapon q
 
 Gear prices appear in the dropdown, Bag, and gear sheet. The editable unit price supports fixed prices, variable listings, and free items. Adding gear does not spend money.
 
+## Two-side initiative
+
+Add combatants to an encounter and expand **Side Initiative** in the Combat Tracker before starting combat. Player-owned actors default to **Players**, and other actors default to **Opponents**. The active GM can move individual combatants between sides during setup. Enter one PTE initiative result per side and select which side wins a tie. Use **Start Side Initiative** to start this mode. The regular **Begin Combat** button uses individual initiative.
+
+The higher-scoring side acts first. Its members can act in any order. The active GM can mark or unmark individual members as done, then click **End Side Turn**. Once both sides have had their turn, the tracker advances the round and clears the done marks. The score and side order carry forward, and the tracker skips sides with no undefeated combatants. **End Combat** opens Foundry's confirmation dialog.
+
+Side initiative tracks side turns and member checkmarks. Resolve individual start- and end-of-turn effects at the table. Side initiative doesn't reset actor-sheet action pools.
+
+To edit the feature in VS Code, open the system folder containing `system.json`. The registration is in `scripts/pte.mjs`. The combat rules and controls are in `scripts/two-side-combat-tracker.mjs`, and the layout is in `templates/combat/two-side-tracker.hbs`.
+
 ## Rule Library
 
 Open **Rule Library** from a Trainer or Pokémon sheet. A GM can point each of the six entries at a PDF in Foundry Data or at an HTTPS address under **Configure Settings → Pokémon Tabletop Evolution**. The books themselves are supplied by the GM. Pokédex Details links straight to the species page once the Pokédex PDF is configured.

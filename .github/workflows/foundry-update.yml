@@ -22,23 +22,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.100
+          version=0.1.108
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.99 --pattern pokemon-tabletop-evolution-0.1.99.zip --output "$package"
+          gh release download v0.1.100 --pattern pokemon-tabletop-evolution-0.1.100.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.100";
+          manifest.version = "0.1.108";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          zip -q "$package" system.json data/item-slots.mjs scripts/models.mjs scripts/pte.mjs tools/smoke-test.mjs
+          zip -qr "$package" system.json scripts templates styles data packs tools README.md
+          unzip -p "$package" scripts/pte.mjs | grep "getSceneControlButtons" >/dev/null
+          unzip -p "$package" templates/campaign-time.hbs >/dev/null
           unzip -tq "$package"
           npm install --no-save --no-package-lock classic-level@3.0.0 handlebars@4.7.8
           staging=$(mktemp -d -p "$PWD")
           unzip -q "$package" -d "$staging"
           node "$staging/tools/smoke-test.mjs"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds package smoke tests and fixes invalid Trainer links, blank item keyword overrides, and skill sheet schema sizing."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds the built-in campaign clock, calendar, field weather, and folder-based party initiative."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

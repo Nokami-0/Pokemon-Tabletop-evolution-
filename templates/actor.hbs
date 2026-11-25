@@ -419,11 +419,21 @@
           <label>Trainer <select name="system.trainerId"><option value="">Unassigned</option>{{#each trainers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
         </fieldset>
       {{/if}}
-      <div class="pte-buttons">
-        {{#each partners}}<button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>{{else}}
-          <p>{{#if pokemon}}No other visible Pokémon share this Trainer.{{else}}Assign a Trainer on a Pokémon sheet to link it here.{{/if}}</p>
+      <ul class="pte-team-roster">
+        {{#each partners}}
+          <li class="pte-card">
+            <button type="button" data-action="openPartner" data-id="{{id}}">{{name}}</button>
+            <div><strong>{{hp}} / {{maxHp}} HP</strong> · {{status}}</div>
+            <div>{{deployment}}</div>
+            <div class="pte-buttons">
+              {{#if canCall}}<button type="button" data-action="callPartner" data-id="{{id}}">Call</button>{{/if}}
+              {{#if canReturn}}<button type="button" data-action="returnPartner" data-id="{{id}}">Return</button>{{/if}}
+            </div>
+          </li>
+        {{else}}
+          <li>{{#if pokemon}}No other visible Pokémon share this Trainer.{{else}}Assign a Trainer on a Pokémon sheet to link it here.{{/if}}</li>
         {{/each}}
-      </div>
+      </ul>
     </section>
   </div>
   <div class="pte-sheet-panel" data-sheet-panel="skills" {{#unless skillsActive}}hidden{{/unless}}>

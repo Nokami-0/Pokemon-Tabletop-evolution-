@@ -284,3 +284,7 @@
     radial-gradient(ellipse at 88% 0%, rgba(255, 234, 169, .3), transparent 46%),
     linear-gradient(127deg, transparent 39%, rgba(255, 222, 144, .13) 48%, transparent 60%);
 }
+
+.pte-team-roster {list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:8px; padding:0}
+.pte-team-roster .pte-card {padding:8px}
+.pte-directory-health {display:block; font-size:.7rem; font-weight:normal; line-height:1.3; opacity:.86}

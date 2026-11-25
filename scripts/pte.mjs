@@ -621,6 +621,131 @@ function initiativeToken(actor,scene,preferred) {
   return {token:candidates.length === 1 ? candidates[0] : null,requiresToken:candidates.length > 0};
 }
 
+const pendingTeamDeployment = new Set();
+
+function teamTokens(member, scene) {
+  return scene?.tokens.filter(token => token.actorId === member.id) ?? [];
+}
+
+function teamStatus(actor) {
+  const {value, max} = actor.system.health;
+  const status = value <= 0 ? ["Fainted"] : [
+    ...Object.entries(afflictions).filter(([key]) => afflicted(actor, key)).map(([, label]) => label),
+    ...Object.entries(conditions).filter(([key]) => hasCondition(actor, key)).map(([, label]) => label)
+  ];
+  return {hp: value, maxHp: max, status: status.join(", ") || "No conditions"};
+}
+
+function teamRosterEntry(member, trainer, editable) {
+  const scene = globalThis.canvas?.scene;
+  const tokens = teamTokens(member, scene);
+  const linked = tokens.filter(token => token.actorLink);
+  const editableTeam = editable && trainer.isOwner && member.isOwner && Boolean(scene);
+  return {
+    id: member.id, name: member.name, ...teamStatus(member),
+    deployment: linked.length ? "On this scene" : tokens.length ? "Unlinked token on this scene" : "Off this scene",
+    canCall: editableTeam && !tokens.length && member.system.health.value > 0,
+    canReturn: editableTeam && linked.length > 0
+  };
+}
+
+function tokenCenter(token) {
+  return {x: token.x + token.width * canvas.grid.size / 2,
+    y: token.y + token.height * canvas.grid.size / 2};
+}
+
+function deploymentPosition(origin, prototype, scene) {
+  const grid = canvas.grid;
+  const {sceneX, sceneY, sceneWidth, sceneHeight} = canvas.dimensions;
+  const center = tokenCenter(origin);
+  const w = prototype.width * grid.size;
+  const h = prototype.height * grid.size;
+  const radius = Math.min(24, Math.ceil(5 / grid.distance) + Math.ceil(Math.max(origin.width, origin.height, prototype.width, prototype.height)));
+  const candidates = [];
+  for (let y = -radius; y <= radius; y++) {
+    for (let x = -radius; x <= radius; x++) {
+      const position = grid.getSnappedPoint({x: center.x - w / 2 + x * grid.size, y: center.y - h / 2 + y * grid.size},
+        {mode: CONST.GRID_SNAPPING_MODES.TOP_LEFT_CORNER});
+      if (position.x < sceneX || position.y < sceneY ||
+          position.x + w > sceneX + sceneWidth || position.y + h > sceneY + sceneHeight) continue;
+      const distance = grid.measurePath([center, tokenCenter({...position, width: prototype.width, height: prototype.height})]).distance;
+      if (distance > 5 || scene.tokens.some(token => position.x < token.x + token.width * grid.size &&
+          position.x + w > token.x && position.y < token.y + token.height * grid.size &&
+          position.y + h > token.y)) continue;
+      candidates.push({...position, distance});
+    }
+  }
+  return candidates.sort((a, b) => a.distance - b.distance)[0];
+}
+
+async function changeTeamDeployment(trainer, memberId, returning) {
+  const member = game.actors.get(memberId);
+  if (trainer.type !== "trainer" || !trainer.isOwner || !member?.isOwner || !pokemon(member) ||
+      member.system.trainerId !== trainer.id || pendingTeamDeployment.has(trainer.id)) return;
+  const scene = globalThis.canvas?.scene;
+  const origin = initiativeToken(trainer, scene, new Set()).token;
+  if (!scene || !origin) return ui.notifications.warn("Place your Trainer on the scene and select their token.");
+  const tokens = teamTokens(member, scene);
+  const linked = tokens.filter(token => token.actorLink);
+  const token = linked.length === 1 ? linked[0] : linked.find(entry => entry.object?.controlled);
+  if (returning && !token) return ui.notifications.warn("Select the linked Pokémon token to return.");
+  if (!returning && tokens.length) return ui.notifications.warn("This Pokémon already has a token on this scene.");
+  if (!returning && member.system.health.value <= 0) return ui.notifications.warn("This Pokémon has fainted.");
+  if (returning && canvas.grid.measurePath([tokenCenter(origin), tokenCenter(token)]).distance > 5) {
+    return ui.notifications.warn("Your Trainer must be within 5 m of the Pokémon to return it.");
+  }
+
+  pendingTeamDeployment.add(trainer.id);
+  let spentAction;
+  let created;
+  let stageBackup;
+  try {
+    const combat = [game.combat, ...game.combats].find(entry => entry?.started && (!entry.scene || entry.scene.id === scene.id));
+    if (combat) {
+      const available = ["swift", "movement"].filter(action => !trainer.system.actions[action]);
+      if (!available.length) return ui.notifications.warn("Call or Return requires an available Swift or Movement Action.");
+      const options = available.map(action => `<option value="${action}">${titleCase(action)}</option>`).join("");
+      const action = await DialogV2.prompt({classes:["pte-dialog"],window:{title:returning ? "Return Pokémon" : "Call Pokémon"},
+        content:`<label>Spend action <select name="action">${options}</select></label><p>Confirm the Trainer has this Pokémon’s Poké Ball.</p>`,
+        ok:{label:returning ? "Return" : "Call",callback:(_event, button)=>new FormData(button.form).get("action")},rejectClose:false});
+      if (!action || !available.includes(action)) return;
+      if (trainer.system.actions[action]) return ui.notifications.warn("That action has already been spent.");
+      const actionPath = `system.actions.${action}`;
+      await trainer.update({[actionPath]:true});
+      spentAction = actionPath;
+    }
+    if (globalThis.canvas?.scene?.id !== scene.id) throw Error("The scene changed.");
+    if (!returning) {
+      if (teamTokens(member, scene).length) throw Error("This Pokémon is already on the scene.");
+      const prototype = await member.getTokenDocument({actorLink:true, elevation:origin.elevation});
+      const position = deploymentPosition(origin, prototype, scene);
+      if (!position) throw Error("No open space within 5 m of the Trainer.");
+      const data = prototype.toObject();
+      delete data._id;
+      const level = origin.toObject().level;
+      if (level !== undefined) data.level = level;
+      [created] = await scene.createEmbeddedDocuments("Token", [{...data,x:position.x,y:position.y}]);
+      if (!created) throw Error("Foundry did not create a token.");
+    }
+    const {stages, defaultStages} = member.system;
+    stageBackup = Object.fromEntries(Object.keys(stages).map(key => [`system.stages.${key}`,stages[key]]));
+    await member.update(Object.fromEntries(Object.keys(stages).map(key => [`system.stages.${key}`,defaultStages[key]])));
+    if (returning) {
+      const deleted = await scene.deleteEmbeddedDocuments("Token", [token.id]);
+      if (!deleted.length) throw Error("Foundry did not remove the token.");
+    }
+  } catch (error) {
+    const rollback = [];
+    if (created) rollback.push(created.delete());
+    if (stageBackup) rollback.push(member.update(stageBackup));
+    if (spentAction) rollback.push(trainer.update({[spentAction]:false}));
+    await Promise.allSettled(rollback);
+    ui.notifications.warn(`${returning ? "Return" : "Call"} failed. ${error.message} Check scene token permissions if needed.`);
+  } finally {
+    pendingTeamDeployment.delete(trainer.id);
+  }
+}
+
 async function putInitiativeInTracker(scene,results) {
   if (globalThis.canvas?.scene?.id !== scene?.id) return "The scene changed before initiative could be added.";
   const ready = results.filter(({token,requiresToken,member})=>
@@ -2141,6 +2266,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       learnSpeciesMove(event,target) { return learnSpeciesMove(this.document,target.dataset.known === "true"); },
       profile() { return showProfile(this.document.system.dexPage); },
       dex() { return new Dex({destination:this.document}).render({force:true}); },
+      callPartner(_event,target) { return changeTeamDeployment(this.document,target.dataset.id,false); },
+      returnPartner(_event,target) { return changeTeamDeployment(this.document,target.dataset.id,true); },
       async openPartner(event,target) { return game.actors.get(target.dataset.id)?.sheet.render({force:true}); }
     }
   };
@@ -2271,7 +2398,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return factor === 1 ? [] : [{type,label:matchupLabel(factor)}];
       }),
       trainers:game.actors.filter(a => a.type === "trainer" && a.visible).map(a => ({name:a.name,id:a.id,selected:a.id === system.trainerId})),
-      partners:teamTrainer ? game.actors.filter(a => pokemon(a) && a.visible && a.id !== actor.id && a.system.trainerId === teamTrainer.id) : [],
+      partners:teamTrainer ? game.actors.filter(a => pokemon(a) && a.visible && a.id !== actor.id && a.system.trainerId === teamTrainer.id)
+        .map(member => teamRosterEntry(member,teamTrainer,this.isEditable && !pokemon(actor))) : [],
       pokemonProgression:pokemon(actor) ? {
         trained:[system.trainedSkill1,system.trainedSkill20].filter(Boolean).map(key=>skills[Number(key.slice(1))]),
         history:system.progressionHistory.split("\n").filter(Boolean),
@@ -2560,11 +2688,57 @@ Hooks.on("preUpdateItem", (item,changes) => {
   }
 });
 
-Hooks.on("updateActor", (actor, changes) => {
-  if (actor.type !== "trainer" || !changes.system?.partnerActions) return;
-  for (const partner of game.actors.filter(candidate => linkedTrainer(candidate)?.id === actor.id)) {
+function refreshTrainerTeam(trainerId) {
+  const trainer = game.actors.get(trainerId);
+  if (trainer?.sheet?.rendered) trainer.sheet.render();
+  for (const partner of game.actors.filter(candidate => linkedTrainer(candidate)?.id === trainerId)) {
     if (partner.sheet?.rendered) partner.sheet.render();
   }
+}
+
+function updateActorDirectoryHealth(root) {
+  const element = root?.querySelectorAll ? root : root?.[0];
+  if (!element) return;
+  for (const row of element.querySelectorAll(".directory-item[data-entry-id], .directory-item[data-document-id]")) {
+    const actor = game.actors.get(row.dataset.entryId ?? row.dataset.documentId);
+    row.querySelector(".pte-directory-health")?.remove();
+    if (!actor?.isOwner || !["trainer", "pokemon"].includes(actor.type)) continue;
+    const label = row.querySelector(".entry-name, .document-name");
+    if (!label) continue;
+    const {hp,maxHp,status} = teamStatus(actor);
+    const badge = document.createElement("small");
+    badge.className = "pte-directory-health";
+    badge.textContent = `${hp}/${maxHp} HP${status === "No conditions" ? "" : ` · ${status}`}`;
+    label.append(badge);
+  }
+}
+
+Hooks.on("renderActorDirectory", (_app, root) => updateActorDirectoryHealth(root));
+Hooks.on("updateActor", (actor, changes) => {
+  if (pokemon(actor) && !actor.isToken) {
+    if (Object.hasOwn(changes.system ?? {}, "trainerId") || Object.hasOwn(changes,"system.trainerId")) {
+      for (const trainer of game.actors.filter(candidate => candidate.type === "trainer")) refreshTrainerTeam(trainer.id);
+      if (actor.sheet?.rendered) actor.sheet.render();
+    } else if (actor.system.trainerId) refreshTrainerTeam(actor.system.trainerId);
+  } else if (actor.type === "trainer" && changes.system?.partnerActions) {
+    refreshTrainerTeam(actor.id);
+  }
+  if (!actor.isToken) updateActorDirectoryHealth(ui.actors?.element);
+});
+
+function refreshTokenTeam(token) {
+  if (token.parent?.id !== globalThis.canvas?.scene?.id) return;
+  const member = game.actors.get(token.actorId);
+  const trainer = member && linkedTrainer(member);
+  if (trainer) refreshTrainerTeam(trainer.id);
+}
+Hooks.on("createToken", refreshTokenTeam);
+Hooks.on("deleteToken", refreshTokenTeam);
+Hooks.on("updateToken", (token, changes) => {
+  if ("actorLink" in changes || "actorId" in changes) refreshTokenTeam(token);
+});
+Hooks.on("canvasReady", () => {
+  for (const trainer of game.actors.filter(actor => actor.type === "trainer")) refreshTrainerTeam(trainer.id);
 });
 
 Hooks.on("deleteCombat", async combat => {

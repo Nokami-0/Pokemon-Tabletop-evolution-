@@ -3,7 +3,7 @@ name: Package Foundry update
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/foundry-update.yml]
+    paths: [.github/workflows/foundry-update.yml, tools/smoke-test.mjs]
 
 permissions:
   contents: write

@@ -64,6 +64,7 @@ export function monthCalendar(date, offset = 0) {
 }
 
 export function registerCampaignClock(systemId) {
+  const {Hooks} = foundry.helpers;
   const {ApplicationV2, HandlebarsApplicationMixin} = foundry.applications.api;
 
   class CampaignClock extends HandlebarsApplicationMixin(ApplicationV2) {

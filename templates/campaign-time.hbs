@@ -21,6 +21,7 @@
           <select name="visualWeather" aria-label="Scene weather effect">
             <option value="">No effect</option>
             <option value="follow" {{#if followWeather}}selected{{/if}}>Follow field weather</option>
+            {{#each particlePresets}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
             {{#each visualPresets}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
           </select>
           <button type="button" data-action="setVisualWeather">Apply Effect</button>

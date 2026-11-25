@@ -51,6 +51,80 @@ export function changeFieldWeather(weather, action, type) {
   return action === "add" ? [...remaining, type].slice(-2) : remaining;
 }
 
+const PARTICLES = "clockParticleWeather";
+const PARTICLE_PRESETS = {"pte-rain": "Rainy", "pte-wind": "Windy"};
+
+export function sceneParticleWeather(follow, conditions, override) {
+  return follow ? normalizeWeather(conditions).filter(type => Object.values(PARTICLE_PRESETS).includes(type))
+    : Object.hasOwn(PARTICLE_PRESETS, override) ? [PARTICLE_PRESETS[override]] : [];
+}
+
+function nativeWeatherForField(conditions, presets) {
+  return weatherPreset(conditions.filter(type => !Object.values(PARTICLE_PRESETS).includes(type)), presets);
+}
+
+function registerWeatherParticles(systemId, Hooks) {
+  let overlay;
+  let sizeObserver;
+  let displayedScene;
+  let displayedEffects;
+
+  function remove() {
+    sizeObserver?.disconnect();
+    overlay?.remove();
+    overlay = undefined;
+    displayedScene = undefined;
+    displayedEffects = undefined;
+  }
+
+  function sync() {
+    const scene = globalThis.canvas?.scene;
+    const board = globalThis.document?.getElementById("board");
+    if (!scene || !board) return remove();
+    const types = sceneParticleWeather(scene.getFlag(systemId, FOLLOW_WEATHER),
+      scene.getFlag(systemId, WEATHER_FLAG), scene.getFlag(systemId, PARTICLES));
+    const key = types.join(",");
+    if (displayedScene === scene.id && displayedEffects === key && overlay?.isConnected) return;
+    remove();
+    if (!types.length) return;
+    displayedScene = scene.id;
+    displayedEffects = key;
+    const layer = document.createElement("div");
+    overlay = layer;
+    overlay.className = "pte-weather-overlay";
+    overlay.setAttribute("aria-hidden", "true");
+    for (const type of types) {
+      const rain = type === "Rainy";
+      const count = rain ? 84 : 28;
+      for (let index = 0; index < count; index++) {
+        const particle = document.createElement("span");
+        particle.className = rain ? "pte-rain-drop" : "pte-wind-gust";
+        const spread = (index * 37 % count) / count;
+        particle.style.setProperty("--pte-place", `${spread * 100}%`);
+        particle.style.setProperty("--pte-span", `${(rain ? 20 : 80) + (index * 13 % (rain ? 28 : 120))}px`);
+        particle.style.setProperty("--pte-delay", `-${(index * 17 % count) / count * (rain ? 1.2 : 4)}s`);
+        particle.style.setProperty("--pte-duration", `${(rain ? .72 : 2.2) + spread * (rain ? .5 : 2.2)}s`);
+        overlay.append(particle);
+      }
+    }
+    const resize = () => {
+      const rect = board.getBoundingClientRect();
+      Object.assign(layer.style, {left: `${rect.left}px`, top: `${rect.top}px`,
+        width: `${rect.width}px`, height: `${rect.height}px`});
+    };
+    resize();
+    document.body.append(overlay);
+    sizeObserver = new ResizeObserver(resize);
+    sizeObserver.observe(board);
+  }
+
+  Hooks.on("canvasReady", sync);
+  Hooks.on("canvasTearDown", remove);
+  Hooks.on("updateScene", scene => {
+    if (scene.id === globalThis.canvas?.scene?.id) sync();
+  });
+}
+
 function viewedScene() {
   return globalThis.canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active;
 }
@@ -93,6 +167,7 @@ export function monthCalendar(date, offset = 0) {
 
 export function registerCampaignClock(systemId) {
   const {Hooks} = foundry.helpers;
+  registerWeatherParticles(systemId, Hooks);
   const {ApplicationV2, HandlebarsApplicationMixin} = foundry.applications.api;
 
   let lastTick;
@@ -202,11 +277,14 @@ export function registerCampaignClock(systemId) {
           if (!scene) return;
           const value = this.element.querySelector('[name="visualWeather"]').value;
           const presets = CONFIG.weatherEffects ?? {};
-          if (value !== "follow" && value && !Object.hasOwn(presets, value)) return;
+          const builtIn = Object.hasOwn(PARTICLE_PRESETS, value);
+          if (value !== "follow" && value && !builtIn && !Object.hasOwn(presets, value)) return;
           const follow = value === "follow";
           await scene.update({
             [`flags.${systemId}.${FOLLOW_WEATHER}`]: follow,
-            weather: follow ? weatherPreset(normalizeWeather(scene.getFlag(systemId, WEATHER_FLAG)), presets) : value
+            [`flags.${systemId}.${PARTICLES}`]: builtIn ? value : "",
+            weather: follow ? nativeWeatherForField(normalizeWeather(scene.getFlag(systemId, WEATHER_FLAG)), presets)
+              : builtIn ? "" : value
           });
         },
         nextPhase() { return this.moveTime(secondsToNextPhase(game.time.worldTime)); },
@@ -250,6 +328,10 @@ export function registerCampaignClock(systemId) {
         timerRunning: timer().running,
         rates: RATES.map(rate => ({rate, selected: rate === timer().rate})),
         followWeather: Boolean(scene?.getFlag(systemId, FOLLOW_WEATHER)),
+        particlePresets: Object.entries(PARTICLE_PRESETS).map(([key, type]) => ({
+          key, name: type === "Rainy" ? "PTE Falling Rain" : "PTE Wind Gusts",
+          selected: !scene?.getFlag(systemId, FOLLOW_WEATHER) && scene?.getFlag(systemId, PARTICLES) === key
+        })),
         visualPresets: Object.entries(CONFIG.weatherEffects ?? {}).map(([key, config]) => ({
           key, name: game.i18n.localize(config.label ?? key),
           selected: !scene?.getFlag(systemId, FOLLOW_WEATHER) && scene?.weather === key
@@ -275,7 +357,7 @@ export function registerCampaignClock(systemId) {
         const follow = scene.getFlag(systemId, FOLLOW_WEATHER);
         await scene.update({
           [`flags.${systemId}.${WEATHER_FLAG}`]: weather,
-          ...(follow ? {weather: weatherPreset(weather, CONFIG.weatherEffects ?? {})} : {})
+          ...(follow ? {weather: nativeWeatherForField(weather, CONFIG.weatherEffects ?? {})} : {})
         });
       } catch (error) {
         console.error("PTE campaign clock could not update weather", error);

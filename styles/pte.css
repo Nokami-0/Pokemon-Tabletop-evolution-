@@ -248,3 +248,30 @@
 .pte-campaign-time-window .pte-clock-weather {padding:8px; border:1px solid var(--pte-line,#cbd9e6); border-radius:4px}
 .pte-campaign-time-window .pte-clock-weather-list {display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-block:5px}
 .pte-campaign-time-window .pte-clock-weather-list button {min-height:1.4rem; line-height:1}
+
+/* Campaign weather is clipped to the board and never intercepts map input. */
+.pte-weather-overlay {position:fixed; z-index:1; overflow:hidden; pointer-events:none; container-type:size}
+.pte-weather-overlay span {position:absolute; display:block; pointer-events:none}
+.pte-rain-drop {
+  left:calc(var(--pte-place) * 1.22 + 4%); top:-50px; width:1.5px; height:var(--pte-span);
+  background:linear-gradient(transparent,rgba(190,226,255,.8));
+  animation:pte-rain-fall var(--pte-duration) linear var(--pte-delay) infinite;
+}
+.pte-wind-gust {
+  left:0; top:var(--pte-place); width:var(--pte-span); height:2px;
+  background:linear-gradient(90deg,transparent,rgba(228,245,255,.74),transparent);
+  box-shadow:15px 5px 8px -1px rgba(213,236,255,.45);
+  animation:pte-wind-blow var(--pte-duration) linear var(--pte-delay) infinite;
+}
+@keyframes pte-rain-fall {
+  from {transform:translate(-4cqw,0) rotate(13deg)}
+  to {transform:translate(-22cqw,calc(100cqh + 55px)) rotate(13deg)}
+}
+@keyframes pte-wind-blow {
+  from {transform:translateX(-210px); opacity:.12}
+  30%,70% {opacity:.8}
+  to {transform:translate(105cqw,-24px); opacity:.12}
+}
+@media (prefers-reduced-motion: reduce) {
+  .pte-rain-drop,.pte-wind-gust {animation-play-state:paused; opacity:.45}
+}

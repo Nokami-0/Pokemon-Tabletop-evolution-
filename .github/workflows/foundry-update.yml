@@ -22,13 +22,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.109
+          version=0.1.110
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.108 --pattern pokemon-tabletop-evolution-0.1.108.zip --output "$package"
+          gh release download v0.1.109 --pattern pokemon-tabletop-evolution-0.1.109.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.109";
+          manifest.version = "0.1.110";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
@@ -41,7 +41,7 @@ jobs:
           staging=$(mktemp -d -p "$PWD")
           unzip -q "$package" -d "$staging"
           node "$staging/tools/smoke-test.mjs"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds a running campaign clock, scene weather effects, and opt-in day/night scene lighting."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Adds built-in falling rain and wind gusts to the campaign clock."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add system.json

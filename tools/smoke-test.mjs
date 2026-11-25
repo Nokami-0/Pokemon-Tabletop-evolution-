@@ -8,7 +8,7 @@ import {effectiveness,skills} from "../scripts/rules.mjs";
 import {itemKeywords,itemSlotUsage} from "../data/item-slots.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
 
-import {campaignTimeForDate,darknessAt,weatherPreset} from "../scripts/campaign-time.mjs";
+import {campaignTimeForDate,darknessAt,weatherPreset,sceneParticleWeather} from "../scripts/campaign-time.mjs";
 
 assert.equal(darknessAt(campaignTimeForDate("2000-01-01T12:00")),0);
 assert.equal(darknessAt(campaignTimeForDate("2000-01-01T00:00")),.9);
@@ -17,6 +17,9 @@ assert.equal(weatherPreset(["Sunny","Rainy"],{rain:"Rain",snow:"Snow"}),"rain");
 assert.equal(weatherPreset(["Snowy","Sandstorm"],{snow:"Snow"}),"snow");
 assert.equal(weatherPreset([], {rain:"Rain"}),"");
 
+assert.deepEqual(sceneParticleWeather(true, ["Windy","Rainy"], ""), ["Windy","Rainy"]);
+assert.deepEqual(sceneParticleWeather(false, ["Windy"], "pte-rain"), ["Rainy"]);
+assert.deepEqual(sceneParticleWeather(false, ["Rainy"], ""), []);
 const root = new URL("../",import.meta.url);
 const read = path => readFile(new URL(path,root),"utf8");
 const manifest = JSON.parse(await read("system.json"));

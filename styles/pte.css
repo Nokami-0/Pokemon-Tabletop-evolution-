@@ -275,3 +275,12 @@
 @media (prefers-reduced-motion: reduce) {
   .pte-rain-drop,.pte-wind-gust {animation-play-state:paused; opacity:.45}
 }
+
+.pte-sunny-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(255, 234, 169, .3), transparent 46%),
+    linear-gradient(127deg, transparent 39%, rgba(255, 222, 144, .13) 48%, transparent 60%);
+}

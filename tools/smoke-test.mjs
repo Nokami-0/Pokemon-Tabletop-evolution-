@@ -29,12 +29,16 @@ globalThis.foundry = {
   documents:{Actor:class {},Item:class {},ChatMessage:class {}},
   dice:{Roll:class {}},helpers:{Hooks:{on:registerHook,once:registerHook}}
 };
-globalThis.CONFIG = {Actor:{dataModels:{}},Item:{dataModels:{}}};
+globalThis.CONFIG = {ui:{combat:class {}},Actor:{dataModels:{}},Item:{dataModels:{}}};
 const actors = [];
 globalThis.game = {actors,settings:{register() {}}};
 actors.get = id=>actors.find(actor=>actor.id === id);
 await import("../scripts/pte.mjs");
 hooks.get("init")();
+const controls = {tokens:{tools:{}}};
+hooks.get("getSceneControlButtons")(controls);
+assert.equal(typeof controls.tokens.tools["pte-campaign-time"].onChange,"function");
+await access(new URL("templates/campaign-time.hbs",root));
 
 function defaults(fields) {
   return Object.fromEntries(Object.entries(fields).map(([key,field])=>

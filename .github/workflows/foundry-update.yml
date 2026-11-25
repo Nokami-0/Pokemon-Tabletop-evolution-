@@ -35,6 +35,7 @@ jobs:
           zip -qr "$package" system.json scripts templates styles data packs tools README.md
           unzip -p "$package" scripts/pte.mjs | grep "getSceneControlButtons" >/dev/null
           unzip -p "$package" templates/campaign-time.hbs >/dev/null
+          node --check scripts/campaign-time.mjs
           unzip -tq "$package"
           npm install --no-save --no-package-lock classic-level@3.0.0 handlebars@4.7.8
           staging=$(mktemp -d -p "$PWD")

@@ -32,7 +32,7 @@ jobs:
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
-          zip -qr "$package" system.json scripts templates styles data packs tools README.md
+          zip -q "$package" system.json scripts/pte.mjs scripts/two-side-combat-tracker.mjs scripts/campaign-time.mjs templates/combat/two-side-tracker.hbs templates/campaign-time.hbs templates/actor.hbs styles/pte.css tools/smoke-test.mjs README.md
           unzip -p "$package" scripts/pte.mjs | grep "getSceneControlButtons" >/dev/null
           unzip -p "$package" templates/campaign-time.hbs >/dev/null
           node --check scripts/campaign-time.mjs

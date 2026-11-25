@@ -18,6 +18,15 @@
       </div>
       {{#if isGM}}
         <div class="pte-clock-controls">
+          <select name="visualWeather" aria-label="Scene weather effect">
+            <option value="">No effect</option>
+            <option value="follow" {{#if followWeather}}selected{{/if}}>Follow field weather</option>
+            {{#each visualPresets}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+          </select>
+          <button type="button" data-action="setVisualWeather">Apply Effect</button>
+          <button type="button" data-action="toggleLighting" aria-pressed="{{lighting}}">Day/Night Lighting {{#if lighting}}On{{else}}Off{{/if}}</button>
+        </div>
+        <div class="pte-clock-controls">
           <select name="weatherType" aria-label="Weather to add">
             {{#each weatherTypes}}<option value="{{this}}">{{this}}</option>{{/each}}
           </select>
@@ -38,6 +47,16 @@
   <div class="pte-clock-grid">
     <strong>Sun</strong><strong>Mon</strong><strong>Tue</strong><strong>Wed</strong><strong>Thu</strong><strong>Fri</strong><strong>Sat</strong>
     {{#each calendar.cells}}<span {{#if current}}aria-current="date"{{/if}}>{{day}}</span>{{/each}}
+  </div>
+  <div class="pte-clock-controls" aria-label="Campaign timer">
+    <strong>Timer {{#if timerRunning}}Running{{else}}Paused{{/if}}</strong>
+    {{#if isGM}}
+      <button type="button" data-action="toggleTimer">{{#if timerRunning}}Pause{{else}}Start{{/if}}</button>
+      <select name="clockRate" aria-label="Timer speed">
+        {{#each rates}}<option value="{{rate}}" {{#if selected}}selected{{/if}}>{{rate}}×</option>{{/each}}
+      </select>
+      <button type="button" data-action="setRate">Set Speed</button>
+    {{/if}}
   </div>
   {{#if isGM}}
     <div class="pte-clock-controls">

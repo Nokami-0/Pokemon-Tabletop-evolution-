@@ -8,6 +8,15 @@ import {effectiveness,skills} from "../scripts/rules.mjs";
 import {itemKeywords,itemSlotUsage} from "../data/item-slots.mjs";
 import {speciesArtworkFiles} from "../data/token-art.mjs";
 
+import {campaignTimeForDate,darknessAt,weatherPreset} from "../scripts/campaign-time.mjs";
+
+assert.equal(darknessAt(campaignTimeForDate("2000-01-01T12:00")),0);
+assert.equal(darknessAt(campaignTimeForDate("2000-01-01T00:00")),.9);
+assert.ok(darknessAt(campaignTimeForDate("2000-01-01T18:00")) > .08);
+assert.equal(weatherPreset(["Sunny","Rainy"],{rain:"Rain",snow:"Snow"}),"rain");
+assert.equal(weatherPreset(["Snowy","Sandstorm"],{snow:"Snow"}),"snow");
+assert.equal(weatherPreset([], {rain:"Rain"}),"");
+
 const root = new URL("../",import.meta.url);
 const read = path => readFile(new URL(path,root),"utf8");
 const manifest = JSON.parse(await read("system.json"));

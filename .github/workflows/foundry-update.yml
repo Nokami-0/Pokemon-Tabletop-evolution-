@@ -22,13 +22,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version=0.1.113
+          version=0.1.114
           package=pokemon-tabletop-evolution-$version.zip
-          gh release download v0.1.112 --pattern pokemon-tabletop-evolution-0.1.112.zip --output "$package"
+          gh release download v0.1.113 --pattern pokemon-tabletop-evolution-0.1.113.zip --output "$package"
           node --input-type=module <<'JS'
           import fs from "node:fs";
           const manifest = JSON.parse(fs.readFileSync("system.json","utf8"));
-          manifest.version = "0.1.113";
+          manifest.version = "0.1.114";
           manifest.download = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${manifest.version}/pokemon-tabletop-evolution-${manifest.version}.zip`;
           fs.writeFileSync("system.json",JSON.stringify(manifest,null,2)+"\n");
           JS
@@ -41,4 +41,4 @@ jobs:
           staging=$(mktemp -d -p "$PWD")
           unzip -q "$package" -d "$staging"
           node "$staging/tools/smoke-test.mjs"
-          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Moves tutor attack lists and rewards to the Pokémon Moves tab."
+          gh release create "v$version" "$package" system.json --target "$GITHUB_SHA" --title "Pokémon Tabletop Evolution v$version" --notes "Combines Battle Moves and Known Moves in the Moves tab."

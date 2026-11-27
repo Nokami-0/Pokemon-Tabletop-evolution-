@@ -522,7 +522,7 @@ async function spendMove(actor,item,pool,cost = moveActionCost(item.system.actio
 
 async function useMove(actor, item, pool = null) {
   if (item?.type !== "move") return;
-  if (item.system.knownOnly) return ui.notifications.warn("Move this attack to the Moves list first.");
+  if (item.system.knownOnly) return ui.notifications.warn("Move this attack to Battle Moves first.");
   if (actor.system.health.value <= 0) return ui.notifications.warn("This combatant has fainted.");
   const move = item.system;
   if (move.weaponId) {
@@ -2425,7 +2425,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })) : [],
       rankOneUnlocked:system.level >= 10,
       pools,battleSlots:pokemon(actor) ? battleSlotsUsed(actor) : null,trainerCap:trainer ? pokemonLevelCap(trainer.system.level) : null,
-      panels:[["profile","Profile"],["status","Afflictions & Conditions"],["moves","Moves"],["known","Known Moves"],["bag","Bag"],["team","Team"],["skills","Skills"]]
+      panels:[["profile","Profile"],["status","Afflictions & Conditions"],["moves","Moves"],["bag","Bag"],["team","Team"],["skills","Skills"]]
         .map(([key,label])=>({key,label,active:key === this.activePanel})),
       statusActive:this.activePanel === "status",
       profileActive:this.activePanel === "profile",bagActive:this.activePanel === "bag",
@@ -2435,8 +2435,8 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         .map(([key,label])=>({key,label,value:system.trainerIdentity?.[key]})),
       trainerSizeOptions,trainerSizeSelected:trainerSizeOptions.some(option=>option.selected),
       trainerCardGroups,profileGroups,bagGroups:groups.filter(group=>group.type === "gear"),
-      movesActive:this.activePanel === "moves",knownActive:this.activePanel === "known",
-      moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,items:group.items.filter(item=>!item.knownOnly)})),
+      movesActive:this.activePanel === "moves",
+      moveGroups:groups.filter(group=>group.type === "move").map(group=>({...group,label:"Battle Moves",items:group.items.filter(item=>!item.knownOnly)})),
       knownGroups:groups.filter(group=>group.type === "move").map(group=>({...group,label:"Known Moves",known:true,
         items:group.items.filter(item=>item.knownOnly)}))
     };

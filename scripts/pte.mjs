@@ -2409,7 +2409,7 @@ class PTESheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           ["tutor40",40,"Learn Tier 2 or 3 Tutor Attack"],["tutor50",50,"Learn Tier 2 or 3 Tutor Attack"],
           ["stats50",50,"Apply +5 to Two Stats (Base Total ≤ 45)"]]
           .filter(([key,level])=>system.level >= level && !(key.startsWith("trained") ? system[key] : system.progressionClaims[key]))
-          .map(([key,level,label])=>({key,level,label}))
+          .map(([key,level,label])=>({key,level,label,tutor:key.startsWith("tutor")}))
       } : null,
       trainerProgression:!pokemon(actor) ? {
         meritGoal:system.meritGoal || trainerMeritGoal(system.level),

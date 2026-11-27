@@ -219,7 +219,7 @@
       <p>At level 1, select a Pokédex species, choose an Ability and a Primary Role, and learn its starting attacks. At level 10, your Primary Role’s Rank 1 effect unlocks. At level 30, choose a second Role or Ability from the Profile.</p>
       <p>Review the Species Profile for evolution requirements. At levels 25, 50, 75, and 100, ask the GM about an optional custom upgrade.</p>
       {{#if editable}}<div class="pte-buttons">
-        {{#each pokemonProgression.rewards}}<button type="button" data-action="pokemonReward" data-reward="{{key}}">Lv {{level}} · {{label}}</button>{{/each}}
+        {{#each pokemonProgression.rewards}}{{#unless tutor}}<button type="button" data-action="pokemonReward" data-reward="{{key}}">Lv {{level}} · {{label}}</button>{{/unless}}{{/each}}
       </div>{{/if}}
       <small>PTE Rule Book, pp. 189–191</small>
     </details>
@@ -237,9 +237,6 @@
       </details>{{/if}}
       {{#if speciesProfile.levelUp}}<details><summary>Level-up attacks</summary>
         <ul>{{#each speciesProfile.levelUp}}<li>{{this}}</li>{{/each}}</ul>
-      </details>{{/if}}
-      {{#if speciesProfile.tutor}}<details><summary>Tutor attacks</summary>
-        <ul>{{#each speciesProfile.tutor}}<li>{{this}}</li>{{/each}}</ul>
       </details>{{/if}}
       <small>PTE Pokédex, p. {{speciesProfile.page}}</small>
     {{else}}
@@ -393,6 +390,12 @@
     {{#if editable}}{{#if pokemon}}{{#if system.dexPage}}<div class="pte-buttons">
       <button type="button" data-action="learnSpeciesMove">Learn Species Move</button>
     </div>{{/if}}{{/if}}{{/if}}
+    {{#if speciesProfile.tutor}}<details><summary>Tutored Moves</summary>
+        <ul>{{#each speciesProfile.tutor}}<li>{{this}}</li>{{/each}}</ul>
+      </details>{{/if}}
+    {{#if editable}}{{#if pokemon}}<div class="pte-buttons">
+      {{#each pokemonProgression.rewards}}{{#if tutor}}<button type="button" data-action="pokemonReward" data-reward="{{key}}">Lv {{level}} · {{label}}</button>{{/if}}{{/each}}
+    </div>{{/if}}{{/if}}
     {{> itemGroups moveGroups}}
   </div>
   <div class="pte-sheet-panel" data-sheet-panel="known" {{#unless knownActive}}hidden{{/unless}}>
